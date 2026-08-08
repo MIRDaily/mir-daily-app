@@ -4,6 +4,9 @@
 <dict>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<!-- Sin este texto, iOS cierra la app al abrir la camara del escaner de QR -->
+	<key>NSCameraUsageDescription</key>
+	<string>Para escanear el codigo QR de una sala de Versus y entrar sin teclear el codigo.</string>
 	<key>CFBundleDisplayName</key>
 	<string>Mirdaily App</string>
 	<key>CFBundleExecutable</key>

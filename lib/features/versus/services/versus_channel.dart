@@ -49,6 +49,8 @@ class VersusChannel {
     'rematch',
     'rematch_ready',
     'room_closed',
+    // Lo emite la propia app, no el servidor (ver `send`).
+    'app_lobby_config',
   ];
 
   void connect() {
@@ -79,6 +81,26 @@ class VersusChannel {
       if (_disposed) return;
       onConnectionChange(status == RealtimeSubscribeStatus.subscribed);
     });
+  }
+
+  /// Emite un evento por el canal desde la propia app.
+  ///
+  /// Se usa SOLO para lo que es decorativo y efímero — hoy, enseñar al resto
+  /// del lobby lo que el anfitrión va marcando mientras configura. Nada de lo
+  /// que viaje por aquí puede decidir nada: lo dice un cliente, no el servidor,
+  /// y cualquiera con el PIN podría falsearlo. La configuración de verdad va en
+  /// `POST /start`, que la valida el backend.
+  ///
+  /// El prefijo `app_` distingue estos eventos de los del servidor, para que
+  /// nadie los confunda al leer el canal desde la web.
+  Future<void> send(String event, Map<String, dynamic> payload) async {
+    final channel = _channel;
+    if (_disposed || channel == null) return;
+    try {
+      await channel.sendBroadcastMessage(event: event, payload: payload);
+    } catch (_) {
+      // Que no llegue el borrador no rompe nada: es un adorno del lobby.
+    }
   }
 
   /// Comprobado contra el Supabase de producción: `realtime_client` entrega el

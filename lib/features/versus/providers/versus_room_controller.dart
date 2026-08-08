@@ -157,6 +157,7 @@ class VersusRoomController extends ChangeNotifier with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     _nudgeTimer?.cancel();
     _heartbeat?.cancel();
+    _draftDebounce?.cancel();
     for (final timer in _noticeTimers) {
       timer.cancel();
     }
@@ -268,7 +269,18 @@ class VersusRoomController extends ChangeNotifier with WidgetsBindingObserver {
       return;
     }
 
+    // Lo que el anfitrión va marcando en el panel. Decorativo: lo emite su app,
+    // no el servidor. El anfitrión ignora el suyo propio.
+    if (event == 'app_lobby_config') {
+      if (!_isHost) {
+        _draft = VersusLobbyDraft.fromJson(payload);
+        notifyListeners();
+      }
+      return;
+    }
+
     if (event == 'players') {
+      final before = _players.length;
       final list = payload['players'];
       if (list is List) {
         _applyPlayers(list
@@ -279,6 +291,10 @@ class VersusRoomController extends ChangeNotifier with WidgetsBindingObserver {
       final status = payload['status'];
       if (status is String) _room = _room?.copyWith(status: status);
       notifyListeners();
+
+      // Quien acaba de entrar se perdió los borradores anteriores, así que el
+      // anfitrión reenvía el suyo al ver gente nueva.
+      if (_isHost && _players.length > before) _sendDraft();
       return;
     }
 
@@ -322,8 +338,9 @@ class VersusRoomController extends ChangeNotifier with WidgetsBindingObserver {
       final phase = _phase;
       final idx = (payload['idx'] as num?)?.toInt();
       if (phase is VersusRevealPhase && idx == phase.idx) {
+        final votes = payload['votes'];
         _phase = phase.copyWithContinue(
-          votes: (payload['votes'] as num?)?.toInt(),
+          votes: votes is List ? votes.map((e) => e.toString()).toList() : null,
           total: (payload['total'] as num?)?.toInt(),
         );
         notifyListeners();
@@ -496,18 +513,57 @@ class VersusRoomController extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   // ==========================
+  // Borrador del lobby
+  // ==========================
+
+  VersusLobbyDraft? _draft;
+
+  /// Lo que el anfitrión lleva marcado. Solo lo miran los que NO son anfitrión.
+  VersusLobbyDraft? get lobbyDraft => _draft;
+
+  Timer? _draftDebounce;
+  VersusLobbyDraft? _lastSentDraft;
+
+  /// El anfitrión anuncia lo que va marcando. Se agrupa con un respiro corto
+  /// porque marcar asignaturas dispara un cambio por toque, y no hay que
+  /// mandar uno por cada uno.
+  void publishDraft(VersusLobbyDraft draft) {
+    if (!_isHost || _disposed) return;
+    _lastSentDraft = draft;
+    _draftDebounce?.cancel();
+    _draftDebounce = Timer(const Duration(milliseconds: 350), _sendDraft);
+  }
+
+  void _sendDraft() {
+    final draft = _lastSentDraft;
+    if (draft == null || _disposed) return;
+    unawaited(_channel?.send('app_lobby_config', draft.toJson()) ?? Future.value());
+  }
+
+  // ==========================
   // Continuar (saltar el revelado)
   // ==========================
 
-  /// Rondas en las que ESTE jugador ya ha pedido continuar. El servidor solo
-  /// devuelve el recuento, no quién ha votado, así que hay que recordarlo aquí
-  /// para no ofrecer un botón que ya no hace nada.
+  /// Rondas en las que ESTE jugador acaba de pulsar. Sirve solo para que el
+  /// botón responda al instante, sin esperar a la respuesta; la verdad la tiene
+  /// el servidor, que manda los ids de quien ha votado.
   final Set<int> _continueVoted = {};
   bool _votingContinue = false;
 
   bool get votingContinue => _votingContinue;
 
-  bool votedContinue(int idx) => _continueVoted.contains(idx);
+  /// Con la lista del servidor por delante: así sobrevive a una reconexión y no
+  /// depende de que la petición saliera bien.
+  bool votedContinue(int idx) {
+    final phase = _phase;
+    if (phase is VersusRevealPhase &&
+        phase.idx == idx &&
+        _playerId != null &&
+        phase.continueVoters.contains(_playerId)) {
+      return true;
+    }
+    return _continueVoted.contains(idx);
+  }
 
   /// Los eliminados miran: pueden esperar, pero no meter prisa a quien juega
   /// (el servidor les responde 409).

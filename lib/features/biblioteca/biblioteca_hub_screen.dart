@@ -7,6 +7,7 @@ import '../decks/decks_screen.dart';
 import '../electros/electros_hub_screen.dart';
 import '../library/library_screen.dart';
 import '../simulacro/simulacro_screen.dart';
+import 'widgets/studio_card_art.dart';
 
 /// Hub de Biblioteca: punto de entrada a las tres herramientas de estudio
 /// — Mazos (repetición espaciada), Simulacros (exámenes a medida) y Apuntes
@@ -54,6 +55,7 @@ class BibliotecaHubScreen extends StatelessWidget {
                 title: 'Mazos',
                 subtitle: 'Flashcards con repetición espaciada para fijar lo que fallas.',
                 icon: Icons.style_rounded,
+                art: const DeckCardArt(),
                 gradient: const [Color(0xFFE8A598), Color(0xFFD68C7F)],
                 tag: 'DOMINIO · TEXTURAS',
                 onTap: () => _open(context, const DecksScreen()),
@@ -67,6 +69,7 @@ class BibliotecaHubScreen extends StatelessWidget {
                 title: 'Simulacros',
                 subtitle: 'Crea exámenes a medida por asignatura y tema, con corrección.',
                 icon: Icons.quiz_rounded,
+                art: const ExamSheetArt(),
                 gradient: const [Color(0xFF6E8E6B), Color(0xFF8BA888)],
                 tag: 'EXÁMENES',
                 onTap: () => _open(context, const SimulacroScreen()),
@@ -113,6 +116,10 @@ class _HubCard extends StatelessWidget {
   final String tag;
   final VoidCallback onTap;
 
+  /// Ilustración animada que sustituye al icono, cuando la hay. Las de Mazos y
+  /// Simulacros vienen de la web; el resto sigue con su icono.
+  final Widget? art;
+
   const _HubCard({
     required this.title,
     required this.subtitle,
@@ -120,6 +127,7 @@ class _HubCard extends StatelessWidget {
     required this.gradient,
     required this.tag,
     required this.onTap,
+    this.art,
   });
 
   @override
@@ -143,27 +151,32 @@ class _HubCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Container(
-              width: 58,
-              height: 58,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: gradient,
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(18),
-                boxShadow: [
-                  BoxShadow(
-                    color: gradient.first.withValues(alpha: 0.4),
-                    blurRadius: 12,
-                    offset: const Offset(0, 6),
+            // Con ilustración se deja respirar sobre el fondo de la tarjeta: la
+            // pastilla de degradado la aplastaría y taparía el dibujo.
+            if (art != null)
+              SizedBox(width: 58, height: 58, child: art)
+            else
+              Container(
+                width: 58,
+                height: 58,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: gradient,
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
-                ],
+                  borderRadius: BorderRadius.circular(18),
+                  boxShadow: [
+                    BoxShadow(
+                      color: gradient.first.withValues(alpha: 0.4),
+                      blurRadius: 12,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: Icon(icon, color: Colors.white, size: 28),
               ),
-              child: Icon(icon, color: Colors.white, size: 28),
-            ),
             const SizedBox(width: 16),
             Expanded(
               child: Column(

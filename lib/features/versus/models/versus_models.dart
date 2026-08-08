@@ -424,9 +424,18 @@ class VersusRevealPhase extends VersusPhase {
   /// rápidos no se coman la cinemática de caída de Guardia.
   final int skipFrom;
 
-  /// Cuántos han pedido ya continuar, y cuántos hacen falta para la mayoría.
-  final int continueVotes;
+  /// QUIÉNES han pedido ya continuar. El servidor manda los ids de jugador, no
+  /// un contador — leerlo como número dejaba el recuento siempre a cero.
+  /// Además así se sabe si uno mismo ya votó sin fiarse de un estado local.
+  final List<String> continueVoters;
+
+  /// Cuántos siguen jugando: el denominador de la mayoría.
   final int continueTotal;
+
+  int get continueVotes => continueVoters.length;
+
+  /// Votos que hacen falta para que la ronda pase.
+  int get continueNeeded => (continueTotal / 2).floor() + 1;
 
   const VersusRevealPhase({
     required super.serverNow,
@@ -440,7 +449,7 @@ class VersusRevealPhase extends VersusPhase {
     this.wounded = const [],
     this.content,
     this.skipFrom = 0,
-    this.continueVotes = 0,
+    this.continueVoters = const [],
     this.continueTotal = 0,
   });
 
@@ -463,11 +472,11 @@ class VersusRevealPhase extends VersusPhase {
         wounded: _ids(j['wounded']),
         content: VersusRoundContent.fromJson(j),
         skipFrom: _int(j['skipFrom']),
-        continueVotes: _int(j['continueVotes']),
+        continueVoters: _ids(j['continueVotes']),
         continueTotal: _int(j['continueTotal']),
       );
 
-  VersusRevealPhase copyWithContinue({int? votes, int? total}) =>
+  VersusRevealPhase copyWithContinue({List<String>? votes, int? total}) =>
       VersusRevealPhase(
         serverNow: serverNow,
         idx: idx,
@@ -480,7 +489,7 @@ class VersusRevealPhase extends VersusPhase {
         wounded: wounded,
         content: content,
         skipFrom: skipFrom,
-        continueVotes: votes ?? continueVotes,
+        continueVoters: votes ?? continueVoters,
         continueTotal: total ?? continueTotal,
       );
 }
@@ -596,6 +605,47 @@ class VersusNotice {
         kind: kind,
         avatarId: avatarId,
         leaving: leaving ?? this.leaving,
+      );
+}
+
+/// Lo que el anfitrión lleva marcado en el panel de configuración, para que el
+/// resto del lobby no espere a ciegas.
+///
+/// Es DECORATIVO: lo emite la app del anfitrión por el canal, no el servidor.
+/// La configuración que cuenta es la que viaja en `POST /start` y valida el
+/// backend; esto solo evita la pantalla de "esperando" sin más información.
+class VersusLobbyDraft {
+  /// null mientras el anfitrión no haya elegido modo.
+  final String? mode;
+
+  final int lives;
+  final int count;
+
+  /// Nombres de las asignaturas marcadas, ya resueltos por el anfitrión: el
+  /// resto no tiene por qué haber cargado el catálogo.
+  final List<String> subjects;
+
+  const VersusLobbyDraft({
+    required this.mode,
+    required this.lives,
+    required this.count,
+    required this.subjects,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'mode': mode,
+        'lives': lives,
+        'count': count,
+        'subjects': subjects,
+      };
+
+  factory VersusLobbyDraft.fromJson(Map<String, dynamic> j) => VersusLobbyDraft(
+        mode: j['mode'] as String?,
+        lives: _int(j['lives'], 1),
+        count: _int(j['count'], 10),
+        subjects: ((j['subjects'] ?? const []) as List)
+            .map((e) => e.toString())
+            .toList(),
       );
 }
 

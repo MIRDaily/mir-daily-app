@@ -156,10 +156,13 @@ class VersusApi {
   /// para que dé tiempo a leer la explicación, y se corta antes por MAYORÍA de
   /// los que siguen jugando: nadie decide solo, y los eliminados no meten prisa
   /// (el servidor les responde 409).
-  Future<({int votes, int total})> voteContinue(String pin) async {
+  /// `votes` son los IDS de quienes han votado, no un contador.
+  Future<({List<String> votes, int total})> voteContinue(String pin) async {
     final json = await _request('POST', '/rooms/${_normalize(pin)}/continue');
     return (
-      votes: (json['votes'] as num?)?.toInt() ?? 0,
+      votes: ((json['votes'] ?? const []) as List)
+          .map((e) => e.toString())
+          .toList(),
       total: (json['total'] as num?)?.toInt() ?? 0,
     );
   }

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -39,8 +41,8 @@ class VersusScoreChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Con una sola ronda no hay evolución que enseñar, solo un punto.
-    final usable = series.where((s) => s.points.length > 1).toList();
+    // Con el cero de salida por delante, incluso una sola ronda dibuja un tramo.
+    final usable = series.where((s) => s.points.isNotEmpty).toList();
     if (usable.length < 2) return const SizedBox.shrink();
 
     String nameOf(String playerId) {
@@ -146,7 +148,11 @@ class _ScoreChartPainter extends CustomPainter {
     final h = size.height - padTop - padBottom;
     if (w <= 0 || h <= 0) return;
 
-    final rounds = series.map((s) => s.points.length).reduce((a, b) => a > b ? a : b);
+    // +1 por el origen: la línea arranca en cero, antes de la primera pregunta.
+    // Sin ese punto empezaba a media tarjeta, en lo que ya se había puntuado en
+    // la ronda 1, y parecía que la partida salía de la nada.
+    final rounds =
+        series.map((s) => s.points.length).reduce((a, b) => a > b ? a : b) + 1;
     if (rounds < 2) return;
 
     // El techo se calcula sobre TODAS las series para que las líneas sean
@@ -180,27 +186,31 @@ class _ScoreChartPainter extends CustomPainter {
       });
 
     for (final i in order) {
-      final points = series[i].points;
+      // El cero de salida por delante, igual que en la web.
+      final points = <int>[0, ...series[i].points];
       final mine = series[i].playerId == meId;
       final color = VersusScoreChart.colorFor(i);
 
       // Cuántos tramos se han dibujado ya, para que el trazo entre animándose.
       final visible = (1 + (points.length - 1) * progress).clamp(1, points.length);
 
-      final path = Path()..moveTo(dx(0), dy(points[0]));
+      // Los vértices que toca dibujar en este instante de la animación. El
+      // último puede ir a medias, para que la punta avance suave.
+      final vertices = <Offset>[Offset(dx(0), dy(points[0]))];
       for (int p = 1; p < visible.floor(); p += 1) {
-        path.lineTo(dx(p), dy(points[p]));
+        vertices.add(Offset(dx(p), dy(points[p])));
       }
-      // Tramo a medias: se interpola para que la punta avance suave.
       final partial = visible - visible.floor();
       if (partial > 0 && visible.floor() < points.length) {
         final from = visible.floor() - 1;
         final to = visible.floor();
-        path.lineTo(
+        vertices.add(Offset(
           dx(from) + (dx(to) - dx(from)) * partial,
           dy(points[from]) + (dy(points[to]) - dy(points[from])) * partial,
-        );
+        ));
       }
+
+      final path = _monotonePath(vertices);
 
       canvas.drawPath(
         path,
@@ -221,6 +231,68 @@ class _ScoreChartPainter extends CustomPainter {
         );
       }
     }
+  }
+
+  /// Interpolación cúbica MONÓTONA (Fritsch–Carlson), la misma que usa la web.
+  ///
+  /// Una suavidad normal (una spline de Catmull-Rom, por ejemplo) se pasa de
+  /// largo al cambiar la pendiente, y aquí eso sería mentir: la puntuación es
+  /// acumulada y NUNCA baja, así que un sobrepaso dibujaría una bajada que no
+  /// ocurrió. Esta preserva la monotonía — lo plano se queda plano y lo que
+  /// sube solo sube, sin los picos de unir los puntos con rectas.
+  static Path _monotonePath(List<Offset> p) {
+    final path = Path();
+    if (p.isEmpty) return path;
+
+    path.moveTo(p[0].dx, p[0].dy);
+    if (p.length == 1) return path;
+
+    final n = p.length;
+    final dx = <double>[];
+    final slope = <double>[];
+    for (int i = 0; i < n - 1; i += 1) {
+      final h = p[i + 1].dx - p[i].dx;
+      dx.add(h);
+      slope.add(h == 0 ? 0 : (p[i + 1].dy - p[i].dy) / h);
+    }
+
+    // Tangente inicial en cada punto: media de las pendientes vecinas.
+    final m = <double>[slope[0]];
+    for (int i = 1; i < n - 1; i += 1) {
+      m.add((slope[i - 1] + slope[i]) / 2);
+    }
+    m.add(slope[n - 2]);
+
+    // Y aquí está lo que evita el sobrepaso: donde el tramo es plano la
+    // tangente se fuerza a 0, y en el resto se recorta al círculo de radio 3.
+    for (int i = 0; i < n - 1; i += 1) {
+      if (slope[i] == 0) {
+        m[i] = 0;
+        m[i + 1] = 0;
+        continue;
+      }
+      final a = m[i] / slope[i];
+      final b = m[i + 1] / slope[i];
+      final s = a * a + b * b;
+      if (s > 9) {
+        final t = 3 / math.sqrt(s);
+        m[i] = t * a * slope[i];
+        m[i + 1] = t * b * slope[i];
+      }
+    }
+
+    for (int i = 0; i < n - 1; i += 1) {
+      final h = dx[i] / 3;
+      path.cubicTo(
+        p[i].dx + h,
+        p[i].dy + m[i] * h,
+        p[i + 1].dx - h,
+        p[i + 1].dy - m[i + 1] * h,
+        p[i + 1].dx,
+        p[i + 1].dy,
+      );
+    }
+    return path;
   }
 
   @override

@@ -12,6 +12,7 @@ import '../providers/versus_room_controller.dart';
 import 'versus_avatar.dart';
 import 'versus_combat.dart';
 import 'versus_score_chart.dart';
+import 'versus_scoreboard_overlay.dart';
 
 /// La partida en curso: cuenta atrás, pregunta, bloqueo de respuestas,
 /// revelado y marcador.
@@ -46,12 +47,21 @@ class _VersusRunnerState extends State<VersusRunner> {
 
   Timer? _ticker;
 
-  /// Carrusel pregunta → corrección, igual que el del simulacro.
-  final PageController _carousel = PageController();
-  int _page = 0;
+  /// Rondas cuyo marcador animado ya se ha visto. Una vez por ronda: si no, el
+  /// tic de 100 ms lo relanzaría sin parar.
+  final Set<int> _scoreboardDone = {};
 
-  /// Rondas en las que ya se ha deslizado solo a la corrección.
-  final Set<int> _autoSlid = {};
+  /// Si toca enseñar el marcador antes de la explicación.
+  ///
+  /// Se salta cuando quedan menos de 10 s de revelado: eso significa que se ha
+  /// entrado tarde (una reconexión), y gastarlos en el marcador dejaría sin ver
+  /// la explicación.
+  bool _wantsScoreboard(VersusRoomController c, VersusPhase phase) {
+    if (phase is! VersusRevealPhase) return false;
+    if (c.isSurvival || c.strike != null) return false;
+    if (_scoreboardDone.contains(phase.idx)) return false;
+    return phase.endsAt - c.serverNow > 10000;
+  }
 
   @override
   void initState() {
@@ -65,17 +75,7 @@ class _VersusRunnerState extends State<VersusRunner> {
   @override
   void dispose() {
     _ticker?.cancel();
-    _carousel.dispose();
     super.dispose();
-  }
-
-  /// Al empezar una pregunta nueva el carrusel vuelve al enunciado: la página
-  /// de corrección ya no existe y quedarse a la derecha dejaría en blanco.
-  void _resetCarouselFor(VersusPhase phase) {
-    if (phase is! VersusQuestionPhase || _page == 0) return;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && _carousel.hasClients) _carousel.jumpToPage(0);
-    });
   }
 
   @override
@@ -89,7 +89,18 @@ class _VersusRunnerState extends State<VersusRunner> {
     }
 
     _feedbackForReveal(c, phase);
-    _resetCarouselFor(phase);
+
+    // Modo clásico: entre la pregunta y la explicación va el marcador animado.
+    // En Guardia no, porque ahí no se juega por puntos y su momento es el golpe.
+    if (_wantsScoreboard(c, phase)) {
+      final reveal = phase as VersusRevealPhase;
+      return VersusScoreboardOverlay(
+        key: ValueKey('marcador-${reveal.idx}'),
+        controller: c,
+        phase: reveal,
+        onDone: () => setState(() => _scoreboardDone.add(reveal.idx)),
+      );
+    }
 
     // El golpe va POR ENCIMA de la fase que toque: perder una vida tiene que
     // interrumpir lo que estés mirando, no esperar su turno.
@@ -244,70 +255,79 @@ class _VersusRunnerState extends State<VersusRunner> {
             .clamp(0.0, 1.0)
         : 0;
 
-    final content = ListView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
-      children: [
-        // Cabecera: progreso y reloj. El margen derecho deja libre la esquina
-        // donde flota la X de salir; sin él, la cuenta atrás se le montaba
-        // encima al desaparecer la barra superior.
-        Padding(
-          padding: const EdgeInsets.only(right: 34),
-          child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              question != null
-                  ? 'Pregunta ${phase.idx + 1} de ${question.total}'
-                  : 'Pregunta ${phase.idx + 1}',
-              style: const TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-              ),
+    // Cabecera y HUD viven FUERA del carrusel: al deslizar a la corrección
+    // tienen que quedarse quietos, porque el HUD es de donde se despega el
+    // corazón que cae. Si viajaran con la página, la animación se iría de la
+    // pantalla justo cuando hay que mirarla.
+    final header = Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // El margen derecho deja libre la esquina donde flota la X de salir;
+          // sin él, la cuenta atrás se le montaba encima.
+          Padding(
+            padding: const EdgeInsets.only(right: 34),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  question != null
+                      ? 'Pregunta ${phase.idx + 1} de ${question.total}'
+                      : 'Pregunta ${phase.idx + 1}',
+                  style: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  secondsLeft != null
+                      ? '${secondsLeft}s'
+                      : phase is VersusPicksPhase
+                          ? 'Respuestas bloqueadas'
+                          : 'Solución',
+                  style: TextStyle(
+                    color: secondsLeft != null && secondsLeft <= 5
+                        ? AppColors.error
+                        : AppColors.textLight,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
             ),
-            Text(
-              secondsLeft != null
-                  ? '${secondsLeft}s'
-                  : phase is VersusPicksPhase
-                      ? 'Respuestas bloqueadas'
-                      : 'Solución',
-              style: TextStyle(
-                color: secondsLeft != null && secondsLeft <= 5
-                    ? AppColors.error
-                    : AppColors.textLight,
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
+          ),
+
+          // Guardia: las vidas, siempre a la vista y siempre en el mismo sitio.
+          if (c.isSurvival) ...[
+            const SizedBox(height: 12),
+            _LivesStrip(controller: c),
+          ],
+
+          if (answering) ...[
+            const SizedBox(height: 10),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: timeRatio,
+                minHeight: 6,
+                backgroundColor: AppColors.border,
+                valueColor: AlwaysStoppedAnimation(
+                  timeRatio < 0.2 ? AppColors.error : AppColors.primary,
+                ),
               ),
             ),
           ],
-          ),
-        ),
-
-        // Guardia: las vidas van siempre a la vista. Sin esto no hay forma de
-        // saber a quién le queda una sola y quién ya ha caído.
-        if (c.isSurvival) ...[
-          const SizedBox(height: 12),
-          _LivesStrip(controller: c),
+          const SizedBox(height: 14),
         ],
+      ),
+    );
 
-        if (answering) ...[
-          const SizedBox(height: 10),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: LinearProgressIndicator(
-              value: timeRatio,
-              minHeight: 6,
-              backgroundColor: AppColors.border,
-              valueColor: AlwaysStoppedAnimation(
-                timeRatio < 0.2 ? AppColors.error : AppColors.primary,
-              ),
-            ),
-          ),
-        ],
-
-        const SizedBox(height: 18),
-
+    final content = ListView(
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 32),
+      children: [
         // Enunciado
         if (question != null)
           Container(
@@ -405,63 +425,25 @@ class _VersusRunnerState extends State<VersusRunner> {
     // La corrección vive en una página a la DERECHA de la pregunta, igual que
     // en el simulacro: se desliza para ir y volver, y las opciones siguen ahí
     // detrás para comprobar cuál era la buena.
-    final pages = <Widget>[
-      content,
-      if (revealPhase != null)
-        _CorrectionPage(controller: c, phase: revealPhase),
-    ];
-
-    // Al destaparse la respuesta se va sola a la corrección, una vez por ronda:
-    // si se hiciera en cada evento, volver a la pregunta a mano sería imposible
-    // porque el carrusel te devolvería al instante.
-    if (revealPhase != null && !_autoSlid.contains(revealPhase.idx)) {
-      _autoSlid.add(revealPhase.idx);
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted || !_carousel.hasClients) return;
-        _carousel.animateToPage(
-          1,
-          duration: const Duration(milliseconds: 420),
-          curve: Curves.easeOutCubic,
-        );
-      });
-    }
-
     return Column(
       children: [
+        header,
         Expanded(
-          child: PageView(
-            controller: _carousel,
-            physics: const BouncingScrollPhysics(),
-            onPageChanged: (p) => setState(() => _page = p),
-            children: pages,
+          // La clave por ronda le da al carrusel un controlador y un estado
+          // limpios en cada pregunta. Compartir uno solo entre rondas era el
+          // fallo: entre pregunta y pregunta el PageView no existe (manda la
+          // cuenta atrás), así que el `jumpToPage(0)` se perdía por no haber
+          // clientes y el controlador se quedaba descolocado — de ahí que el
+          // deslizamiento automático solo funcionara en la primera.
+          child: _RoundCarousel(
+            key: ValueKey('carrusel-${phase.idx}'),
+            question: content,
+            correction: revealPhase == null
+                ? null
+                : _CorrectionPage(controller: c, phase: revealPhase),
           ),
         ),
-        if (pages.length > 1) _buildDots(pages.length),
       ],
-    );
-  }
-
-  /// Puntitos del carrusel, como los del simulacro: sin ellos no se ve que hay
-  /// algo más a la derecha.
-  Widget _buildDots(int count) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10, top: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          for (int i = 0; i < count; i++)
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              margin: const EdgeInsets.symmetric(horizontal: 3),
-              width: i == _page ? 18 : 6,
-              height: 6,
-              decoration: BoxDecoration(
-                color: i == _page ? AppColors.primary : AppColors.border,
-                borderRadius: BorderRadius.circular(3),
-              ),
-            ),
-        ],
-      ),
     );
   }
 
@@ -737,6 +719,116 @@ List<Widget> _buildScoreboard(
   });
 }
 
+/// Carrusel de UNA ronda: enunciado a la izquierda, corrección a la derecha.
+///
+/// Vive con clave por ronda, así que nace y muere con la pregunta y tiene su
+/// propio controlador. Eso es lo que hace que el deslizamiento automático se
+/// arme de nuevo en cada una: con un controlador compartido, la cuenta atrás
+/// entre rondas desmontaba el PageView y lo dejaba en un estado del que no se
+/// recuperaba.
+class _RoundCarousel extends StatefulWidget {
+  final Widget question;
+
+  /// null mientras no se ha destapado la respuesta.
+  final Widget? correction;
+
+  const _RoundCarousel({
+    super.key,
+    required this.question,
+    required this.correction,
+  });
+
+  @override
+  State<_RoundCarousel> createState() => _RoundCarouselState();
+}
+
+class _RoundCarouselState extends State<_RoundCarousel> {
+  late final PageController _carousel;
+  int _page = 0;
+
+  /// Ya se ha ido solo a la corrección. Una vez por ronda: si se repitiera con
+  /// cada evento, volver a la pregunta a mano sería imposible porque el
+  /// carrusel te devolvería al instante.
+  bool _slid = false;
+
+  @override
+  void didUpdateWidget(covariant _RoundCarousel old) {
+    super.didUpdateWidget(old);
+    // La corrección acaba de aparecer: se va sola a enseñarla.
+    if (old.correction == null && widget.correction != null && !_slid) {
+      _slid = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_carousel.hasClients) return;
+        _carousel.animateToPage(
+          1,
+          duration: const Duration(milliseconds: 420),
+          curve: Curves.easeOutCubic,
+        );
+      });
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // El carrusel puede nacer con la corrección ya puesta: al volver del
+    // marcador animado, o al reconectar a mitad del revelado. Entonces no hay
+    // transición que detectar y hay que arrancar YA en ella — de ahí el
+    // initialPage, y no un salto después del primer frame, que se veía como un
+    // parpadeo de la pregunta.
+    _slid = widget.correction != null;
+    _page = _slid ? 1 : 0;
+    _carousel = PageController(initialPage: _page);
+  }
+
+  @override
+  void dispose() {
+    _carousel.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final pages = <Widget>[
+      widget.question,
+      if (widget.correction != null) widget.correction!,
+    ];
+
+    return Column(
+      children: [
+        Expanded(
+          child: PageView(
+            controller: _carousel,
+            physics: const BouncingScrollPhysics(),
+            onPageChanged: (p) => setState(() => _page = p),
+            children: pages,
+          ),
+        ),
+        if (pages.length > 1)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10, top: 4),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                for (int i = 0; i < pages.length; i++)
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    margin: const EdgeInsets.symmetric(horizontal: 3),
+                    width: i == _page ? 18 : 6,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      color: i == _page ? AppColors.primary : AppColors.border,
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
 /// Botón de "continuar" del revelado.
 ///
 /// El revelado dura un minuto entero para que dé tiempo a leer la explicación,
@@ -771,9 +863,6 @@ class _ContinueButton extends StatelessWidget {
     final tooSoon = controller.serverNow < phase.skipFrom;
     final enabled = !voted && !tooSoon && !controller.votingContinue;
 
-    // Mayoría de los que siguen jugando, que es la regla del servidor.
-    final needed = (phase.continueTotal / 2).floor() + 1;
-
     return Column(
       children: [
         SizedBox(
@@ -800,11 +889,17 @@ class _ContinueButton extends StatelessWidget {
         if (phase.continueTotal > 0) ...[
           const SizedBox(height: 8),
           Text(
-            '${phase.continueVotes} de $needed para pasar',
-            style: const TextStyle(
-              color: AppColors.textLight,
+            phase.continueVotes == 0
+                ? 'Hacen falta ${phase.continueNeeded} para pasar'
+                : '${phase.continueVotes} '
+                    '${phase.continueVotes == 1 ? 'listo' : 'listos'} '
+                    'de ${phase.continueNeeded}',
+            style: TextStyle(
+              color: phase.continueVotes > 0
+                  ? AppColors.primaryDark
+                  : AppColors.textLight,
               fontSize: 12,
-              fontWeight: FontWeight.w500,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
@@ -956,22 +1051,9 @@ class _CorrectionPage extends StatelessWidget {
         const SizedBox(height: 20),
         _ContinueButton(controller: controller, phase: phase),
 
-        // En Guardia el marcador sobra: no se juega por puntos sino por seguir
-        // en pie, y eso ya lo dicen los corazones de la tira de arriba.
-        if (!controller.isSurvival) ...[
-          const SizedBox(height: 22),
-          const Text(
-            'MARCADOR',
-            style: TextStyle(
-              color: AppColors.textLight,
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 1.2,
-            ),
-          ),
-          const SizedBox(height: 10),
-          ..._buildScoreboard(controller, phase.scores, compact: true),
-        ],
+        // Aquí NO va el marcador: en clásico ya se ha visto en su propia
+        // pantalla, con los puntos subiendo, y en Guardia lo dicen los
+        // corazones. Repetirlo solo robaba sitio a la explicación.
       ],
     );
   }

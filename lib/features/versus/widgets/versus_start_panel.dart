@@ -26,10 +26,14 @@ class VersusStartPanel extends StatefulWidget {
   /// Falso mientras no haya al menos dos jugadores en la sala.
   final bool canStart;
 
+  /// Anuncia lo marcado al resto del lobby, para que no esperen a ciegas.
+  final void Function(VersusLobbyDraft draft) onDraftChanged;
+
   const VersusStartPanel({
     super.key,
     required this.onStart,
     required this.canStart,
+    required this.onDraftChanged,
   });
 
   @override
@@ -42,7 +46,9 @@ class _VersusStartPanelState extends State<VersusStartPanel> {
   List<SimSubject> _subjects = const [];
   final Set<int> _selected = {};
   int _count = 10;
-  String _mode = VersusMode.classic;
+  /// Sin preseleccionar a propósito: elegir modo es una decisión, no un valor
+  /// por defecto que se acepta sin mirar.
+  String? _mode;
   int _lives = 1;
   bool _loading = true;
   bool _busy = false;
@@ -83,6 +89,23 @@ class _VersusStartPanelState extends State<VersusStartPanel> {
     }
   }
 
+  /// Cambia la configuración y la anuncia al resto del lobby, que si no se
+  /// queda mirando un "esperando al anfitrión" sin saber a qué va a jugar.
+  void _change(VoidCallback apply) {
+    setState(apply);
+    widget.onDraftChanged(VersusLobbyDraft(
+      mode: _mode,
+      lives: _lives,
+      count: _count,
+      // Van los NOMBRES, no los ids: el resto no tiene por qué haber cargado el
+      // catálogo de asignaturas.
+      subjects: _subjects
+          .where((s) => _selected.contains(s.id))
+          .map((s) => s.name)
+          .toList(),
+    ));
+  }
+
   /// Preguntas disponibles con lo que hay marcado. Null mientras no se sepa.
   int? get _disponibles => _fondo == null
       ? null
@@ -94,8 +117,12 @@ class _VersusStartPanelState extends State<VersusStartPanel> {
   int get _seJugaran =>
       _disponibles == null ? _count : (_count < _disponibles! ? _count : _disponibles!);
 
+  /// No se puede empezar sin elegir modo ni asignaturas.
+  bool get _listo => _mode != null && _selected.isNotEmpty;
+
   Future<void> _start() async {
-    if (_selected.isEmpty || _busy) return;
+    final mode = _mode;
+    if (mode == null || _selected.isEmpty || _busy) return;
     setState(() {
       _busy = true;
       _error = null;
@@ -105,7 +132,7 @@ class _VersusStartPanelState extends State<VersusStartPanel> {
         subjectIds: _selected.toList(),
         topicIds: const [],
         count: _count,
-        mode: _mode,
+        mode: mode,
         lives: _lives,
       );
       // No se baja el flag al terminar bien: la sala pasa a 'question' y este
@@ -163,7 +190,7 @@ class _VersusStartPanelState extends State<VersusStartPanel> {
                   title: 'Clásico',
                   subtitle: 'Acertar rápido puntúa más',
                   selected: _mode == VersusMode.classic,
-                  onTap: () => setState(() => _mode = VersusMode.classic),
+                  onTap: () => _change(() => _mode = VersusMode.classic),
                 ),
               ),
               const SizedBox(width: 10),
@@ -173,7 +200,7 @@ class _VersusStartPanelState extends State<VersusStartPanel> {
                   title: 'Guardia',
                   subtitle: 'Quien falla, cae',
                   selected: _mode == VersusMode.survival,
-                  onTap: () => setState(() => _mode = VersusMode.survival),
+                  onTap: () => _change(() => _mode = VersusMode.survival),
                 ),
               ),
             ],
@@ -192,7 +219,7 @@ class _VersusStartPanelState extends State<VersusStartPanel> {
             const SizedBox(height: 10),
             _LivesPicker(
               value: _lives,
-              onChanged: (n) => setState(() => _lives = n),
+              onChanged: (n) => _change(() => _lives = n),
             ),
           ],
 
@@ -232,7 +259,7 @@ class _VersusStartPanelState extends State<VersusStartPanel> {
                   selected: on,
                   onTap: hay == 0
                       ? null
-                      : () => setState(() {
+                      : () => _change(() {
                             if (on) {
                               _selected.remove(subject.id);
                             } else {
@@ -262,7 +289,7 @@ class _VersusStartPanelState extends State<VersusStartPanel> {
                       // Pedir mas de las que hay es legitimo ("todas las que
                       // haya"); lo que no vale es que nadie lo diga. Por eso se
                       // avisa debajo en vez de bloquearlo.
-                      onTap: () => setState(() => _count = value),
+                      onTap: () => _change(() => _count = value),
                     ))
                 .toList(),
           ),
@@ -291,8 +318,7 @@ class _VersusStartPanelState extends State<VersusStartPanel> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              onPressed:
-                  widget.canStart && _selected.isNotEmpty && !_busy ? _start : null,
+              onPressed: widget.canStart && _listo && !_busy ? _start : null,
               style: ElevatedButton.styleFrom(
                 disabledBackgroundColor: AppColors.surfaceVariant,
                 disabledForegroundColor: AppColors.textLight,
@@ -311,9 +337,15 @@ class _VersusStartPanelState extends State<VersusStartPanel> {
               label: Text(
                 _busy
                     ? 'Empezando…'
-                    : widget.canStart
-                        ? 'Empezar partida'
-                        : 'Falta gente para empezar',
+                    : !widget.canStart
+                        ? 'Falta gente para empezar'
+                        // Se dice QUÉ falta, en vez de dejar un botón apagado
+                        // sin explicación.
+                        : _mode == null
+                            ? 'Elige un modo'
+                            : _selected.isEmpty
+                                ? 'Elige alguna asignatura'
+                                : 'Empezar partida',
               ),
             ),
           ),

@@ -4,6 +4,12 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <uses-permission android:name="android.permission.VIBRATE"/>
+    <!-- Escanear el QR de una sala de Versus. La camara NO es imprescindible:
+         el codigo tambien se teclea, asi que se declara opcional para no dejar
+         fuera de la tienda a los dispositivos que no la tengan. -->
+    <uses-permission android:name="android.permission.CAMERA"/>
+    <uses-feature android:name="android.hardware.camera" android:required="false"/>
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false"/>
     <application
         android:label="mirdaily_app"
         android:name="${applicationName}"
@@ -36,6 +42,30 @@
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
                 <data android:scheme="com.mirdaily.app" android:host="auth-callback"/>
+            </intent-filter>
+            <!-- Sala de Versus por esquema propio: com.mirdaily.app://versus/PIN
+                 Es lo que lleva el QR, porque funciona SIN configurar nada en el
+                 dominio. Solo abre si la app esta instalada, que es justo el
+                 caso del QR: se escanea en persona, entre dos que ya la tienen. -->
+            <intent-filter android:autoVerify="false">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="com.mirdaily.app" android:host="versus"/>
+            </intent-filter>
+            <!-- Sala de Versus por enlace normal: https://mirdaily.com/versus/PIN
+                 Es el que se manda por WhatsApp, porque a quien no tenga la app
+                 le abre la web. Para que abra la APP hace falta ademas publicar
+                 /.well-known/assetlinks.json en mirdaily.com con la huella
+                 SHA-256 del certificado de firma; mientras no este, Android
+                 ignora el autoVerify y sigue abriendo el navegador. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="https"
+                      android:host="mirdaily.com"
+                      android:pathPrefix="/versus/"/>
             </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.

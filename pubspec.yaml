@@ -54,6 +54,9 @@ dependencies:
   # WebView para las herramientas de Electros embebidas (simulador + academia)
   webview_flutter: ^4.10.0
   realtime_client: ^2.11.0
+  share_plus: ^13.3.0
+  qr_flutter: ^4.1.0
+  mobile_scanner: ^7.4.0
 
 dev_dependencies:
   flutter_test:

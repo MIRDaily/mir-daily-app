@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:share_plus/share_plus.dart';
+
+import '../../../core/services/haptics_service.dart';
 
 import '../../../core/services/api_service.dart';
 import '../../../core/theme/app_theme.dart';
@@ -347,9 +351,13 @@ class _VersusRoomScreenState extends State<VersusRoomScreen> {
         const SizedBox(height: 24),
 
         if (isHost)
-          VersusStartPanel(onStart: c.startGame, canStart: canStart)
+          VersusStartPanel(
+            onStart: c.startGame,
+            canStart: canStart,
+            onDraftChanged: c.publishDraft,
+          )
         else
-          const _WaitingForHost(),
+          _WaitingForHost(draft: c.lobbyDraft),
 
         if (c.error != null) ...[
           const SizedBox(height: 16),
@@ -486,31 +494,175 @@ class _PinCard extends StatelessWidget {
               letterSpacing: 8,
             ),
           ),
-          const SizedBox(height: 12),
-          TextButton.icon(
-            onPressed: () {
-              Clipboard.setData(ClipboardData(text: pin));
-              HapticFeedback.lightImpact();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Código copiado'),
-                  behavior: SnackBarBehavior.floating,
-                  duration: Duration(seconds: 2),
-                ),
-              );
-            },
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.white,
-              backgroundColor: Colors.white.withValues(alpha: 0.18),
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+          const SizedBox(height: 14),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _PinAction(
+                icon: Icons.copy_rounded,
+                label: 'Copiar',
+                onTap: () {
+                  Clipboard.setData(ClipboardData(text: pin));
+                  HapticsService.light();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Código copiado'),
+                      behavior: SnackBarBehavior.floating,
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                },
               ),
-            ),
-            icon: const Icon(Icons.copy_rounded, size: 17),
-            label: const Text('Copiar', style: TextStyle(fontSize: 14)),
+              const SizedBox(width: 8),
+              // Abre la hoja del sistema: WhatsApp, Telegram, lo que tenga el
+              // móvil. Es lo que de verdad se usa para pasar el código.
+              _PinAction(
+                icon: Icons.ios_share_rounded,
+                label: 'Compartir',
+                onTap: () {
+                  HapticsService.light();
+                  SharePlus.instance.share(
+                    ShareParams(
+                      text: 'Te reto en MIRDaily. Entra en Versus con el '
+                          'código $pin\n\n${_roomLink(pin)}',
+                      subject: 'Partida de MIRDaily',
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(width: 8),
+              _PinAction(
+                icon: Icons.qr_code_rounded,
+                label: 'QR',
+                onTap: () {
+                  HapticsService.light();
+                  showDialog<void>(
+                    context: context,
+                    builder: (_) => _QrDialog(pin: pin),
+                  );
+                },
+              ),
+            ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Enlace para COMPARTIR (WhatsApp y demás). Va en https a propósito: quien no
+/// tenga la app tiene que poder abrir la web. Cuando esté publicado el
+/// assetlinks.json del dominio, Android lo abrirá directo en la app.
+String _roomLink(String pin) => 'https://mirdaily.com/versus/$pin';
+
+/// Enlace del QR. Esquema propio en vez de https porque el QR se escanea EN
+/// PERSONA, entre dos que ya tienen la app, y así abre la sala directamente sin
+/// pasar por el navegador y sin depender de configurar nada en el dominio.
+String _roomDeepLink(String pin) => 'com.mirdaily.app://versus/$pin';
+
+class _PinAction extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _PinAction({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TextButton.icon(
+      onPressed: onTap,
+      style: TextButton.styleFrom(
+        foregroundColor: Colors.white,
+        backgroundColor: Colors.white.withValues(alpha: 0.18),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+      icon: Icon(icon, size: 17),
+      label: Text(label, style: const TextStyle(fontSize: 13)),
+    );
+  }
+}
+
+/// El QR grande, para que lo escaneen desde el móvil de al lado sin teclear
+/// nada. Lleva el enlace, no solo el PIN: así la cámara del sistema —que no
+/// sabe nada de MIRDaily— ofrece abrirlo.
+class _QrDialog extends StatelessWidget {
+  final String pin;
+
+  const _QrDialog({required this.pin});
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: AppColors.surface,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Escanea para entrar',
+              style: TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 18),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.border, width: 2),
+              ),
+              child: QrImageView(
+                data: _roomDeepLink(pin),
+                version: QrVersions.auto,
+                size: 220,
+                backgroundColor: Colors.white,
+                eyeStyle: const QrEyeStyle(
+                  eyeShape: QrEyeShape.square,
+                  color: AppColors.textPrimary,
+                ),
+                dataModuleStyle: const QrDataModuleStyle(
+                  dataModuleShape: QrDataModuleShape.square,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              pin,
+              style: const TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 26,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 6,
+              ),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'O teclea el código en Versus',
+              style: TextStyle(color: AppColors.textLight, fontSize: 12),
+            ),
+            const SizedBox(height: 18),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cerrar'),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -583,11 +735,19 @@ class _PlayerChip extends StatelessWidget {
   }
 }
 
+/// Lo que ve quien NO es anfitrión. Enseña, en solo lectura, lo que el
+/// anfitrión va marcando: sin esto se esperaba a ciegas, sin saber siquiera a
+/// qué modo se iba a jugar.
 class _WaitingForHost extends StatelessWidget {
-  const _WaitingForHost();
+  final VersusLobbyDraft? draft;
+
+  const _WaitingForHost({required this.draft});
 
   @override
   Widget build(BuildContext context) {
+    final d = draft;
+    final survival = d?.mode == VersusMode.survival;
+
     return Container(
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
@@ -595,9 +755,9 @@ class _WaitingForHost extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.border, width: 2),
       ),
-      child: const Column(
+      child: Column(
         children: [
-          SizedBox(
+          const SizedBox(
             width: 26,
             height: 26,
             child: CircularProgressIndicator(
@@ -605,8 +765,8 @@ class _WaitingForHost extends StatelessWidget {
               color: AppColors.primary,
             ),
           ),
-          SizedBox(height: 14),
-          Text(
+          const SizedBox(height: 14),
+          const Text(
             'Esperando al anfitrión',
             style: TextStyle(
               color: AppColors.textPrimary,
@@ -614,12 +774,106 @@ class _WaitingForHost extends StatelessWidget {
               fontWeight: FontWeight.w700,
             ),
           ),
-          SizedBox(height: 4),
+          const SizedBox(height: 4),
           Text(
-            'Empezará cuando esté todo el mundo.',
+            d == null
+                ? 'Está configurando la partida.'
+                : 'Esto es lo que lleva elegido.',
             textAlign: TextAlign.center,
-            style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 13,
+            ),
           ),
+
+          if (d != null) ...[
+            const SizedBox(height: 18),
+            const Divider(color: AppColors.border, height: 1),
+            const SizedBox(height: 16),
+
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  d.mode == null
+                      ? Icons.help_outline_rounded
+                      : survival
+                          ? Icons.favorite_rounded
+                          : Icons.bolt_rounded,
+                  size: 18,
+                  color: d.mode == null
+                      ? AppColors.textLight
+                      : AppColors.primaryDark,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  d.mode == null
+                      ? 'Modo sin elegir'
+                      : survival
+                          ? 'Guardia'
+                          : 'Clásico',
+                  style: TextStyle(
+                    color: d.mode == null
+                        ? AppColors.textLight
+                        : AppColors.textPrimary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                if (survival) ...[
+                  const SizedBox(width: 10),
+                  for (int i = 0; i < d.lives; i++)
+                    const Padding(
+                      padding: EdgeInsets.only(right: 2),
+                      child: Icon(Icons.favorite_rounded,
+                          size: 14, color: AppColors.error),
+                    ),
+                ],
+              ],
+            ),
+
+            const SizedBox(height: 14),
+            if (d.subjects.isEmpty)
+              const Text(
+                'Todavía no ha elegido asignaturas',
+                style: TextStyle(color: AppColors.textLight, fontSize: 12),
+              )
+            else
+              Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (final name in d.subjects)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        name,
+                        style: const TextStyle(
+                          color: AppColors.primaryDark,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+
+            const SizedBox(height: 12),
+            Text(
+              '${d.count} preguntas',
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
         ],
       ),
     );

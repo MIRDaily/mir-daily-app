@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -8,7 +10,9 @@ import '../../../shared/widgets/misc_widgets.dart';
 import '../../../shared/widgets/pressable.dart';
 import '../models/versus_models.dart';
 import '../services/versus_api.dart';
+import '../services/versus_links.dart';
 import 'versus_room_screen.dart';
+import 'versus_scan_screen.dart';
 
 /// Pestaña VERSUS: crear una sala o entrar en la de alguien con su PIN.
 ///
@@ -34,7 +38,18 @@ class _VersusScreenState extends State<VersusScreen> {
   late final VersusApi _api = VersusApi(context.read<ApiService>());
 
   @override
+  void initState() {
+    super.initState();
+    // Un enlace puede haber llegado ANTES de que existiera esta pantalla (app
+    // abierta desde el QR estando cerrada), así que además de escuchar se mira
+    // si ya había uno esperando.
+    VersusLinks.instance.pendingPin.addListener(_onPendingLink);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _onPendingLink());
+  }
+
+  @override
   void dispose() {
+    VersusLinks.instance.pendingPin.removeListener(_onPendingLink);
     _pinController.dispose();
     super.dispose();
   }
@@ -100,6 +115,10 @@ class _VersusScreenState extends State<VersusScreen> {
       return;
     }
 
+    await _joinPin(pin);
+  }
+
+  Future<void> _joinPin(String pin) async {
     setState(() {
       _joining = true;
       _error = null;
@@ -112,6 +131,26 @@ class _VersusScreenState extends State<VersusScreen> {
     } finally {
       if (mounted) setState(() => _joining = false);
     }
+  }
+
+  /// Escanea el QR de una sala y entra directamente. Es el camino corto: en
+  /// persona nadie quiere teclear seis caracteres.
+  Future<void> _scan() async {
+    if (_busy) return;
+    final pin = await Navigator.of(context).push<String>(
+      MaterialPageRoute(builder: (_) => const VersusScanScreen()),
+    );
+    if (pin == null || !mounted) return;
+    await _joinPin(pin);
+  }
+
+  /// Un enlace de sala abierto desde fuera (el QR de otro móvil, o el mensaje
+  /// de WhatsApp). Entra sin pasar por el formulario.
+  void _onPendingLink() {
+    final pin = VersusLinks.instance.pendingPin.value;
+    if (pin == null || _busy || !mounted) return;
+    VersusLinks.instance.consume();
+    unawaited(_joinPin(pin));
   }
 
   @override
@@ -160,6 +199,7 @@ class _VersusScreenState extends State<VersusScreen> {
                 busy: _joining,
                 enabled: !_busy,
                 onSubmit: _join,
+                onScan: _scan,
               ),
             ),
 
@@ -291,12 +331,14 @@ class _JoinCard extends StatelessWidget {
   final bool busy;
   final bool enabled;
   final VoidCallback onSubmit;
+  final VoidCallback onScan;
 
   const _JoinCard({
     required this.controller,
     required this.busy,
     required this.enabled,
     required this.onSubmit,
+    required this.onScan,
   });
 
   @override
@@ -311,13 +353,36 @@ class _JoinCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Entrar con un código',
-            style: TextStyle(
-              color: AppColors.textPrimary,
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-            ),
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Entrar con un código',
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              // Escanear es el camino corto: en persona nadie quiere teclear
+              // seis caracteres.
+              TextButton.icon(
+                onPressed: enabled ? onScan : null,
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.primaryDark,
+                  backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                icon: const Icon(Icons.qr_code_scanner_rounded, size: 18),
+                label: const Text('Escanear',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+              ),
+            ],
           ),
           const SizedBox(height: 12),
           Row(

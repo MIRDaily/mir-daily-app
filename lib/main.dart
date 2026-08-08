@@ -17,6 +17,7 @@ import 'core/services/auth_service.dart';
 import 'core/services/notification_service.dart';
 import 'features/focus/providers/focus_provider.dart';
 import 'features/navigation/main_navigation.dart';
+import 'features/versus/services/versus_links.dart';
 import 'features/onboarding/screens/onboarding_screen.dart';
 import 'features/auth/login_screen.dart';
 import 'features/splash/loading_screen.dart';
@@ -53,6 +54,11 @@ void main() async {
   // si el usuario lo tenía activado (no bloquea el arranque si falla).
   final notifications = NotificationService();
   unawaited(notifications.init().then((_) => notifications.rescheduleIfEnabled()));
+
+  // Enlaces a una sala de Versus (el QR de otro móvil, o el mensaje de
+  // WhatsApp). Se escucha desde el arranque porque el enlace puede ser justo lo
+  // que ha abierto la app, y entonces llega antes que ninguna pantalla.
+  unawaited(VersusLinks.instance.start());
 
   runApp(MIRDailyApp(authService: authService, apiService: apiService));
 }
