@@ -1,0 +1,80 @@
+name: mirdaily_app
+description: MIRDaily - Aprende lo que realmente importa para el MIR
+
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.10.3
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Iconos
+  cupertino_icons: ^1.0.6
+
+  # Red / API (backend MIRDaily en Railway + Supabase Auth)
+  http: ^1.2.0
+
+  # OAuth con Google (abre navegador y captura el deep link de vuelta)
+  url_launcher: ^6.2.5
+  app_links: ^6.3.0
+
+  # Refresco alto (90/120/144 Hz) en Android: pide el modo de mayor refresco
+  flutter_displaymode: ^0.6.0
+
+  # Almacenamiento local
+  shared_preferences: ^2.2.2
+  
+  # Animaciones
+  flip_card: ^0.7.0
+  
+  # Game Engine
+  flame: ^1.18.0
+  
+  # Utilidades
+  provider: ^6.1.1
+  
+ # Permisos
+  permission_handler: ^11.0.0
+  
+  # Selección de imágenes
+  image_picker: ^1.0.4
+  
+  # Rutas de archivos
+  path_provider: ^2.1.1
+  path: ^1.8.3
+  
+  # Notificaciones (recordatorio del daily + DND)
+  flutter_local_notifications: ^17.0.0
+  timezone: ^0.9.4
+
+  # WebView para las herramientas de Electros embebidas (simulador + academia)
+  webview_flutter: ^4.10.0
+  realtime_client: ^2.11.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.1
+  flutter_launcher_icons: ^0.13.1
+
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/images/app_icon.png"
+  # Beige muestreado de la propia ilustracion (assets/branding/icono_master.jpeg)
+  adaptive_icon_background: "#F4E9E3"
+  # Version con margen transparente: Android recorta el foreground al ~66% central
+  adaptive_icon_foreground: "assets/images/app_icon_foreground.png"
+  min_sdk_android: 21
+
+flutter:
+  uses-material-design: true
+  
+  assets:
+    - assets/images/
+    - assets/electros/simulador/
+    - assets/electros/academia/

@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MIRElectro Pro — Simulador de ECG de 12 derivaciones</title>
+  <link rel="stylesheet" href="style.css"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700;900&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet"/>
+</head>
+<body>
+
+<!-- ═══ PANTALLA INICIO ═══════════════════════════════════════════════ -->
+<section id="screen-start" class="screen active">
+  <div class="start-inner">
+    <div class="start-logo"><span class="material-symbols-outlined">cardiology</span></div>
+    <h1 class="start-title">MIRElectro <span class="pro-tag">Pro</span></h1>
+    <p class="start-subtitle">Simulador de electrocardiograma de <b>12 derivaciones</b>. Estudia los diagnósticos clave del MIR con trazos realistas: eje, progresión de R, territorios de infarto y arritmias, latiendo en tiempo real.</p>
+
+    <div class="mode-grid">
+      <button class="mode-card" data-go="explore">
+        <span class="material-symbols-outlined mode-ic">monitor_heart</span>
+        <span class="mode-name">Explorador clínico</span>
+        <span class="mode-desc">Monitor animado + ECG completo de 12 derivaciones, con las claves diagnósticas de cada patrón.</span>
+      </button>
+      <button class="mode-card" data-go="quiz">
+        <span class="material-symbols-outlined mode-ic">quiz</span>
+        <span class="mode-name">Modo examen</span>
+        <span class="mode-desc">Identifica el diagnóstico sobre las 12 derivaciones. Feedback inmediato y puntuación.</span>
+      </button>
+    </div>
+
+    <div class="start-foot">
+      <span class="material-symbols-outlined">ecg_heart</span>
+      <span id="pattern-count">0</span> diagnósticos · 12 derivaciones · 25 mm/s · 10 mm/mV
+    </div>
+  </div>
+</section>
+
+<!-- ═══ PANTALLA EXPLORADOR ═══════════════════════════════════════════ -->
+<section id="screen-explore" class="screen">
+  <header class="app-header">
+    <button class="icon-btn" data-back><span class="material-symbols-outlined">arrow_back</span></button>
+    <div class="header-title">Explorador clínico</div>
+    <button class="icon-btn" id="sound-toggle" title="Sonido"><span class="material-symbols-outlined">volume_off</span></button>
+  </header>
+
+  <div class="explore-layout">
+    <aside class="pattern-rail" id="pattern-rail"></aside>
+
+    <main class="monitor-col">
+      <!-- Monitor animado (1 derivación) -->
+      <div class="monitor" id="monitor">
+        <div class="monitor-top">
+          <div class="lead-picker" id="lead-picker" title="Derivación del monitor"></div>
+          <div class="vitals">
+            <div class="vital hr">
+              <span class="material-symbols-outlined heart-ic" id="heart-ic">favorite</span>
+              <span class="vital-val" id="hr-val">--</span>
+              <span class="vital-unit">lpm</span>
+            </div>
+          </div>
+        </div>
+        <div class="screen-wrap">
+          <canvas id="ecg-grid" class="ecg-canvas"></canvas>
+          <canvas id="ecg-trace" class="ecg-canvas"></canvas>
+        </div>
+        <div class="monitor-controls">
+          <button class="ctrl-btn" id="play-btn" title="Pausa/Play"><span class="material-symbols-outlined">pause</span></button>
+          <div class="speed-seg" id="speed-seg">
+            <button data-speed="0.5">0.5×</button>
+            <button data-speed="1" class="active">1×</button>
+            <button data-speed="2">2×</button>
+          </div>
+          <div class="interval-chips" id="interval-chips"></div>
+        </div>
+      </div>
+
+      <!-- ECG de 12 derivaciones (estático) -->
+      <div class="twelve-card">
+        <div class="twelve-head">
+          <span class="material-symbols-outlined">grid_on</span>
+          <span>ECG de 12 derivaciones</span>
+          <span class="twelve-note">4×3 + tira de ritmo · 25 mm/s · 10 mm/mV</span>
+        </div>
+        <div class="twelve-wrap">
+          <canvas id="ecg12" class="ecg12-canvas"></canvas>
+        </div>
+      </div>
+
+      <article class="info-card" id="info-card">
+        <div class="info-head">
+          <span class="sev-dot" id="info-sev"></span>
+          <h2 id="info-name">—</h2>
+          <span class="info-badge" id="info-badge"></span>
+        </div>
+        <p class="info-summary" id="info-summary"></p>
+        <p class="info-label">Claves en el ECG</p>
+        <ul class="findings" id="info-findings"></ul>
+        <div class="pearl" id="info-pearl">
+          <span class="material-symbols-outlined">lightbulb</span>
+          <p id="info-pearl-text"></p>
+        </div>
+      </article>
+    </main>
+  </div>
+</section>
+
+<!-- ═══ PANTALLA EXAMEN ═══════════════════════════════════════════════ -->
+<section id="screen-quiz" class="screen">
+  <header class="app-header">
+    <button class="icon-btn" data-back><span class="material-symbols-outlined">arrow_back</span></button>
+    <div class="header-title">Modo examen</div>
+    <div class="quiz-score"><span class="material-symbols-outlined">star</span><span id="quiz-score">0</span></div>
+  </header>
+
+  <div class="quiz-layout">
+    <div class="quiz-progress">
+      <div class="quiz-progress-bar"><div class="quiz-progress-fill" id="quiz-fill"></div></div>
+      <span id="quiz-count">1 / 10</span>
+    </div>
+
+    <div class="twelve-card">
+      <div class="twelve-head">
+        <span class="material-symbols-outlined">ecg_heart</span>
+        <span>¿Qué diagnóstico ves?</span>
+        <span class="twelve-note" id="q-hr-note">FC —</span>
+      </div>
+      <div class="twelve-wrap">
+        <canvas id="q-ecg12" class="ecg12-canvas"></canvas>
+      </div>
+    </div>
+
+    <div class="quiz-typeahead" id="quiz-typeahead">
+      <div class="ta-field">
+        <span class="material-symbols-outlined ta-ic">stylus_note</span>
+        <input id="quiz-input" type="text" autocomplete="off" autocapitalize="off" spellcheck="false"
+               placeholder="Escribe el diagnóstico… (p. ej. STEMI inferior, BRD, FA)"/>
+        <button class="ta-clear" id="quiz-clear" title="Borrar" type="button"><span class="material-symbols-outlined">close</span></button>
+      </div>
+      <ul class="ta-list" id="quiz-suggest"></ul>
+      <button class="btn-primary ta-submit" id="quiz-submit" disabled>Confirmar diagnóstico</button>
+    </div>
+
+    <div class="quiz-feedback" id="quiz-feedback">
+      <div class="qf-verdict" id="qf-verdict"></div>
+      <p class="qf-expl" id="qf-expl"></p>
+      <button class="btn-primary" id="quiz-next">Siguiente <span class="material-symbols-outlined">arrow_forward</span></button>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ RESULTADOS ════════════════════════════════════════════════════ -->
+<section id="screen-results" class="screen">
+  <div class="results-inner">
+    <div class="results-emoji" id="results-emoji">🫀</div>
+    <h2 class="results-title">Examen completado</h2>
+    <div class="ring-wrap">
+      <svg viewBox="0 0 100 100" class="ring-svg">
+        <circle cx="50" cy="50" r="44" fill="none" stroke="#EDE9E4" stroke-width="8"/>
+        <circle id="results-ring" cx="50" cy="50" r="44" fill="none" stroke="#8BA888"
+                stroke-width="8" stroke-linecap="round" stroke-dasharray="276.46" stroke-dashoffset="276.46"
+                transform="rotate(-90 50 50)"/>
+      </svg>
+      <div class="ring-val" id="results-pct">0%</div>
+    </div>
+    <p class="results-sub" id="results-sub"></p>
+    <div class="results-actions">
+      <button class="btn-primary" id="results-retry">Repetir examen</button>
+      <button class="btn-ghost" id="results-home">Volver al inicio</button>
+    </div>
+  </div>
+</section>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
