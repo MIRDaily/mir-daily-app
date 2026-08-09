@@ -1,7 +1,6 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/gestures.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/services/notification_service.dart';
@@ -307,7 +306,7 @@ class _MainNavigationState extends State<MainNavigation> with TickerProviderStat
               color: AppColors.surface,
               boxShadow: [
                 BoxShadow(
-                  color: AppColors.secondary.withOpacity(0.1),
+                  color: AppColors.secondary.withValues(alpha: 0.1),
                   blurRadius: 10,
                   offset: const Offset(0, -2),
                 ),
@@ -357,7 +356,7 @@ class _MainNavigationState extends State<MainNavigation> with TickerProviderStat
                                   child: DecoratedBox(
                                     decoration: BoxDecoration(
                                       color: AppColors.primary
-                                          .withOpacity(0.12 + 0.06 * wave),
+                                          .withValues(alpha: 0.12 + 0.06 * wave),
                                       borderRadius: BorderRadius.circular(14),
                                     ),
                                   ),
@@ -489,7 +488,6 @@ class _ZonedPageView extends StatefulWidget {
 }
 
 class _ZonedPageViewState extends State<_ZonedPageView> {
-  Offset? _pointerDownPosition;
   bool _blockThisGesture = false;
 
   @override
@@ -497,7 +495,6 @@ class _ZonedPageViewState extends State<_ZonedPageView> {
     return Listener(
       behavior: HitTestBehavior.translucent,
       onPointerDown: (event) {
-        _pointerDownPosition = event.position;
         if (widget.blockZone != null && widget.blockZone!.contains(event.position)) {
           _blockThisGesture = true;
         } else {
@@ -507,11 +504,9 @@ class _ZonedPageViewState extends State<_ZonedPageView> {
         setState(() {});
       },
       onPointerUp: (_) {
-        _pointerDownPosition = null;
         _blockThisGesture = false;
       },
       onPointerCancel: (_) {
-        _pointerDownPosition = null;
         _blockThisGesture = false;
       },
       child: PageView(

@@ -246,13 +246,13 @@ class _LibraryScreenState extends State<LibraryScreen>
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: complete
-                ? AppColors.gold.withOpacity(0.8)
+                ? AppColors.gold.withValues(alpha: 0.8)
                 : AppColors.border,
             width: complete ? 1.8 : 1.4,
           ),
           boxShadow: [
             BoxShadow(
-              color: AppColors.textSecondary.withOpacity(0.07),
+              color: AppColors.textSecondary.withValues(alpha: 0.07),
               blurRadius: 14,
               offset: const Offset(0, 6),
             ),
@@ -267,7 +267,7 @@ class _LibraryScreenState extends State<LibraryScreen>
                   width: 38,
                   height: 38,
                   decoration: BoxDecoration(
-                    color: typeColor.withOpacity(0.13),
+                    color: typeColor.withValues(alpha: 0.13),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(subject.icon, color: typeColor, size: 20),
@@ -306,7 +306,7 @@ class _LibraryScreenState extends State<LibraryScreen>
               padding:
                   const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
-                color: typeColor.withOpacity(0.12),
+                color: typeColor.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(99),
               ),
               child: Text(

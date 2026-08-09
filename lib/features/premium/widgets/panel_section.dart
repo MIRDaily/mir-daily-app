@@ -352,7 +352,7 @@ class _StreakBadge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 10),
       decoration: BoxDecoration(
         color: const Color(0xFFFAF7F4),
-        border: Border.all(color: PanelColors.accent.withOpacity(0.45)),
+        border: Border.all(color: PanelColors.accent.withValues(alpha: 0.45)),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -444,7 +444,7 @@ class PanelCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withOpacity(0.03),
+              color: Colors.black.withValues(alpha: 0.03),
               blurRadius: 10,
               offset: const Offset(0, 4)),
         ],
@@ -581,7 +581,7 @@ class PanelStatChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 8),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Column(

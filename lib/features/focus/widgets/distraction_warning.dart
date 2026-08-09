@@ -16,7 +16,7 @@ class DistractionWarning extends StatelessWidget {
 
         return Positioned.fill(
           child: Container(
-            color: Colors.black.withOpacity(0.85),
+            color: Colors.black.withValues(alpha: 0.85),
             child: SafeArea(
               child: Center(
                 child: Padding(
@@ -49,7 +49,7 @@ class DistractionWarning extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
-                          color: Colors.red.withOpacity(0.2),
+                          color: Colors.red.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
                             color: Colors.red,
@@ -139,7 +139,7 @@ class DistractionWarning extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
+        color: Colors.white.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(

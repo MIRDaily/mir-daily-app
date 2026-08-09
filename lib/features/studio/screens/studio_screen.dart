@@ -168,13 +168,13 @@ class _StatsCard extends StatelessWidget {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                AppColors.primary.withOpacity(0.1),
-                AppColors.primary.withOpacity(0.05),
+                AppColors.primary.withValues(alpha: 0.1),
+                AppColors.primary.withValues(alpha: 0.05),
               ],
             ),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: AppColors.primary.withOpacity(0.2),
+              color: AppColors.primary.withValues(alpha: 0.2),
               width: 1,
             ),
           ),
@@ -190,7 +190,7 @@ class _StatsCard extends StatelessWidget {
               Container(
                 width: 1,
                 height: 40,
-                color: AppColors.secondary.withOpacity(0.2),
+                color: AppColors.secondary.withValues(alpha: 0.2),
               ),
               const SizedBox(width: 24),
               _StatItem(
@@ -203,7 +203,7 @@ class _StatsCard extends StatelessWidget {
               Container(
                 width: 1,
                 height: 40,
-                color: AppColors.secondary.withOpacity(0.2),
+                color: AppColors.secondary.withValues(alpha: 0.2),
               ),
               const SizedBox(width: 24),
               _StatItem(

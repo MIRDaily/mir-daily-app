@@ -366,7 +366,7 @@ class _ProgressPainter extends CustomPainter {
     if (avgScore != null && avgScore! >= scoreMin && avgScore! <= scoreMax) {
       final y = yScore(avgScore!);
       final p = Paint()
-        ..color = PanelColors.correct.withOpacity(0.6)
+        ..color = PanelColors.correct.withValues(alpha: 0.6)
         ..strokeWidth = 1.5;
       _dashedLine(canvas, Offset(padLeft, y), Offset(size.width - padRight, y),
           p, dash: 4, gap: 4);
@@ -528,7 +528,7 @@ class _TrendPainter extends CustomPainter {
         ..shader = ui.Gradient.linear(
           Offset(0, padY),
           Offset(0, size.height - padY),
-          [color.withOpacity(0.22 * progress), color.withOpacity(0)],
+          [color.withValues(alpha: 0.22 * progress), color.withValues(alpha: 0)],
         ),
     );
 
@@ -566,7 +566,7 @@ Widget _emptyBox(double height, String msg) => Container(
       height: height,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: PanelColors.soft.withOpacity(0.6),
+        color: PanelColors.soft.withValues(alpha: 0.6),
         border: Border.all(color: PanelColors.border),
         borderRadius: BorderRadius.circular(12),
       ),

@@ -83,7 +83,7 @@ class _AnimatedFocusBackgroundState extends State<AnimatedFocusBackground>
             return CustomPaint(
               painter: WavePainter(
                 animation: _waveController.value,
-                color: Colors.white.withOpacity(0.05),
+                color: Colors.white.withValues(alpha: 0.05),
               ),
               size: Size.infinite,
             );
@@ -111,8 +111,8 @@ class _AnimatedFocusBackgroundState extends State<AnimatedFocusBackground>
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                Colors.black.withOpacity(0.1),
-                Colors.black.withOpacity(0.3),
+                Colors.black.withValues(alpha: 0.1),
+                Colors.black.withValues(alpha: 0.3),
               ],
             ),
           ),
@@ -195,7 +195,7 @@ class ParticlePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = Colors.white.withOpacity(0.3)
+      ..color = Colors.white.withValues(alpha: 0.3)
       ..style = PaintingStyle.fill;
 
     for (final particle in particles) {
@@ -216,7 +216,7 @@ class ParticlePainter extends CustomPainter {
 
       // Halo
       final haloPaint = Paint()
-        ..color = Colors.white.withOpacity(0.1)
+        ..color = Colors.white.withValues(alpha: 0.1)
         ..style = PaintingStyle.fill;
       
       canvas.drawCircle(

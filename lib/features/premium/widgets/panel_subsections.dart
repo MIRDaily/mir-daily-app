@@ -460,7 +460,7 @@ class _SubjectCard extends StatelessWidget {
           boxShadow: active
               ? [
                   BoxShadow(
-                      color: bg.withOpacity(0.5),
+                      color: bg.withValues(alpha: 0.5),
                       blurRadius: 12,
                       offset: const Offset(0, 4))
                 ]
@@ -572,7 +572,7 @@ class _SubjectDetailState extends State<_SubjectDetail> {
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 12,
               offset: const Offset(0, 4)),
         ],
@@ -702,7 +702,7 @@ class _SubjectDetailState extends State<_SubjectDetail> {
   Widget _chip(String text, Color color) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.12),
+          color: color.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Text(text,
@@ -1006,7 +1006,7 @@ class _WeakRow extends StatelessWidget {
             height: 34,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: PanelColors.wrong.withOpacity(0.1),
+              color: PanelColors.wrong.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Text('${rank + 1}',

@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import '../../core/models/models.dart';
 import '../../core/services/api_service.dart';
 import '../../core/theme/app_theme.dart';
-import '../../shared/widgets/pressable.dart';
 import 'deck_study_screen.dart';
 
 /// Detalle de un mazo: resumen por estado, lista de preguntas y acceso a la

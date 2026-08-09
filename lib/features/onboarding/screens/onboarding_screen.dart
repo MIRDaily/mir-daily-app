@@ -81,7 +81,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   MirSpecialty? _specialty;
   University? _university;
   bool _useCustomUni = false;
-  bool _profilePublic = false;
+  final bool _profilePublic = false;
 
   _UserStatus _userStatus = _UserStatus.idle;
   Timer? _userDebounce;
@@ -687,7 +687,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                         decoration: BoxDecoration(
                           boxShadow: [
                             BoxShadow(
-                              color: AppColors.primary.withOpacity(0.22),
+                              color: AppColors.primary.withValues(alpha: 0.22),
                               blurRadius: 54,
                               spreadRadius: 10,
                               offset: const Offset(0, 16),
@@ -834,7 +834,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             gradient: LinearGradient(
-              colors: [AppColors.primary, AppColors.primary.withOpacity(0.6)],
+              colors: [AppColors.primary, AppColors.primary.withValues(alpha: 0.6)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -912,7 +912,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         AppConfig.avatarUrl(id),
         fit: BoxFit.cover,
         errorBuilder: (_, __, ___) => Container(
-          color: AppColors.primary.withOpacity(0.1),
+          color: AppColors.primary.withValues(alpha: 0.1),
           child: const Icon(Icons.person, color: AppColors.primary),
         ),
       );
@@ -995,7 +995,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: selected ? AppColors.primary.withOpacity(0.08) : Colors.white,
+          color: selected ? AppColors.primary.withValues(alpha: 0.08) : Colors.white,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
             color: selected ? AppColors.primary : AppColors.border,
@@ -1007,7 +1007,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             Container(
               padding: const EdgeInsets.all(11),
               decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(selected ? 0.16 : 0.09),
+                color: AppColors.primary.withValues(alpha: selected ? 0.16 : 0.09),
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Icon(g['icon'] as IconData,
@@ -1144,7 +1144,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             width: double.infinity,
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: AppColors.error.withOpacity(0.08),
+              color: AppColors.error.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(_submitError!,
@@ -1229,7 +1229,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           24, 12, 24, 12 + MediaQuery.of(context).padding.bottom * 0),
       decoration: BoxDecoration(
         color: AppColors.background,
-        border: Border(top: BorderSide(color: AppColors.border.withOpacity(0.6))),
+        border: Border(top: BorderSide(color: AppColors.border.withValues(alpha: 0.6))),
       ),
       child: Row(
         children: [
@@ -1255,7 +1255,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   (_canAdvance && !_submitting) ? _next : null,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
-                disabledBackgroundColor: AppColors.primary.withOpacity(0.4),
+                disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.4),
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
@@ -1493,7 +1493,7 @@ class _ProgressBar extends StatelessWidget {
                         borderRadius: BorderRadius.circular(6),
                         boxShadow: [
                           BoxShadow(
-                            color: AppColors.primary.withOpacity(0.4),
+                            color: AppColors.primary.withValues(alpha: 0.4),
                             blurRadius: 6,
                             offset: const Offset(0, 1),
                           ),
@@ -1792,7 +1792,7 @@ class _CelebrationViewState extends State<_CelebrationView>
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: AppColors.primary.withOpacity(0.4),
+                        color: AppColors.primary.withValues(alpha: 0.4),
                         blurRadius: 26,
                         offset: const Offset(0, 12),
                       ),
@@ -1807,7 +1807,7 @@ class _CelebrationViewState extends State<_CelebrationView>
                           AppConfig.avatarUrl(widget.avatarId),
                           fit: BoxFit.cover,
                           errorBuilder: (_, __, ___) => Container(
-                            color: AppColors.primary.withOpacity(0.1),
+                            color: AppColors.primary.withValues(alpha: 0.1),
                             child: const Icon(Icons.person,
                                 color: AppColors.primary, size: 48),
                           ),
@@ -1906,13 +1906,13 @@ class _CelebrationViewState extends State<_CelebrationView>
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: AppColors.secondary.withOpacity(0.06),
+                  color: AppColors.secondary.withValues(alpha: 0.06),
                   blurRadius: 12,
                   offset: const Offset(0, 5),
                 ),
                 // Resplandor coral que destella al aterrizar.
                 BoxShadow(
-                  color: AppColors.primary.withOpacity(0.5 * flash),
+                  color: AppColors.primary.withValues(alpha: 0.5 * flash),
                   blurRadius: 22 * flash,
                   spreadRadius: 1.5 * flash,
                 ),
@@ -1931,7 +1931,7 @@ class _CelebrationViewState extends State<_CelebrationView>
                         Container(
                           padding: const EdgeInsets.all(9),
                           decoration: BoxDecoration(
-                            color: AppColors.primary.withOpacity(0.1),
+                            color: AppColors.primary.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(11),
                           ),
                           child: Icon(item.icon,
@@ -1967,9 +1967,9 @@ class _CelebrationViewState extends State<_CelebrationView>
                               decoration: BoxDecoration(
                                 gradient: LinearGradient(
                                   colors: [
-                                    Colors.white.withOpacity(0),
-                                    Colors.white.withOpacity(0.55 * flash),
-                                    Colors.white.withOpacity(0),
+                                    Colors.white.withValues(alpha: 0),
+                                    Colors.white.withValues(alpha: 0.55 * flash),
+                                    Colors.white.withValues(alpha: 0),
                                   ],
                                 ),
                               ),
@@ -2074,7 +2074,7 @@ class _WavePainter extends CustomPainter {
     final bandHeight = h + 260;
 
     for (final l in _layers) {
-      final color = Color(l[0] as int).withOpacity(l[1] as double);
+      final color = Color(l[0] as int).withValues(alpha: l[1] as double);
       final topOff = l[2] as double;
       final botOff = l[3] as double;
       final amp = l[4] as double;
@@ -2178,12 +2178,12 @@ class _WavePainter extends CustomPainter {
       if (op <= 0.01) continue;
       final color = Color(_bubbleColors[(i + seedShift) % _bubbleColors.length]);
       canvas.drawCircle(
-          Offset(bx, by), r, Paint()..color = color.withOpacity(op));
+          Offset(bx, by), r, Paint()..color = color.withValues(alpha: op));
       // Brillo tipo burbuja (goo).
       canvas.drawCircle(
         Offset(bx - r * 0.3, by - r * 0.32),
         r * 0.34,
-        Paint()..color = Colors.white.withOpacity(op * 0.7),
+        Paint()..color = Colors.white.withValues(alpha: op * 0.7),
       );
     }
   }

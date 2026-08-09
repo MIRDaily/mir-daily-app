@@ -227,7 +227,7 @@ class _LoadingScreenState extends State<LoadingScreen>
                                     style: TextStyle(
                                       fontSize: 14,
                                       color: AppColors.textSecondary
-                                          .withOpacity(0.7),
+                                          .withValues(alpha: 0.7),
                                       fontStyle: FontStyle.italic,
                                     ),
                                   ),
@@ -275,13 +275,13 @@ class _LoadingScreenState extends State<LoadingScreen>
           decoration: BoxDecoration(
             boxShadow: [
               BoxShadow(
-                color: AppColors.primary.withOpacity(0.2),
+                color: AppColors.primary.withValues(alpha: 0.2),
                 blurRadius: 60,
                 spreadRadius: 10,
                 offset: const Offset(0, 15),
               ),
               BoxShadow(
-                color: AppColors.primary.withOpacity(0.1),
+                color: AppColors.primary.withValues(alpha: 0.1),
                 blurRadius: 100,
                 spreadRadius: 20,
                 offset: const Offset(0, 25),
@@ -296,7 +296,7 @@ class _LoadingScreenState extends State<LoadingScreen>
                 colors: [
                   Colors.white,
                   Colors.white,
-                  Colors.white.withOpacity(0.8),
+                  Colors.white.withValues(alpha: 0.8),
                   Colors.transparent,
                 ],
                 stops: const [0.0, 0.7, 0.85, 1.0],
@@ -338,7 +338,7 @@ class _LoadingScreenState extends State<LoadingScreen>
               borderRadius: BorderRadius.circular(14),
             ),
             elevation: 4,
-            shadowColor: AppColors.primary.withOpacity(0.4),
+            shadowColor: AppColors.primary.withValues(alpha: 0.4),
           ),
           child: const Text(
             'Continuar',
@@ -377,7 +377,7 @@ class _LoadingScreenState extends State<LoadingScreen>
                       borderRadius: BorderRadius.circular(10),
                       child: LinearProgressIndicator(
                         value: value,
-                        backgroundColor: AppColors.primary.withOpacity(0.15),
+                        backgroundColor: AppColors.primary.withValues(alpha: 0.15),
                         valueColor: const AlwaysStoppedAnimation<Color>(
                             AppColors.primary),
                         minHeight: 6,
@@ -388,7 +388,7 @@ class _LoadingScreenState extends State<LoadingScreen>
                       '${(value * 100).toInt()}%',
                       style: TextStyle(
                         fontSize: 12,
-                        color: AppColors.textSecondary.withOpacity(0.6),
+                        color: AppColors.textSecondary.withValues(alpha: 0.6),
                       ),
                     ),
                   ],

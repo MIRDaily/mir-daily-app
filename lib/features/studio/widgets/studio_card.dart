@@ -17,7 +17,6 @@ class StudioCard extends StatefulWidget {
 class _StudioCardState extends State<StudioCard> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
-  bool _isPressed = false;
 
   @override
   void initState() {
@@ -39,19 +38,16 @@ class _StudioCardState extends State<StudioCard> with SingleTickerProviderStateM
 
   void _handleTapDown(TapDownDetails details) {
     if (widget.feature.isEnabled) {
-      setState(() => _isPressed = true);
       _controller.forward();
     }
   }
 
   void _handleTapUp(TapUpDetails details) {
     _controller.reverse();
-    setState(() => _isPressed = false);
   }
 
   void _handleTapCancel() {
     _controller.reverse();
-    setState(() => _isPressed = false);
   }
 
   @override
@@ -73,12 +69,12 @@ class _StudioCardState extends State<StudioCard> with SingleTickerProviderStateM
             borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
-                color: widget.feature.color.withOpacity(0.15),
+                color: widget.feature.color.withValues(alpha: 0.15),
                 blurRadius: 20,
                 offset: const Offset(0, 8),
               ),
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withValues(alpha: 0.05),
                 blurRadius: 5,
                 offset: const Offset(0, 2),
               ),
@@ -96,8 +92,8 @@ class _StudioCardState extends State<StudioCard> with SingleTickerProviderStateM
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                         colors: [
-                          widget.feature.color.withOpacity(0.05),
-                          widget.feature.color.withOpacity(0.02),
+                          widget.feature.color.withValues(alpha: 0.05),
+                          widget.feature.color.withValues(alpha: 0.02),
                         ],
                       ),
                     ),
@@ -119,7 +115,7 @@ class _StudioCardState extends State<StudioCard> with SingleTickerProviderStateM
                             width: 56,
                             height: 56,
                             decoration: BoxDecoration(
-                              color: widget.feature.color.withOpacity(0.15),
+                              color: widget.feature.color.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(16),
                             ),
                             child: Icon(
@@ -137,10 +133,10 @@ class _StudioCardState extends State<StudioCard> with SingleTickerProviderStateM
                                 vertical: 6,
                               ),
                               decoration: BoxDecoration(
-                                color: widget.feature.color.withOpacity(0.1),
+                                color: widget.feature.color.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(20),
                                 border: Border.all(
-                                  color: widget.feature.color.withOpacity(0.3),
+                                  color: widget.feature.color.withValues(alpha: 0.3),
                                   width: 1,
                                 ),
                               ),
@@ -217,7 +213,7 @@ class _StudioCardState extends State<StudioCard> with SingleTickerProviderStateM
                   Positioned.fill(
                     child: Container(
                       decoration: BoxDecoration(
-                        color: AppColors.surface.withOpacity(0.7),
+                        color: AppColors.surface.withValues(alpha: 0.7),
                         borderRadius: BorderRadius.circular(24),
                       ),
                     ),

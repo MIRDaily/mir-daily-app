@@ -18,10 +18,10 @@ class FocusScoreIndicator extends StatelessWidget {
           margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.5),
+            color: Colors.black.withValues(alpha: 0.5),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: color.withOpacity(0.5),
+              color: color.withValues(alpha: 0.5),
               width: 2,
             ),
           ),
@@ -91,7 +91,7 @@ class FocusScoreIndicator extends StatelessWidget {
                     rating,
                     style: TextStyle(
                       fontSize: 12,
-                      color: color.withOpacity(0.8),
+                      color: color.withValues(alpha: 0.8),
                     ),
                   ),
                 ],
@@ -110,7 +110,7 @@ class FocusScoreIndicator extends StatelessWidget {
                     return CircularProgressIndicator(
                       value: value,
                       strokeWidth: 4,
-                      backgroundColor: Colors.white.withOpacity(0.2),
+                      backgroundColor: Colors.white.withValues(alpha: 0.2),
                       valueColor: AlwaysStoppedAnimation<Color>(color),
                     );
                   },
@@ -157,7 +157,7 @@ class DistractionStats extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: focusProvider.getFocusScoreColor().withOpacity(0.1),
+                      color: focusProvider.getFocusScoreColor().withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(
@@ -226,10 +226,10 @@ class DistractionStats extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.orange.withOpacity(0.1),
+                    color: Colors.orange.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: Colors.orange.withOpacity(0.3),
+                      color: Colors.orange.withValues(alpha: 0.3),
                     ),
                   ),
                   child: Row(

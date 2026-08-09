@@ -172,7 +172,7 @@ class _PrecisionTearPackState extends State<PrecisionTearPack> with SingleTicker
                   child: Container(
                     // Si debugMode es true, se ve rojo. Si no, transparente.
                     color: _showDebugHitbox 
-                        ? Colors.red.withOpacity(0.5) 
+                        ? Colors.red.withValues(alpha: 0.5) 
                         : Colors.transparent,
                     width: double.infinity,
                     child: _showDebugHitbox 
@@ -189,7 +189,7 @@ class _PrecisionTearPackState extends State<PrecisionTearPack> with SingleTicker
                 child: Container(
                   // Debug visual para la zona de abajo
                   color: _showDebugHitbox 
-                      ? Colors.blue.withOpacity(0.3) 
+                      ? Colors.blue.withValues(alpha: 0.3) 
                       : Colors.transparent,
                    width: double.infinity,
                    child: _showDebugHitbox 
@@ -234,7 +234,7 @@ class DashedLineGuide extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final double y = size.height * heightFactor;
     final Paint paint = Paint()
-      ..color = Colors.white.withOpacity(0.6 + (opacity.value * 0.4))
+      ..color = Colors.white.withValues(alpha: 0.6 + (opacity.value * 0.4))
       ..strokeWidth = 2
       ..style = PaintingStyle.stroke;
 

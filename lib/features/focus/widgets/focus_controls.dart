@@ -18,8 +18,8 @@ class FocusControls extends StatelessWidget {
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                Colors.black.withOpacity(0.0),
-                Colors.black.withOpacity(0.6),
+                Colors.black.withValues(alpha: 0.0),
+                Colors.black.withValues(alpha: 0.6),
               ],
             ),
           ),
@@ -53,7 +53,7 @@ class FocusControls extends StatelessWidget {
                       label: 'Salir',
                       onTap: () => _showExitConfirmation(context),
                       isActive: false,
-                      color: Colors.red.withOpacity(0.8),
+                      color: Colors.red.withValues(alpha: 0.8),
                     ),
                   ],
                 ),
@@ -112,10 +112,10 @@ class FocusControls extends StatelessWidget {
       width: 80,
       height: 100,
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.15),
+        color: Colors.white.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: Colors.white.withOpacity(0.3),
+          color: Colors.white.withValues(alpha: 0.3),
           width: 2,
         ),
       ),
@@ -153,7 +153,7 @@ class FocusControls extends StatelessWidget {
       style: TextStyle(
         fontSize: 12,
         fontWeight: FontWeight.w600,
-        color: Colors.white.withOpacity(0.7),
+        color: Colors.white.withValues(alpha: 0.7),
         letterSpacing: 1.5,
       ),
     );
@@ -173,11 +173,11 @@ class FocusControls extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
           color: color ?? (isActive 
-              ? Colors.white.withOpacity(0.25) 
-              : Colors.white.withOpacity(0.15)),
+              ? Colors.white.withValues(alpha: 0.25) 
+              : Colors.white.withValues(alpha: 0.15)),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: Colors.white.withOpacity(0.3),
+            color: Colors.white.withValues(alpha: 0.3),
             width: 2,
           ),
         ),

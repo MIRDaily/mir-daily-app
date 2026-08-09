@@ -23,7 +23,7 @@ class FocusProvider extends ChangeNotifier with WidgetsBindingObserver {
   
   // Estadísticas de sesión
   int _focusScore = 100; // Empieza en 100, baja con distracciones
-  List<DateTime> _distractionTimestamps = [];
+  final List<DateTime> _distractionTimestamps = [];
   
   // Contador de sesiones diarias
   int _todaySessions = 0;

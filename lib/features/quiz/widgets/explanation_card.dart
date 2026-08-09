@@ -65,8 +65,8 @@ class _ExplanationCardState extends State<ExplanationCard>
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             color: widget.isCorrect
-                ? AppColors.success.withOpacity(0.1)
-                : AppColors.error.withOpacity(0.1),
+                ? AppColors.success.withValues(alpha: 0.1)
+                : AppColors.error.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: widget.isCorrect ? AppColors.success : AppColors.error,
@@ -155,7 +155,7 @@ class _ExplanationCardState extends State<ExplanationCard>
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.all(6),
         decoration: BoxDecoration(
-          color: isSelected ? color.withOpacity(0.2) : Colors.transparent,
+          color: isSelected ? color.withValues(alpha: 0.2) : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: isSelected ? color : Colors.transparent,

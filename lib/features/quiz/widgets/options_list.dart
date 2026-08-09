@@ -64,18 +64,18 @@ class _OptionItem extends StatelessWidget {
 
     if (hasAnswered) {
       if (isCorrect) {
-        backgroundColor = AppColors.success.withOpacity(0.1);
+        backgroundColor = AppColors.success.withValues(alpha: 0.1);
         borderColor = AppColors.success;
         letterBgColor = AppColors.success;
         letterColor = Colors.white;
       } else if (isSelected && !isCorrect) {
-        backgroundColor = AppColors.error.withOpacity(0.1);
+        backgroundColor = AppColors.error.withValues(alpha: 0.1);
         borderColor = AppColors.error;
         letterBgColor = AppColors.error;
         letterColor = Colors.white;
       }
     } else if (isSelected) {
-      backgroundColor = AppColors.primary.withOpacity(0.1);
+      backgroundColor = AppColors.primary.withValues(alpha: 0.1);
       borderColor = AppColors.primary;
       letterBgColor = AppColors.primary;
       letterColor = Colors.white;

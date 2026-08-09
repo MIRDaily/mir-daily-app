@@ -15,9 +15,9 @@ class QuizProvider extends ChangeNotifier {
   int _sessionTotal = 0;
   
   // Estadísticas globales (en producción vendrían del backend/local storage)
-  int _totalAnswered = 0;
-  int _totalCorrect = 0;
-  int _currentStreak = 0;
+  final int _totalAnswered = 0;
+  final int _totalCorrect = 0;
+  final int _currentStreak = 0;
 
   QuizProvider() {
     _loadQuestions();

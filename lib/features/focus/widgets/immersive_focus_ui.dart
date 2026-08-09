@@ -129,7 +129,7 @@ class _ImmersiveFocusUIState extends State<ImmersiveFocusUI> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.4),
+        color: Colors.black.withValues(alpha: 0.4),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
@@ -158,7 +158,7 @@ class _ImmersiveFocusUIState extends State<ImmersiveFocusUI> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Row(
@@ -195,10 +195,10 @@ class _ImmersiveFocusUIState extends State<ImmersiveFocusUI> {
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.4),
+            color: Colors.black.withValues(alpha: 0.4),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: color.withOpacity(0.5),
+              color: color.withValues(alpha: 0.5),
               width: 1.5,
             ),
           ),
@@ -257,7 +257,7 @@ class _ImmersiveFocusUIState extends State<ImmersiveFocusUI> {
             icon: Icons.close,
             onTap: () => _showExitConfirmation(context),
             isActive: false,
-            color: Colors.red.withOpacity(0.8),
+            color: Colors.red.withValues(alpha: 0.8),
           ),
         ],
       ),
@@ -294,10 +294,10 @@ class _ImmersiveFocusUIState extends State<ImmersiveFocusUI> {
       width: 70,
       height: 80,
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.15),
+        color: Colors.white.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: Colors.white.withOpacity(0.3),
+          color: Colors.white.withValues(alpha: 0.3),
           width: 2,
         ),
       ),
@@ -342,11 +342,11 @@ class _ImmersiveFocusUIState extends State<ImmersiveFocusUI> {
         height: 60,
         decoration: BoxDecoration(
           color: color ?? (isActive 
-              ? Colors.white.withOpacity(0.25) 
-              : Colors.white.withOpacity(0.15)),
+              ? Colors.white.withValues(alpha: 0.25) 
+              : Colors.white.withValues(alpha: 0.15)),
           shape: BoxShape.circle,
           border: Border.all(
-            color: Colors.white.withOpacity(0.3),
+            color: Colors.white.withValues(alpha: 0.3),
             width: 2,
           ),
         ),

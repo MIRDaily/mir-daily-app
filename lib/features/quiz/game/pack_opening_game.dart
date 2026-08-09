@@ -64,8 +64,7 @@ class PackOpeningGame extends FlameGame with HorizontalDragDetector {
   bool _isRevealing = false;
   bool _canInteract = true;
   bool _isVisible = true; // Control de visibilidad
-  double _lastUpdateTime = 0.0;
-  
+
   // Posiciones
   late Vector2 _packPosition;
   late Vector2 _packSize;
@@ -195,10 +194,6 @@ class PackOpeningGame extends FlameGame with HorizontalDragDetector {
   // Métodos para controlar visibilidad desde fuera
   void setVisible(bool visible) {
     _isVisible = visible;
-    if (visible) {
-      // Resetear el tiempo para evitar saltos
-      _lastUpdateTime = 0.0;
-    }
   }
 
   PackOpeningGame({
@@ -679,7 +674,7 @@ class CardsBehindPackComponent extends PositionComponent with HasGameRef {
   void render(Canvas canvas) {
     if (_opacity <= 0) return;
     
-    final paint = Paint()..color = Colors.white.withOpacity(_opacity);
+    final paint = Paint()..color = Colors.white.withValues(alpha: _opacity);
     
     // Dibujar varias cartas apiladas
     for (int i = 4; i >= 0; i--) {
@@ -688,7 +683,7 @@ class CardsBehindPackComponent extends PositionComponent with HasGameRef {
       
       if (i == 0) {
         final shadowPaint = Paint()
-          ..color = Colors.black.withOpacity(0.2 * _opacity)
+          ..color = Colors.black.withValues(alpha: 0.2 * _opacity)
           ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
         canvas.drawRRect(
           RRect.fromRectAndRadius(
@@ -719,7 +714,6 @@ class GlowEffectComponent extends PositionComponent {
   double intensity = 0.0;
   double _wavePhase = 0.0;
   double _flashIntensity = 0.0;
-  bool _isFlashing = false;
 
   GlowEffectComponent({
     required this.packPosition,
@@ -762,8 +756,8 @@ class GlowEffectComponent extends PositionComponent {
       final glowPaint = Paint()
         ..shader = RadialGradient(
           colors: [
-            Colors.amber.withOpacity(layerIntensity * 0.8),
-            Colors.orange.withOpacity(layerIntensity * 0.4),
+            Colors.amber.withValues(alpha: layerIntensity * 0.8),
+            Colors.orange.withValues(alpha: layerIntensity * 0.4),
             Colors.transparent,
           ],
           stops: const [0.0, 0.5, 1.0],
@@ -782,7 +776,7 @@ class GlowEffectComponent extends PositionComponent {
     // Línea brillante central
     if (currentIntensity > 0.3) {
       final linePaint = Paint()
-        ..color = Colors.white.withOpacity(currentIntensity * 0.9)
+        ..color = Colors.white.withValues(alpha: currentIntensity * 0.9)
         ..strokeWidth = 3 + sin(_wavePhase * 2) * 1
         ..maskFilter = MaskFilter.blur(BlurStyle.normal, 6 + sin(_wavePhase) * 2);
       
@@ -796,7 +790,6 @@ class GlowEffectComponent extends PositionComponent {
   }
 
   void flashAndFade() {
-    _isFlashing = true;
     _flashIntensity = 1.5;
 
     _animate(
@@ -805,7 +798,6 @@ class GlowEffectComponent extends PositionComponent {
       onUpdate: (t) =>
           _flashIntensity = 1.5 * (1 - Curves.easeOutCubic.transform(t)),
       onDone: () {
-        _isFlashing = false;
         intensity = 0;
       },
     );
@@ -884,7 +876,7 @@ class SparklesComponent extends PositionComponent {
       final opacity = (sparkle.life * 2).clamp(0.0, 1.0);
       
       final paint = Paint()
-        ..color = sparkle.color.withOpacity(opacity)
+        ..color = sparkle.color.withValues(alpha: opacity)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2);
       
       canvas.drawCircle(
@@ -895,7 +887,7 @@ class SparklesComponent extends PositionComponent {
       
       // Estela
       final trailPaint = Paint()
-        ..color = sparkle.color.withOpacity(opacity * 0.3)
+        ..color = sparkle.color.withValues(alpha: opacity * 0.3)
         ..strokeWidth = sparkle.size * 0.5
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
       
@@ -1005,12 +997,12 @@ class CutLineIndicatorComponent extends PositionComponent {
     
     // Color de los guiones
     final dashPaint = Paint()
-      ..color = Colors.white.withOpacity(blinkOpacity * 0.9)
+      ..color = Colors.white.withValues(alpha: blinkOpacity * 0.9)
       ..style = PaintingStyle.fill;
     
     // Sombra/glow de los guiones
     final glowPaint = Paint()
-      ..color = Colors.amber.withOpacity(blinkOpacity * 0.4)
+      ..color = Colors.amber.withValues(alpha: blinkOpacity * 0.4)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
     
     // Dibujar guiones centrados
@@ -1056,10 +1048,10 @@ class CutLineIndicatorComponent extends PositionComponent {
           fontFamily: Icons.content_cut.fontFamily,
           package: Icons.content_cut.fontPackage,
           fontSize: 26,
-          color: Colors.white.withOpacity(fade),
+          color: Colors.white.withValues(alpha: fade),
           shadows: [
             Shadow(
-              color: Colors.black.withOpacity(0.35 * fade),
+              color: Colors.black.withValues(alpha: 0.35 * fade),
               blurRadius: 6,
               offset: const Offset(0, 2),
             ),
@@ -1102,7 +1094,7 @@ class PackBottomComponent extends PositionComponent with HasGameRef {
     
     // Sombra (solo para la parte inferior, NO se ve arriba)
     final shadowPaint = Paint()
-      ..color = Colors.black.withOpacity(shadowIntensity * _opacity)
+      ..color = Colors.black.withValues(alpha: shadowIntensity * _opacity)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 15);
     
     canvas.drawRRect(
@@ -1116,7 +1108,7 @@ class PackBottomComponent extends PositionComponent with HasGameRef {
     // Clipear para mostrar solo la parte inferior
     canvas.clipRect(Rect.fromLTWH(0, cutLineY, size.x, size.y - cutLineY));
     
-    final paint = Paint()..color = Colors.white.withOpacity(_opacity);
+    final paint = Paint()..color = Colors.white.withValues(alpha: _opacity);
     _sprite.render(canvas, size: size, overridePaint: paint);
     
     canvas.restore();
@@ -1174,13 +1166,13 @@ class PackTopComponent extends PositionComponent with HasGameRef {
     // Clipear para mostrar solo la parte superior
     canvas.clipRect(Rect.fromLTWH(0, 0, size.x, cutLineY));
     
-    final paint = Paint()..color = Colors.white.withOpacity(_opacity);
+    final paint = Paint()..color = Colors.white.withValues(alpha: _opacity);
     _sprite.render(canvas, size: size, overridePaint: paint);
     
     // Sombra inferior del corte (solo visible cuando se está rasgando)
     if (_tearProgress > 0 && !_isFlying) {
       final shadowPaint = Paint()
-        ..color = Colors.black.withOpacity(0.3 * _tearProgress)
+        ..color = Colors.black.withValues(alpha: 0.3 * _tearProgress)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
       
       canvas.drawRect(
@@ -1319,7 +1311,7 @@ class CardComponent extends PositionComponent with HasGameRef {
     // Sombra dinámica
     final shadowDistance = 6.0 + (_isFloating ? sin(_floatPhase) * 2.5 : 0);
     final shadowPaint = Paint()
-      ..color = Colors.black.withOpacity(0.3 * _opacity)
+      ..color = Colors.black.withValues(alpha: 0.3 * _opacity)
       ..maskFilter = MaskFilter.blur(BlurStyle.normal, 10 + shadowDistance);
     
     canvas.drawRRect(
@@ -1338,7 +1330,7 @@ class CardComponent extends PositionComponent with HasGameRef {
       canvas.translate(-size.x / 2, 0);
     }
     
-    final paint = Paint()..color = Colors.white.withOpacity(_opacity);
+    final paint = Paint()..color = Colors.white.withValues(alpha: _opacity);
     final showFront = _flipProgress >= 0.5;
     
     if (showFront && _isFlipped) {
