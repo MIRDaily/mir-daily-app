@@ -1,9 +1,11 @@
+import 'dart:math';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
 import '../config/app_config.dart';
 import '../models/analytics.dart';
+import '../data/mir_weights.dart';
 import '../models/models.dart';
 import 'auth_service.dart';
 
@@ -24,6 +26,11 @@ class ApiException implements Exception {
 
 /// Cliente del backend MIRDaily (Railway).
 /// Renueva el JWT de Supabase automáticamente cuando caduca.
+/// Centinela de "campo ausente": permite distinguir entre no mandar una clave
+/// y mandarla a null, que en el editor de perfil significan cosas distintas
+/// (dejar el dato como está vs. borrarlo).
+const Object _absent = Object();
+
 class ApiService {
   final AuthService _authService;
 
@@ -135,6 +142,54 @@ class ApiService {
 
   Future<void> updateAvatar(int avatarId) async {
     await _request('POST', '/api/profile/avatar', body: {'avatarId': avatarId});
+  }
+
+  /// Tope de la bio en el backend.
+  static const int maxBioLength = 280;
+
+  /// Días que hay que esperar entre dos cambios de username.
+  static const int usernameCooldownDays = 30;
+
+  /// Edición parcial de los datos del alta y de la bio.
+  ///
+  /// Es un endpoint aparte de `/onboarding` a propósito: aquel reescribe el
+  /// perfil entero y vuelve a sellar `username_last_changed`, así que
+  /// reutilizarlo para tocar el objetivo reiniciaría el bloqueo del username
+  /// sin que el usuario lo haya pedido.
+  ///
+  /// Solo se mandan las claves presentes, y [universityId] y
+  /// [customUniversity] son excluyentes.
+  Future<void> updateAcademicProfile({
+    Object? mainGoal = _absent,
+    Object? medicalYear = _absent,
+    Object? mirSpecialtyId = _absent,
+    Object? universityId = _absent,
+    Object? customUniversity = _absent,
+    Object? profilePublic = _absent,
+    Object? bio = _absent,
+  }) async {
+    final body = <String, dynamic>{
+      if (!identical(mainGoal, _absent)) 'mainGoal': mainGoal,
+      if (!identical(medicalYear, _absent)) 'medicalYear': medicalYear,
+      if (!identical(mirSpecialtyId, _absent)) 'mirSpecialtyId': mirSpecialtyId,
+      if (!identical(universityId, _absent)) 'universityId': universityId,
+      if (!identical(customUniversity, _absent))
+        'customUniversity': customUniversity,
+      if (!identical(profilePublic, _absent)) 'profilePublic': profilePublic,
+      if (!identical(bio, _absent)) 'bio': bio,
+    };
+    if (body.isEmpty) return;
+    await _request('PATCH', '/api/profile/academic', body: body);
+  }
+
+  /// Cambia el username. El backend lo bloquea 30 días desde el último
+  /// cambio y devuelve 403 si aún no toca, o 409 si ya está cogido.
+  Future<void> updateUsername(String username) async {
+    await _request(
+      'POST',
+      '/api/profile/username',
+      body: {'username': username.toLowerCase().trim()},
+    );
   }
 
   // ==========================
@@ -428,5 +483,231 @@ class ApiService {
     return ((json['results'] ?? []) as List)
         .map((e) => SimResult.fromJson(e as Map<String, dynamic>))
         .toList();
+  }
+
+  /// Genera las preguntas con el reparto ponderado por peso en el MIR.
+  ///
+  /// El endpoint solo admite un total y una lista de asignaturas, no cuotas
+  /// por asignatura, así que la composición se hace aquí: una petición por
+  /// asignatura con su cuota, en paralelo, y luego se baraja la unión — si no,
+  /// las preguntas saldrían agrupadas por asignatura.
+  ///
+  /// Es la misma estrategia que usa la web en `fetchSimulacroQuestions`.
+  Future<List<SimQuestion>> getSimulacroQuestionsWeighted(
+    List<MirAllocation> allocations,
+  ) async {
+    final wanted = allocations.where((a) => a.count > 0).toList();
+    if (wanted.isEmpty) return [];
+
+    final batches = await Future.wait([
+      for (final a in wanted)
+        getSimulacroQuestions(
+          subjectIds: [a.subjectId],
+          topicIds: const [],
+          count: a.count,
+          // Que falle una asignatura no debe tumbar el simulacro entero.
+        ).catchError((_) => <SimQuestion>[]),
+    ]);
+
+    final all = [for (final batch in batches) ...batch];
+    all.shuffle(Random());
+    return all;
+  }
+
+  /// Cierra la sesión de simulacro para que entre en el historial.
+  ///
+  /// El backend cuenta las respuestas realmente persistidas (no lo que diga
+  /// el cliente) y solo guarda la fila si son >=50, así que es idempotente y
+  /// "best-effort": si falla, el usuario ve sus resultados igual.
+  Future<void> finishSimulacro(String sessionId, String mode) async {
+    await _request(
+      'POST',
+      '/api/simulacro/finish',
+      body: {'sessionId': sessionId, 'mode': mode},
+    );
+  }
+
+  /// Historial de simulacros guardados (los completados con >=50 preguntas).
+  Future<List<SimSession>> getSimulacroHistory({
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    final json = await _request(
+      'GET',
+      '/api/simulacro/history?limit=$limit&offset=$offset',
+    );
+    return ((json['sessions'] ?? []) as List)
+        .map((e) => SimSession.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Agregado por día para el mapa de calor del historial.
+  Future<List<SimCalendarDay>> getSimulacroCalendar({
+    required DateTime from,
+    required DateTime to,
+  }) async {
+    String fmt(DateTime d) =>
+        '${d.year.toString().padLeft(4, '0')}-'
+        '${d.month.toString().padLeft(2, '0')}-'
+        '${d.day.toString().padLeft(2, '0')}';
+    final json = await _request(
+      'GET',
+      '/api/simulacro/calendar?from=${fmt(from)}&to=${fmt(to)}',
+    );
+    return ((json['days'] ?? []) as List)
+        .map((e) => SimCalendarDay.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Repaso de un simulacro pasado, en la forma que espera la rejilla de
+  /// resultados (preguntas + lo que se respondió + la corrección).
+  Future<SimHistoryDetail> getSimulacroHistoryDetail(String sessionId) async {
+    final json = await _request('GET', '/api/simulacro/history/$sessionId');
+    final questions = ((json['questions'] ?? []) as List)
+        .map((e) => SimQuestion.fromJson(e as Map<String, dynamic>))
+        .toList();
+    final answers = ((json['answers'] ?? []) as List)
+        .map((e) => e is num ? e.toInt() : null)
+        .cast<int?>()
+        .toList();
+    final results = ((json['results'] ?? []) as List)
+        .map((e) => e == null
+            ? null
+            : SimResult.fromJson(e as Map<String, dynamic>))
+        .cast<SimResult?>()
+        .toList();
+    return SimHistoryDetail(
+      questions: questions,
+      answers: answers,
+      results: results,
+    );
+  }
+
+  // ==========================
+  // FLASHCARDS PERSONALIZADAS
+  // ==========================
+
+  /// Tope del backend, para avisar antes de que rechace la tarjeta.
+  static const int maxFlashcardsPerDeck = 500;
+  static const int maxFlashcardChars = 5000;
+
+  Future<List<FlashDeck>> getFlashDecks() async {
+    final json = await _request('GET', '/api/studio/flashcard-decks');
+    return ((json['decks'] ?? []) as List)
+        .map((e) => FlashDeck.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<void> createFlashDeck(String name, {String? description}) async {
+    await _request('POST', '/api/studio/flashcard-decks', body: {
+      'name': name.trim(),
+      if (description != null && description.trim().isNotEmpty)
+        'description': description.trim(),
+    });
+  }
+
+  Future<void> updateFlashDeck(
+    String deckId, {
+    String? name,
+    String? description,
+  }) async {
+    await _request('PATCH', '/api/studio/flashcard-decks/$deckId', body: {
+      if (name != null) 'name': name.trim(),
+      if (description != null) 'description': description.trim(),
+    });
+  }
+
+  Future<List<Flashcard>> getFlashcards(String deckId) async {
+    final json =
+        await _request('GET', '/api/studio/flashcard-decks/$deckId/cards');
+    return ((json['cards'] ?? []) as List)
+        .map((e) => Flashcard.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<void> createFlashcard({
+    required String deckId,
+    required String front,
+    required String back,
+    String? topic,
+  }) async {
+    await _request(
+      'POST',
+      '/api/studio/flashcard-decks/$deckId/cards',
+      body: {
+        'front': front.trim(),
+        'back': back.trim(),
+        if (topic != null && topic.trim().isNotEmpty) 'topic': topic.trim(),
+      },
+    );
+  }
+
+  Future<void> updateFlashcard({
+    required String flashcardId,
+    required String front,
+    required String back,
+  }) async {
+    await _request('PATCH', '/api/studio/flashcards/$flashcardId', body: {
+      'front': front.trim(),
+      'back': back.trim(),
+    });
+  }
+
+  Future<void> deleteFlashcard({
+    required String deckId,
+    required int itemId,
+  }) async {
+    await _request(
+      'DELETE',
+      '/api/studio/flashcard-decks/$deckId/cards/$itemId',
+    );
+  }
+
+  /// Siguiente tarjeta de la cola. El estudio arranca con
+  /// [startDeckSession] y se cierra con [endDeckSession], que son los mismos
+  /// del motor SRS de los mazos.
+  Future<FlashNext> getNextFlashcard(String deckId, String sessionId) async {
+    final json = await _request(
+      'GET',
+      '/api/studio/flashcard-decks/$deckId/next?sessionId=$sessionId',
+    );
+    if (json['item'] != null) {
+      final item = json['item'] as Map<String, dynamic>;
+      final card = (item['flashcard'] ?? const {}) as Map<String, dynamic>;
+      return FlashNext(
+        FlashNextKind.card,
+        Flashcard(
+          itemId: (item['id'] as num?)?.toInt() ?? 0,
+          flashcardId: '${card['id']}',
+          front: (card['front'] ?? '') as String,
+          back: (card['back'] ?? '') as String,
+        ),
+      );
+    }
+    if (json['expired'] == true) return const FlashNext(FlashNextKind.expired);
+    if (json['limitReached'] == true) {
+      return const FlashNext(FlashNextKind.limit);
+    }
+    return const FlashNext(FlashNextKind.done);
+  }
+
+  /// Registra el repaso de una tarjeta. A diferencia de los mazos de
+  /// preguntas, aquí la corrección la decide el usuario ("¿me la sabía?"),
+  /// así que se manda `isCorrect` en vez de la opción elegida.
+  Future<void> logFlashcard({
+    required String deckId,
+    required int deckItemId,
+    required bool isCorrect,
+    required String sessionId,
+  }) async {
+    await _request(
+      'POST',
+      '/api/studio/decks/$deckId/log',
+      body: {
+        'deckItemId': deckItemId,
+        'isCorrect': isCorrect,
+        'sessionId': sessionId,
+      },
+    );
   }
 }

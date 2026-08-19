@@ -299,6 +299,21 @@ class UserProfile {
   final String? mainGoal;
   final DateTime? createdAt;
 
+  /// Presentación libre del usuario (columna `users.bio`).
+  final String? bio;
+
+  /// Si el perfil se puede ver desde fuera.
+  final bool profilePublic;
+
+  /// Ids del catálogo, que hacen falta para preseleccionar el editor.
+  final int? universityId;
+  final int? mirSpecialtyId;
+
+  /// Cuándo se podrá volver a cambiar el username. Viene del backend, no se
+  /// calcula aquí: así el bloqueo se respeta desde el primer render y en
+  /// cualquier dispositivo, no solo en el que hizo el cambio.
+  final DateTime? usernameNextChangeAt;
+
   const UserProfile({
     required this.id,
     this.email,
@@ -311,7 +326,17 @@ class UserProfile {
     this.university,
     this.mainGoal,
     this.createdAt,
+    this.bio,
+    this.profilePublic = false,
+    this.universityId,
+    this.mirSpecialtyId,
+    this.usernameNextChangeAt,
   });
+
+  /// True mientras el username siga bloqueado.
+  bool get usernameLocked =>
+      usernameNextChangeAt != null &&
+      usernameNextChangeAt!.isAfter(DateTime.now());
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
     return UserProfile(
@@ -328,6 +353,17 @@ class UserProfile {
           (json['university'] as Map<String, dynamic>?)?['name'] as String?,
       mainGoal: json['main_goal'] as String?,
       createdAt: DateTime.tryParse(json['created_at']?.toString() ?? ''),
+      bio: json['bio'] as String?,
+      profilePublic: _asBool(json['profile_public']),
+      universityId:
+          ((json['university'] as Map<String, dynamic>?)?['id'] as num?)
+              ?.round(),
+      mirSpecialtyId:
+          ((json['mir_specialty'] as Map<String, dynamic>?)?['id'] as num?)
+              ?.round(),
+      usernameNextChangeAt: DateTime.tryParse(
+        json['username_next_change_at']?.toString() ?? '',
+      )?.toLocal(),
     );
   }
 
@@ -708,4 +744,180 @@ class DeckTrashEntry {
         deletedAt: DateTime.tryParse(json['deleted_at']?.toString() ?? ''),
         purgeAt: DateTime.tryParse(json['purge_at']?.toString() ?? ''),
       );
+}
+
+/// Un simulacro guardado en el historial.
+///
+/// Ojo: el backend solo crea la fila si el simulacro se terminó y tenía al
+/// menos 50 respuestas persistidas, así que aquí nunca aparecen los tests
+/// cortos ni los abandonados.
+class SimSession {
+  final String id;
+  final String mode;
+  final int totalQuestions;
+  final int correctCount;
+  final int wrongCount;
+  final int blankCount;
+  final int timeSpentSeconds;
+  final DateTime? startedAt;
+  final DateTime? finishedAt;
+  final List<String> subjects;
+
+  const SimSession({
+    required this.id,
+    required this.mode,
+    required this.totalQuestions,
+    required this.correctCount,
+    required this.wrongCount,
+    required this.blankCount,
+    required this.timeSpentSeconds,
+    this.startedAt,
+    this.finishedAt,
+    this.subjects = const [],
+  });
+
+  double get accuracy =>
+      totalQuestions > 0 ? correctCount / totalQuestions : 0;
+
+  static int _int(dynamic v) => v is num ? v.toInt() : 0;
+
+  static DateTime? _date(dynamic v) =>
+      v is String ? DateTime.tryParse(v)?.toLocal() : null;
+
+  factory SimSession.fromJson(Map<String, dynamic> j) => SimSession(
+        id: '${j['id']}',
+        mode: (j['mode'] ?? 'immediate') as String,
+        totalQuestions: _int(j['total_questions']),
+        correctCount: _int(j['correct_count']),
+        wrongCount: _int(j['wrong_count']),
+        blankCount: _int(j['blank_count']),
+        timeSpentSeconds: _int(j['time_spent_seconds']),
+        startedAt: _date(j['started_at']),
+        finishedAt: _date(j['finished_at']),
+        subjects: ((j['subjects'] ?? const []) as List)
+            .map((e) => '$e')
+            .toList(),
+      );
+}
+
+/// Un día del calendario de simulacros (para el mapa de calor).
+class SimCalendarDay {
+  final DateTime day;
+  final int sessionCount;
+  final int totalQuestions;
+  final int correctCount;
+  final double accuracy;
+
+  const SimCalendarDay({
+    required this.day,
+    required this.sessionCount,
+    required this.totalQuestions,
+    required this.correctCount,
+    required this.accuracy,
+  });
+
+  factory SimCalendarDay.fromJson(Map<String, dynamic> j) => SimCalendarDay(
+        day: DateTime.parse(j['day'] as String),
+        sessionCount: SimSession._int(j['session_count']),
+        totalQuestions: SimSession._int(j['total_questions']),
+        correctCount: SimSession._int(j['correct_count']),
+        accuracy: (j['accuracy'] is num)
+            ? (j['accuracy'] as num).toDouble()
+            : 0,
+      );
+}
+
+/// El repaso completo de un simulacro pasado: las mismas tres listas que
+/// consume la rejilla de resultados en vivo.
+class SimHistoryDetail {
+  final List<SimQuestion> questions;
+  final List<int?> answers;
+  final List<SimResult?> results;
+
+  const SimHistoryDetail({
+    required this.questions,
+    required this.answers,
+    required this.results,
+  });
+}
+
+// ==========================
+// FLASHCARDS PERSONALIZADAS
+// ==========================
+//
+// Los GRUPOS de flashcards son mazos con kind='flashcards' en el backend, pero
+// tienen sus propios endpoints (/api/studio/flashcard-decks) para no mezclarse
+// con la biblioteca de mazos de preguntas. El ESTUDIO reutiliza el motor SRS de
+// los mazos (start-session / log / end) más una cola propia. Nada de esto
+// cuenta para las estadísticas globales del usuario.
+
+/// Un grupo de flashcards del usuario.
+class FlashDeck {
+  final String id;
+  final String name;
+  final String? description;
+  final String? color;
+  final String? icon;
+  final int totalCards;
+
+  /// Pendientes de repasar: nuevas, falladas o vencidas.
+  final int dueCards;
+
+  const FlashDeck({
+    required this.id,
+    required this.name,
+    this.description,
+    this.color,
+    this.icon,
+    this.totalCards = 0,
+    this.dueCards = 0,
+  });
+
+  static int _int(dynamic v) => v is num ? v.toInt() : 0;
+
+  factory FlashDeck.fromJson(Map<String, dynamic> j) => FlashDeck(
+        id: '${j['id']}',
+        name: (j['name'] ?? '') as String,
+        description: j['description'] as String?,
+        color: j['color'] as String?,
+        icon: j['icon'] as String?,
+        totalCards: _int(j['totalCards']),
+        dueCards: _int(j['dueCards']),
+      );
+}
+
+/// Una tarjeta: anverso y reverso.
+class Flashcard {
+  /// Id del `deck_item`, que es con el que se registra el repaso.
+  final int itemId;
+  final String flashcardId;
+  final String front;
+  final String back;
+  final String? topic;
+
+  const Flashcard({
+    required this.itemId,
+    required this.flashcardId,
+    required this.front,
+    required this.back,
+    this.topic,
+  });
+
+  factory Flashcard.fromJson(Map<String, dynamic> j) => Flashcard(
+        itemId: (j['itemId'] as num?)?.toInt() ?? 0,
+        flashcardId: '${j['flashcardId']}',
+        front: (j['front'] ?? '') as String,
+        back: (j['back'] ?? '') as String,
+        topic: j['topic'] as String?,
+      );
+}
+
+/// Cómo termina cada petición a la cola de estudio.
+enum FlashNextKind { card, done, expired, limit }
+
+class FlashNext {
+  final FlashNextKind kind;
+  final Flashcard? card;
+
+  const FlashNext(this.kind, [this.card]);
 }
