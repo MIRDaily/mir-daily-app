@@ -8,8 +8,8 @@ import '../../../core/services/api_service.dart';
 import '../../../core/services/notification_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/sticker/sticker.dart';
-import '../../../shared/sticker/textures.dart';
 import '../../onboarding/screens/onboarding_screen.dart';
+import '../widgets/profile_card.dart';
 import '../widgets/profile_editor_sheet.dart';
 
 /// Perfil con el lenguaje visual de la web: borde de tinta, sombra dura y,
@@ -203,171 +203,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
     List<String> chips,
   ) {
     final profile = context.read<AuthProvider>().profile;
-    // La serie y las barras salen del id del usuario, así que son siempre las
-    // mismas para la misma persona y coinciden con las que ve en la web.
-    final seed = profile?.id ?? 'mirdaily';
-
-    return StickerCard(
-      depth: 6,
-      radius: 26,
-      texture: laminatedPaper(),
-      padding: EdgeInsets.zero,
-      child: Stack(
-        children: [
-          // El destello del plastificado, por debajo del contenido. Se
-          // recorta contra el radio INTERIOR (el de la tarjeta menos el trazo):
-          // recortando la tarjeta entera, el destello pintaba sobre la mitad
-          // interna del borde y las esquinas perdían la línea.
-          Positioned.fill(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(24),
-              child: const LaminateSheen(),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // La foto del carné: cuadrada y con su trazo, no redonda.
-                    GestureDetector(
-                      onTap: _showAvatarSelectionSheet,
-                      child: Stack(
-                        children: [
-                          Container(
-                            width: 84,
-                            height: 84,
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(18),
-                              border: Border.all(color: kInk, width: 2),
-                              boxShadow: inkShadow(4),
-                            ),
-                            clipBehavior: Clip.antiAlias,
-                            child: _buildRawAvatarImage(avatarId: avatarId),
-                          ),
-                          Positioned(
-                            bottom: -2,
-                            right: -2,
-                            child: Container(
-                              width: 26,
-                              height: 26,
-                              decoration: BoxDecoration(
-                                color: AppColors.primary,
-                                borderRadius: BorderRadius.circular(9),
-                                border: Border.all(color: kInk, width: 2),
-                              ),
-                              child: const Icon(Icons.edit,
-                                  size: 12, color: Colors.white),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            name,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 21,
-                              fontWeight: FontWeight.w900,
-                              color: kInk,
-                              height: 1.15,
-                              letterSpacing: -0.4,
-                            ),
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            handle,
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: kMuted,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                if ((profile?.bio ?? '').isNotEmpty) ...[
-                  const SizedBox(height: 14),
-                  Text(
-                    profile!.bio!,
-                    style: const TextStyle(
-                      color: kInk,
-                      fontSize: 13.5,
-                      height: 1.5,
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 14),
-                // Todos los datos del carné en una sola fila de pastillas:
-                // estado, especialidad, universidad y curso.
-                Wrap(
-                  spacing: 7,
-                  runSpacing: 7,
-                  children: [
-                    if (isPremium)
-                      const DocChip(
-                        label: 'Premium',
-                        icon: Icons.verified_rounded,
-                        tone: DocTone.accent,
-                      ),
-                    DocChip(
-                      label: (profile?.profilePublic ?? false)
-                          ? 'Público'
-                          : 'Privado',
-                      icon: (profile?.profilePublic ?? false)
-                          ? Icons.visibility_rounded
-                          : Icons.lock_rounded,
-                    ),
-                    for (final c in chips) _chip(c),
-                  ],
-                ),
-                const SizedBox(height: 18),
-                // El pie del documento: barras y número de serie.
-                Container(height: 2, color: kHairline),
-                const SizedBox(height: 12),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    // El código tiene ancho propio; recortarlo es mejor que
-                    // estirarlo, que le cambiaría el paso de las barras.
-                    Flexible(
-                      child: ClipRect(
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          heightFactor: 1,
-                          child: SerialBarcode(seed: seed, height: 22),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      'Nº ${serialOf(seed)}',
-                      style: TextStyle(
-                        color: kMuted.withOpacity(0.9),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 1.2,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+    return ProfileCard(
+      name: name,
+      handle: handle,
+      avatar: _buildRawAvatarImage(avatarId: avatarId),
+      chips: chips,
+      bio: profile?.bio,
+      isPremium: isPremium,
+      isPublic: profile?.profilePublic ?? false,
+      // La serie y las barras salen del id del usuario, así que son siempre
+      // las mismas para la misma persona y coinciden con las de la web.
+      seed: profile?.id ?? 'mirdaily',
+      onTapAvatar: _showAvatarSelectionSheet,
+      onTapBio: _openProfileEditor,
     );
   }
 
@@ -377,25 +225,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (profile == null) return;
     final saved = await showProfileEditor(context, profile);
     if (saved && mounted) context.read<AuthProvider>().refreshProfile();
-  }
-
-  Widget _chip(String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF4EF),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0xFFF1D3C9), width: 2),
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-          color: Color(0xFFB9705F),
-        ),
-      ),
-    );
   }
 
   Widget _circleIconButton(IconData icon, VoidCallback onTap) {
