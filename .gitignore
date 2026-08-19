@@ -47,3 +47,9 @@ app.*.map.json
 # Cachés de la build de Android
 android/.gradle/
 android/.kotlin/
+
+# APK de sideload: 76 MB de binario que se regenera al compilar.
+/apk/
+
+# Capturas que deja un golden al fallar; no son fuente.
+/test/failures/

@@ -39,6 +39,11 @@ class AppColors {
   static const Color slateLight = Color(0xFF94A3B8);
   static const Color emerald = Color(0xFF10B981);
   static const Color emeraldLight = Color(0xFF34D399);
+
+  // Trazo de tinta del lenguaje "sticker" de la web (ver
+  // lib/shared/sticker/sticker.dart). Es el borde de las tarjetas rediseñadas.
+  static const Color ink = Color(0xFF2C3E50);
+  static const Color hairline = Color(0xFFEAE4E2);
 }
 
 class AppTheme {
@@ -46,6 +51,11 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
+
+      // Misma tipografia que la web (pesos 400/500/600/900). El 900 apunta al
+      // fichero Bold, igual que en su layout.tsx, para que los titulares
+      // `font-black` se vean identicos en los dos clientes.
+      fontFamily: 'Lexend',
       
       // Colores principales
       colorScheme: const ColorScheme.light(
@@ -78,26 +88,46 @@ class AppTheme {
       // Tarjetas
       cardTheme: CardThemeData(
         color: AppColors.surface,
-        elevation: 2,
-        shadowColor: AppColors.secondary.withOpacity(0.1),
+        elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: AppColors.hairline, width: 2),
         ),
       ),
       
-      // Botones elevados
+      // Botones elevados. Llevan el trazo de tinta del lenguaje visual (ver
+      // lib/shared/sticker/) para que los que quedan sueltos en diálogos y
+      // estados de error no desentonen con los StickerButton. La sombra dura
+      // no cabe en un ButtonStyle: la que la necesita usa StickerButton.
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primary,
           foregroundColor: Colors.white,
           elevation: 0,
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(16),
+            side: const BorderSide(color: AppColors.ink, width: 2),
           ),
           textStyle: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
+            fontSize: 15,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ),
+
+      // Botones con contorno: hacen el papel del GhostButton.
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.textSecondary,
+          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+          side: const BorderSide(color: AppColors.hairline, width: 2),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          textStyle: const TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
           ),
         ),
       ),
@@ -105,10 +135,10 @@ class AppTheme {
       // Botones de texto
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: AppColors.primary,
+          foregroundColor: AppColors.primaryDark,
           textStyle: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w500,
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
           ),
         ),
       ),

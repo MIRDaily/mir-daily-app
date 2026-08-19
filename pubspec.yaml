@@ -81,3 +81,18 @@ flutter:
     - assets/images/
     - assets/electros/simulador/
     - assets/electros/academia/
+
+  # Lexend: la tipografia de la web (mismos ficheros que public/fonts/lexend).
+  # El peso 900 apunta a Bold.ttf igual que en layout.tsx, para que el
+  # `font-black` de los titulares se vea identico en los dos clientes.
+  fonts:
+    - family: Lexend
+      fonts:
+        - asset: assets/fonts/lexend/Lexend-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/lexend/Lexend-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/lexend/Lexend-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/lexend/Lexend-Bold.ttf
+          weight: 900
