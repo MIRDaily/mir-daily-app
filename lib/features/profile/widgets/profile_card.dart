@@ -24,7 +24,6 @@ class ProfileCard extends StatelessWidget {
   /// puede pintar en un test.
   final Widget avatar;
   final bool isPremium;
-  final bool isPublic;
 
   /// Especialidad, universidad, curso… ya filtrados por quien llama.
   final List<String> chips;
@@ -51,7 +50,6 @@ class ProfileCard extends StatelessWidget {
     required this.onTapBio,
     this.bio,
     this.isPremium = false,
-    this.isPublic = false,
   });
 
   /// La foto del carné: cuadrada y con su trazo, no redonda.
@@ -153,8 +151,9 @@ class ProfileCard extends StatelessWidget {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(18),
+                // Sin sombra dura: la foto va PEGADA al carné, como una foto
+                // de verdad. Con relieve parecía un adhesivo encima.
                 border: Border.all(color: kInk, width: 2),
-                boxShadow: inkShadow(4),
               ),
               clipBehavior: Clip.antiAlias,
               child: avatar,
@@ -197,13 +196,12 @@ class ProfileCard extends StatelessWidget {
             ),
             const SizedBox(width: 6),
           ],
-          DocChip(
-            label: isPublic ? 'Público' : 'Privado',
-            icon: isPublic ? Icons.visibility_rounded : Icons.lock_rounded,
-          ),
-          for (final c in chips) ...[
-            const SizedBox(width: 6),
-            DocChip(label: c, tone: DocTone.accent),
+          // La visibilidad ya no se enseña aquí: se decide en el editor y
+          // ocupaba el sitio de lo que de verdad identifica al usuario, que
+          // son su especialidad y su universidad.
+          for (var i = 0; i < chips.length; i++) ...[
+            if (i > 0) const SizedBox(width: 6),
+            DocChip(label: chips[i], tone: DocTone.accent),
           ],
         ],
       ),

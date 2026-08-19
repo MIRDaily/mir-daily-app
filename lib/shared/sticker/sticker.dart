@@ -171,6 +171,11 @@ class _StickerCardState extends State<StickerCard> {
       ),
       clipBehavior: widget.clipBehavior,
       child: Stack(
+        // `passthrough`: el contenido recibe las MISMAS restricciones que la
+        // tarjeta. Por defecto un Stack las afloja, así que un hijo centrado
+        // se encogía a su texto más ancho y quedaba pegado arriba a la
+        // izquierda — que es como se descentraron las tarjetas de racha.
+        fit: StackFit.passthrough,
         children: [
           if (widget.texture != null)
             Positioned.fill(

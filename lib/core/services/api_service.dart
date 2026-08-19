@@ -37,7 +37,27 @@ class ApiService {
   /// Sesión activa (la fija AuthProvider al iniciar sesión o restaurarla).
   AuthSession? session;
 
-  ApiService(this._authService);
+  /// El cliente HTTP. Se puede inyectar para poder probar la capa de red sin
+  /// salir a internet — que es como se encontró que `PATCH` se enviaba como
+  /// `GET`.
+  final http.Client _client;
+
+  ApiService(this._authService, {http.Client? client})
+      : _client = client ?? http.Client();
+
+  /// Arma la petición con su verbo y su cuerpo. Un solo camino para todos los
+  /// métodos: si hay que añadir uno nuevo, no hay que acordarse de tocar una
+  /// cadena de `if`.
+  static http.Request _buildRequest(
+    String method,
+    Uri uri,
+    Map<String, String> headers,
+    String? body,
+  ) {
+    final req = http.Request(method, uri)..headers.addAll(headers);
+    if (body != null) req.body = body;
+    return req;
+  }
 
   /// Token válido (renovado si hacía falta). Lo usa el cliente de Versus, que
   /// vive en su propia feature pero comparte esta misma sesión: así el JWT se
@@ -68,20 +88,20 @@ class ApiService {
       'Content-Type': 'application/json',
     };
 
-    late http.Response res;
-    if (method == 'POST') {
-      res = await http
-          .post(uri, headers: headers, body: jsonEncode(body ?? {}))
-          .timeout(const Duration(seconds: 25));
-    } else if (method == 'DELETE') {
-      res = await http
-          .delete(uri, headers: headers)
-          .timeout(const Duration(seconds: 25));
-    } else {
-      res = await http
-          .get(uri, headers: headers)
-          .timeout(const Duration(seconds: 25));
+    // Un verbo desconocido NO puede caer en GET por descarte: así es como las
+    // tres llamadas PATCH (guardar el perfil, renombrar un grupo de flashcards
+    // y editar una tarjeta) acababan saliendo como GET y sin cuerpo, y el
+    // guardado no hacía nada.
+    const conCuerpo = {'POST', 'PATCH', 'PUT'};
+    if (method != 'GET' && method != 'DELETE' && !conCuerpo.contains(method)) {
+      throw ArgumentError.value(method, 'method', 'Verbo HTTP no soportado');
     }
+
+    final payload = conCuerpo.contains(method) ? jsonEncode(body ?? {}) : null;
+    final res = await _client
+        .send(_buildRequest(method, uri, headers, payload))
+        .timeout(const Duration(seconds: 25))
+        .then(http.Response.fromStream);
 
     Map<String, dynamic> json;
     try {

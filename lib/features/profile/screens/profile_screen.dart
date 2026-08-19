@@ -210,7 +210,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       chips: chips,
       bio: profile?.bio,
       isPremium: isPremium,
-      isPublic: profile?.profilePublic ?? false,
       // La serie y las barras salen del id del usuario, así que son siempre
       // las mismas para la misma persona y coinciden con las de la web.
       seed: profile?.id ?? 'mirdaily',
