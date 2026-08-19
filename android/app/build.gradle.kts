@@ -21,8 +21,17 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.mirdaily_app"
+        // ─────────────────────────────────────────────────────────────────
+        // OJO: este id lleva el sufijo `.v5` SOLO para poder tener instaladas
+        // a la vez v4 y v5 en el mismo telefono y compararlas. Android
+        // considera dos apps distintas dos ids distintos, y esa es la unica
+        // forma de que convivan.
+        //
+        // ANTES DE PUBLICAR hay que quitarlo y dejar el id de siempre, o
+        // saldria una app nueva en vez de una actualizacion de la existente.
+        // El id "de verdad" sigue siendo com.example.mirdaily_app.
+        // ─────────────────────────────────────────────────────────────────
+        applicationId = "com.example.mirdaily_app.v5"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
