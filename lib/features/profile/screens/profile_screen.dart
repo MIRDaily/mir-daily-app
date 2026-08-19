@@ -10,6 +10,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../shared/sticker/sticker.dart';
 import '../../onboarding/screens/onboarding_screen.dart';
 import '../widgets/profile_card.dart';
+import '../widgets/profile_card_fields.dart';
 import '../widgets/profile_editor_sheet.dart';
 
 /// Perfil con el lenguaje visual de la web: borde de tinta, sombra dura y,
@@ -29,6 +30,10 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   ActivityHeatmap? _heatmap;
 
+  /// Qué campos enseña el carné. Es una preferencia del teléfono, no un dato
+  /// del perfil, así que se lee de local y no del backend.
+  Set<CardField> _campos = CardFieldPrefs.todos;
+
   @override
   void initState() {
     super.initState();
@@ -36,6 +41,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _load() async {
+    CardFieldPrefs.load().then((c) {
+      if (mounted) setState(() => _campos = c);
+    });
     context.read<AuthProvider>().refreshProfile();
     try {
       final heatmap = await context.read<ApiService>().getActivityHeatmap();
@@ -195,6 +203,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  /// Estatus académico en una línea, a partir del curso.
+  ///
+  /// El 0 del onboarding es "Médico/a", no un curso cero; el resto son cursos
+  /// de carrera.
+  String? _estatusDe(UserProfile? p) {
+    final year = p?.medicalYear;
+    if (year == null) return null;
+    if (year == 0) return 'Médico/a';
+    return 'Estudiante de $yearº';
+  }
+
   Widget _buildHeader(
     String name,
     String handle,
@@ -207,15 +226,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
       name: name,
       handle: handle,
       avatar: _buildRawAvatarImage(avatarId: avatarId),
-      chips: chips,
+      estatus: _estatusDe(profile),
+      especialidad: profile?.mirSpecialty,
+      universidad: profile?.university,
       bio: profile?.bio,
       isPremium: isPremium,
+      campos: _campos,
       // La serie y las barras salen del id del usuario, así que son siempre
       // las mismas para la misma persona y coinciden con las de la web.
       seed: profile?.id ?? 'mirdaily',
       onTapAvatar: _showAvatarSelectionSheet,
       onTapBio: _openProfileEditor,
+      onTapCampos: _openCardFieldPicker,
     );
+  }
+
+  /// Deja elegir qué datos aparecen en el carné.
+  Future<void> _openCardFieldPicker() async {
+    final elegidos = await showCardFieldPicker(context, _campos);
+    if (elegidos == null || !mounted) return;
+    setState(() => _campos = elegidos);
+    CardFieldPrefs.save(elegidos);
   }
 
   /// Abre el editor de datos y refresca el perfil si guardó algo.

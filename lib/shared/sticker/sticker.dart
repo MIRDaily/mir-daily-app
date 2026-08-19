@@ -744,9 +744,17 @@ class DocChip extends StatelessWidget {
             Icon(icon, size: 13, color: fg),
             const SizedBox(width: 5),
           ],
-          Text(
-            label,
-            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: fg),
+          // Flexible: con una etiqueta larga ("Universidad de Granada") dentro
+          // de un hueco estrecho, un Text suelto desborda y Flutter pinta las
+          // rayas de aviso en vez de recortar.
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style:
+                  TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: fg),
+            ),
           ),
         ],
       ),

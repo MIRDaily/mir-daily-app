@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/sticker/sticker.dart';
 import '../../../shared/sticker/textures.dart';
+import 'profile_card_fields.dart';
 
 /// El carné del perfil.
 ///
@@ -10,11 +11,9 @@ import '../../../shared/sticker/textures.dart';
 /// fichero de mil, y así se puede renderizar en un test sin montar media app
 /// con sus providers.
 ///
-/// La textura es la de un documento acreditativo: guilloche, campos rotulados,
-/// código de barras derivado del id y un destello de laminado. La estructura
-/// también: **foto, datos, firma**. Antes el bloque de la derecha se quedaba
-/// medio vacío y las pastillas caían sueltas debajo; ahora la columna de datos
-/// se llena hasta abajo y el pie es una franja aparte.
+/// Se lee como un documento acreditativo de arriba abajo: **número de serie,
+/// foto y datos, presentación y firma**. Qué campos aparecen lo decide el
+/// usuario (ver [CardField]), así que el carné se adapta sin dejar huecos.
 class ProfileCard extends StatelessWidget {
   final String name;
   final String handle;
@@ -25,35 +24,57 @@ class ProfileCard extends StatelessWidget {
   final Widget avatar;
   final bool isPremium;
 
-  /// Especialidad, universidad, curso… ya filtrados por quien llama.
-  final List<String> chips;
+  /// Estatus académico ya resuelto: "Estudiante de 3º", "Médico/a"…
+  final String? estatus;
+  final String? especialidad;
+  final String? universidad;
 
   /// Presentación libre. Si está vacía se enseña una invitación a escribirla:
   /// sin ella, el campo no existía a ojos del usuario y no había forma de
   /// saber que se podía rellenar.
   final String? bio;
 
-  /// Semilla del código de barras: el id del usuario.
+  /// Semilla del código de barras y del número: el id del usuario.
   final String seed;
+
+  /// Qué campos se enseñan.
+  final Set<CardField> campos;
 
   final VoidCallback onTapAvatar;
   final VoidCallback onTapBio;
+  final VoidCallback onTapCampos;
 
   const ProfileCard({
     super.key,
     required this.name,
     required this.handle,
     required this.avatar,
-    required this.chips,
     required this.seed,
+    required this.campos,
     required this.onTapAvatar,
     required this.onTapBio,
+    required this.onTapCampos,
+    this.estatus,
+    this.especialidad,
+    this.universidad,
     this.bio,
     this.isPremium = false,
   });
 
-  /// La foto del carné: cuadrada y con su trazo, no redonda.
-  final double _photo = 92;
+  static const double _photo = 92;
+
+  /// Las pastillas de la columna de datos, en el orden del documento.
+  List<String> get _chips => [
+        if (campos.contains(CardField.especialidad) &&
+            (especialidad ?? '').isNotEmpty)
+          especialidad!,
+        if (campos.contains(CardField.universidad) &&
+            (universidad ?? '').isNotEmpty)
+          universidad!,
+      ];
+
+  bool get _verEstatus =>
+      campos.contains(CardField.estatus) && (estatus ?? '').isNotEmpty;
 
   @override
   Widget build(BuildContext context) {
@@ -66,29 +87,27 @@ class ProfileCard extends StatelessWidget {
       padding: EdgeInsets.zero,
       child: Stack(
         children: [
-          // El destello del plastificado, por debajo del contenido. Se recorta
-          // contra el radio INTERIOR (el de la tarjeta menos el trazo): al
-          // recortar la tarjeta entera pintaba sobre la mitad interna del
-          // borde y las esquinas perdían la línea.
+          // El brillo recorre la tarjeta ENTERA, así que va por encima de la
+          // textura pero por debajo del contenido, y se recorta contra el radio
+          // interior: recortando la tarjeta entera pintaría sobre la mitad
+          // interna del borde y las esquinas perderían la línea.
           Positioned.fill(
             child: ClipRRect(
               borderRadius: BorderRadius.circular(24),
-              child: const LaminateSheen(),
+              child: const CardShimmer(),
             ),
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              _cabecera(),
               Padding(
-                padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
+                padding: const EdgeInsets.fromLTRB(18, 10, 18, 14),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _foto(),
                     const SizedBox(width: 14),
-                    // La columna de datos ocupa TODO el alto de la foto: el
-                    // nombre arriba y las pastillas abajo, en vez de dejar un
-                    // hueco a la derecha y las pastillas sueltas más abajo.
                     Expanded(
                       child: SizedBox(
                         height: _photo,
@@ -119,7 +138,7 @@ class ProfileCard extends StatelessWidget {
                               ),
                             ),
                             const Spacer(),
-                            _pastillas(),
+                            if (_chips.isNotEmpty || isPremium) _pastillas(),
                           ],
                         ),
                       ),
@@ -127,7 +146,7 @@ class ProfileCard extends StatelessWidget {
                   ],
                 ),
               ),
-              _bio(texto),
+              if (campos.contains(CardField.bio)) _bio(texto),
               _pie(),
             ],
           ),
@@ -136,39 +155,69 @@ class ProfileCard extends StatelessWidget {
     );
   }
 
+  /// Franja de documento: el número de serie a la izquierda, como en un carné
+  /// de verdad, y el botón de elegir qué se enseña a la derecha.
+  Widget _cabecera() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(18, 12, 10, 0),
+      child: Row(
+        children: [
+          Text(
+            'Nº ${serialOf(seed)}',
+            style: TextStyle(
+              color: kMuted.withOpacity(0.9),
+              fontSize: 11,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1.4,
+            ),
+          ),
+          const Spacer(),
+          GestureDetector(
+            onTap: onTapCampos,
+            behavior: HitTestBehavior.opaque,
+            child: Padding(
+              padding: const EdgeInsets.all(6),
+              child: Icon(
+                Icons.tune_rounded,
+                size: 17,
+                color: kMuted.withOpacity(0.8),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// La foto: cuadrada y solo con su contorno. Nada de relieve — es una foto
+  /// pegada al documento, no una pegatina encima.
   Widget _foto() {
     return GestureDetector(
       onTap: onTapAvatar,
-      child: SizedBox(
+      child: Container(
         width: _photo,
         height: _photo,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: kInk, width: 2),
+        ),
+        clipBehavior: Clip.antiAlias,
         child: Stack(
-          clipBehavior: Clip.none,
+          fit: StackFit.expand,
           children: [
-            Container(
-              width: _photo,
-              height: _photo,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(18),
-                // Sin sombra dura: la foto va PEGADA al carné, como una foto
-                // de verdad. Con relieve parecía un adhesivo encima.
-                border: Border.all(color: kInk, width: 2),
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: avatar,
-            ),
+            avatar,
+            // El lápiz va DENTRO y pegado a la esquina: sobresaliendo era lo
+            // que le daba el aire de relieve.
             Positioned(
-              right: -4,
-              bottom: -4,
+              right: 0,
+              bottom: 0,
               child: Container(
-                width: 26,
-                height: 26,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
+                padding: const EdgeInsets.fromLTRB(6, 4, 4, 3),
+                decoration: const BoxDecoration(
                   color: AppColors.primary,
-                  borderRadius: BorderRadius.circular(9),
-                  border: Border.all(color: kInk, width: 2),
+                  borderRadius:
+                      BorderRadius.only(topLeft: Radius.circular(10)),
                 ),
                 child: const Icon(Icons.edit, size: 12, color: Colors.white),
               ),
@@ -180,8 +229,8 @@ class ProfileCard extends StatelessWidget {
   }
 
   Widget _pastillas() {
-    // Una sola línea: en un carné los distintivos van en fila, y con `Wrap`
-    // una universidad de nombre largo empujaba todo hacia abajo.
+    // Una sola línea con desplazamiento: en un carné los distintivos van en
+    // fila, y con `Wrap` una universidad de nombre largo empujaba todo abajo.
     return SizedBox(
       height: 26,
       child: ListView(
@@ -196,19 +245,16 @@ class ProfileCard extends StatelessWidget {
             ),
             const SizedBox(width: 6),
           ],
-          // La visibilidad ya no se enseña aquí: se decide en el editor y
-          // ocupaba el sitio de lo que de verdad identifica al usuario, que
-          // son su especialidad y su universidad.
-          for (var i = 0; i < chips.length; i++) ...[
+          for (var i = 0; i < _chips.length; i++) ...[
             if (i > 0) const SizedBox(width: 6),
-            DocChip(label: chips[i], tone: DocTone.accent),
+            DocChip(label: _chips[i], tone: DocTone.accent),
           ],
         ],
       ),
     );
   }
 
-  /// La franja de la presentación, siempre presente.
+  /// La franja de la presentación.
   Widget _bio(String texto) {
     final vacia = texto.isEmpty;
 
@@ -252,34 +298,28 @@ class ProfileCard extends StatelessWidget {
     );
   }
 
-  /// Pie del documento: barras y número de serie.
+  /// Pie del documento: las barras, ahora más cortas, y el estatus a su lado.
+  ///
+  /// El número de serie se fue arriba, así que aquí queda sitio para el dato
+  /// que de verdad dice quién eres.
   Widget _pie() {
+    final barras = campos.contains(CardField.codigo);
+    if (!barras && !_verEstatus) return const SizedBox(height: 12);
+
     return Padding(
-      padding: const EdgeInsets.fromLTRB(18, 12, 18, 14),
+      padding: const EdgeInsets.fromLTRB(18, 11, 18, 13),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          // El código tiene ancho propio; recortarlo es mejor que estirarlo,
-          // que le cambiaría el paso de las barras.
-          Flexible(
-            child: ClipRect(
-              child: Align(
-                alignment: Alignment.centerLeft,
-                heightFactor: 1,
-                child: SerialBarcode(seed: seed, height: 22),
+          if (barras) SerialBarcode(seed: seed, height: 18, bars: 22),
+          const Spacer(),
+          if (_verEstatus)
+            Flexible(
+              child: DocChip(
+                label: estatus!,
+                icon: Icons.school_rounded,
+                tone: DocTone.ink,
               ),
             ),
-          ),
-          const SizedBox(width: 12),
-          Text(
-            'Nº ${serialOf(seed)}',
-            style: TextStyle(
-              color: kMuted.withOpacity(0.9),
-              fontSize: 11,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 1.2,
-            ),
-          ),
         ],
       ),
     );

@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mirdaily_app/core/theme/app_theme.dart';
 import 'package:mirdaily_app/features/profile/widgets/profile_card.dart';
+import 'package:mirdaily_app/features/profile/widgets/profile_card_fields.dart';
 import 'package:mirdaily_app/shared/sticker/sticker.dart';
 
 Widget _avatarFalso() => const ColoredBox(
@@ -18,7 +19,7 @@ Widget _avatarFalso() => const ColoredBox(
 
 void main() {
   testWidgets('carne con bio y sin bio', (tester) async {
-    tester.view.physicalSize = const Size(420, 780);
+    tester.view.physicalSize = const Size(420, 880);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
 
@@ -38,12 +39,16 @@ void main() {
                   name: 'Alejandro',
                   handle: '@alejandro',
                   avatar: _avatarFalso(),
-                  chips: const ['Alergología', 'Universidad de Sevilla'],
+                  estatus: 'Estudiante de 6º',
+                  especialidad: 'Alergología',
+                  universidad: 'Universidad de Sevilla',
                   bio: 'Probando el carné nuevo desde producción. '
                       'Opositor de segunda vuelta.',
+                  campos: CardFieldPrefs.todos,
                   seed: 'demo-user-id',
                   onTapAvatar: () {},
                   onTapBio: () {},
+                  onTapCampos: () {},
                 ),
                 const SizedBox(height: 18),
                 // Contenido CENTRADO dentro de una StickerCard: es lo que se
@@ -84,15 +89,21 @@ void main() {
                   ],
                 ),
                 const SizedBox(height: 18),
-                const SectionLabel('Sin bio'),
+                const SectionLabel('Con campos apagados'),
+                // Con la mitad de los campos apagados: el carné se encoge
+                // en vez de dejar huecos.
                 ProfileCard(
                   name: 'admin2',
                   handle: '@admin2',
                   avatar: _avatarFalso(),
-                  chips: const [],
+                  estatus: 'Médico/a',
+                  especialidad: 'Cardiología',
+                  universidad: 'Universidad de Granada',
+                  campos: const {CardField.estatus, CardField.bio},
                   seed: 'otro-usuario',
                   onTapAvatar: () {},
                   onTapBio: () {},
+                  onTapCampos: () {},
                 ),
               ],
             ),

@@ -285,10 +285,11 @@ String serialOf(String seed) {
 /// vida de la app en vez de 42 hashes por cada build del perfil.
 final Map<String, List<double>> _barCache = {};
 
-List<double> _barsFor(String seed) => _barCache.putIfAbsent(
-      seed,
+List<double> _barsFor(String seed, int cuantas) =>
+    _barCache.putIfAbsent(
+      '$seed#$cuantas',
       () => List<double>.generate(
-        42,
+        cuantas,
         (i) => 1 + (_hashSeed('$seed:$i') % 3).toDouble(),
       ),
     );
@@ -301,17 +302,26 @@ class SerialBarcode extends StatelessWidget {
   final String seed;
   final double height;
 
-  const SerialBarcode({super.key, required this.seed, this.height = 26});
+  /// Cuántas barras. Las primeras son siempre las mismas para una semilla, así
+  /// que un código corto es el principio del largo, no otro distinto.
+  final int bars;
+
+  const SerialBarcode({
+    super.key,
+    required this.seed,
+    this.height = 26,
+    this.bars = 42,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final bars = _barsFor(seed);
+    final anchos = _barsFor(seed, bars);
     // Ancho exacto del dibujo: cada barra más 2 px de aire.
-    final width = bars.fold<double>(0, (a, w) => a + w + 2);
+    final width = anchos.fold<double>(0, (a, w) => a + w + 2);
     return RepaintBoundary(
       child: CustomPaint(
         size: Size(width, height),
-        painter: _BarcodePainter(bars),
+        painter: _BarcodePainter(anchos),
         isComplex: false,
       ),
     );
@@ -348,32 +358,44 @@ class _BarcodePainter extends CustomPainter {
   bool shouldRepaint(_BarcodePainter old) => !identical(old.bars, bars);
 }
 
-/// Brillo del plastificado: una banda de luz que cruza el carné muy de vez en
-/// cuando, como cuando giras un documento bajo una lámpara.
+/// Brillo que recorre la tarjeta entera de un lado a otro.
 ///
-/// Es la única animación en bucle del perfil, así que se porta bien: para
-/// cuando se lo piden (diálogo abierto encima), respeta que el sistema tenga
-/// las animaciones reducidas y va dentro de su propio límite de repintado,
-/// para no arrastrar consigo el guilloche de debajo en cada fotograma.
-class LaminateSheen extends StatefulWidget {
+/// La primera versión era una banda girada dentro de un recorte: se veía el
+/// rectángulo, no el reflejo, y en las esquinas quedaba a medias. Esta no
+/// mueve ninguna caja — mueve el propio degradado, así que barre la tarjeta
+/// completa, de borde a borde y sin geometría que se salga.
+///
+/// Es la única animación en bucle del perfil, así que se para cuando se lo
+/// piden (un diálogo abierto encima) y respeta que el sistema tenga las
+/// animaciones reducidas.
+class CardShimmer extends StatefulWidget {
   final bool paused;
 
-  const LaminateSheen({super.key, this.paused = false});
+  /// Cuánto dura el barrido y cuánto se espera entre uno y otro.
+  final Duration sweep;
+  final Duration wait;
+
+  const CardShimmer({
+    super.key,
+    this.paused = false,
+    this.sweep = const Duration(milliseconds: 1500),
+    this.wait = const Duration(milliseconds: 6000),
+  });
 
   @override
-  State<LaminateSheen> createState() => _LaminateSheenState();
+  State<CardShimmer> createState() => _CardShimmerState();
 }
 
-class _LaminateSheenState extends State<LaminateSheen>
+class _CardShimmerState extends State<CardShimmer>
     with SingleTickerProviderStateMixin {
-  // 1,6 s de barrido + 8,4 s de espera. Antes cruzaba en 3,2 s y con una
-  // banda ancha y muy blanca: se veía el rectángulo, no el reflejo.
-  static const _sweep = 1.6 / 10.0;
-
   late final AnimationController _ctrl = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 10000),
+    duration: widget.sweep + widget.wait,
   );
+
+  double get _sweepFraction =>
+      widget.sweep.inMilliseconds /
+      (widget.sweep.inMilliseconds + widget.wait.inMilliseconds);
 
   @override
   void initState() {
@@ -382,7 +404,7 @@ class _LaminateSheenState extends State<LaminateSheen>
   }
 
   @override
-  void didUpdateWidget(covariant LaminateSheen old) {
+  void didUpdateWidget(covariant CardShimmer old) {
     super.didUpdateWidget(old);
     if (widget.paused) {
       _ctrl.stop();
@@ -404,55 +426,36 @@ class _LaminateSheenState extends State<LaminateSheen>
     }
 
     return IgnorePointer(
-      child: ClipRect(
-        child: RepaintBoundary(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final w = constraints.maxWidth;
-              final h = constraints.maxHeight;
-              // La banda se inclina, así que tiene que sobresalir por arriba y
-              // por abajo o dejaría dos triángulos sin cubrir.
-              final band = SizedBox(
-                width: w * 0.26,
-                height: h * 2.4,
-                child: const DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.centerLeft,
-                      end: Alignment.centerRight,
-                      colors: [
-                        Color(0x00FFFFFF),
-                        Color(0x14E8A598),
-                        Color(0x59FFFFFF),
-                        Color(0x14E8A598),
-                        Color(0x00FFFFFF),
-                      ],
-                      stops: [0, 0.34, 0.5, 0.66, 1],
-                    ),
-                  ),
-                ),
-              );
+      child: RepaintBoundary(
+        child: AnimatedBuilder(
+          animation: _ctrl,
+          builder: (context, _) {
+            final t = _ctrl.value;
+            if (t > _sweepFraction) return const SizedBox.expand();
+            final p = Curves.easeInOutSine.transform(t / _sweepFraction);
 
-              return AnimatedBuilder(
-                animation: _ctrl,
-                // La banda se construye UNA vez y solo se mueve: el
-                // AnimatedBuilder no vuelve a montarla en cada fotograma.
-                child: band,
-                builder: (context, child) {
-                  final t = _ctrl.value;
-                  if (t > _sweep) return const SizedBox.shrink();
-                  final p = Curves.easeInOutSine.transform(t / _sweep);
-                  return Transform.translate(
-                    offset: Offset(-w * 0.4 + p * w * 1.6, -h * 0.7),
-                    child: Transform.rotate(
-                      angle: 0.32,
-                      child: child,
-                    ),
-                  );
-                },
-              );
-            },
-          ),
+            // El destello va del todo fuera por la izquierda al todo fuera por
+            // la derecha. Se mueve el DEGRADADO, no una caja: por eso cubre la
+            // tarjeta entera pase lo que pase con su tamaño.
+            final x = -1.6 + p * 3.2;
+            return DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment(x - 0.5, -1),
+                  end: Alignment(x + 0.5, 1),
+                  colors: const [
+                    Color(0x00FFFFFF),
+                    Color(0x10E8A598),
+                    Color(0x4DFFFFFF),
+                    Color(0x10E8A598),
+                    Color(0x00FFFFFF),
+                  ],
+                  stops: const [0.0, 0.35, 0.5, 0.65, 1.0],
+                ),
+              ),
+              child: const SizedBox.expand(),
+            );
+          },
         ),
       ),
     );
