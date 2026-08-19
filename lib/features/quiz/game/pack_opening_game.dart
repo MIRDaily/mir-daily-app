@@ -83,26 +83,27 @@ class PackOpeningGame extends FlameGame with HorizontalDragDetector {
   /// Proporción de la carta, la de toda la vida (85x115).
   static const double _cardAspect = 115 / 85;
 
-  /// Cuántas caben a lo ancho. Con dos por fila las cartas salen grandes y los
-  /// nombres largos de asignatura entran sin recortarse.
-  static const int _cardsPerRow = 2;
-
   /// Inclinación máxima de una carta, en radianes (~8°).
   static const double _cardTilt = 0.14;
 
-  /// Cuánto puede vagar cada carta de su sitio. Es lo que rompe la rejilla y
-  /// hace que el montón parezca tirado a mano.
-  static const double _cardJitterX = 10.0;
-  static const double _cardJitterY = 16.0;
+  /// Cuánto sube la carta central de su fila respecto a las de los extremos.
+  static const double _cardArc = 16.0;
 
   /// Aire que queda entre dos cartas en el caso peor.
   static const double _cardAir = 8.0;
 
-  /// Hueco entre cartas. Tiene que absorber el desfase de LAS DOS vecinas, que
-  /// pueden desviarse una hacia la otra: por eso es el doble del desfase más el
-  /// aire. Con menos, dos cartas que se desvíen a la vez se solaparían.
-  static const double _cardGapX = 2 * _cardJitterX + _cardAir;
-  static const double _cardGapY = 2 * _cardJitterY + _cardAir;
+  /// Hueco entre cartas.
+  ///
+  /// A lo ancho basta el aire: el reparto ya no desvía nada al azar, y lo que
+  /// se come el giro ya está contado en el ancho inclinado. Antes había que
+  /// reservar el doble del desfase por si dos vecinas se movían la una hacia
+  /// la otra; sin azar, ese presupuesto vuelve a las cartas, que con tres por
+  /// fila se habían quedado estrechas para los nombres largos.
+  static const double _cardGapX = _cardAir;
+
+  /// A lo alto hay que absorber el arco: una carta de la fila de abajo puede
+  /// subir mientras la de encima no se mueve, y entonces se acercan.
+  static const double _cardGapY = _cardArc + _cardAir;
 
   static const double _cardsMargin = 15.0;
 
@@ -132,23 +133,26 @@ class PackOpeningGame extends FlameGame with HorizontalDragDetector {
   /// _loadComponents, o el reparto contaría un número de filas equivocado.
   int get _cardCount => specialties.isNotEmpty ? specialties.length : 5;
 
-  /// Cuántas cartas van en cada fila. Con las 5 del daily es 2-1-2: la carta
-  /// suelta del medio rompe la simetría y el montón se lee menos como una
-  /// tabla. Con otro número se reparte de la forma corriente.
+  /// Cuántas cartas van en cada fila: **dos filas**, la de arriba con la mitad
+  /// redondeada hacia arriba. Con las 5 del daily sale 3-2, que es el mismo
+  /// reparto que hace el dashboard de la web (`ceil(total / 2)`).
+  ///
+  /// Antes eran 2-1-2 con desfase al azar, y el montón se leía como si las
+  /// cartas se hubieran rociado por la pantalla.
   List<int> get _rowSizes {
-    if (_cardCount == 5) return const [2, 1, 2];
-
-    final rows = <int>[];
-    var remaining = _cardCount;
-    while (remaining > 0) {
-      final n = remaining >= _cardsPerRow ? _cardsPerRow : remaining;
-      rows.add(n);
-      remaining -= n;
-    }
-    return rows;
+    final n = _cardCount;
+    if (n <= 1) return [n];
+    final arriba = (n + 1) ~/ 2; // ceil(n / 2)
+    return [arriba, n - arriba];
   }
 
   int get _cardRows => _rowSizes.length;
+
+  /// La fila más ancha, que es la que manda al calcular cuánto puede medir una
+  /// carta. Antes se daba por hecho [_cardsPerRow] y con tres por fila las
+  /// cartas salían demasiado grandes.
+  int get _cardsWidestRow =>
+      _rowSizes.fold(1, (a, b) => a > b ? a : b);
 
   /// Solo para tests: el reparto que saldría en una pantalla dada, para poder
   /// comprobar que las cartas no se solapan.
@@ -173,13 +177,13 @@ class PackOpeningGame extends FlameGame with HorizontalDragDetector {
     final tiltW = cos(_cardTilt) + _cardAspect * sin(_cardTilt);
     final tiltH = sin(_cardTilt) + _cardAspect * cos(_cardTilt);
 
-    // El 2*jitter suelto del final es para las cartas de los extremos, que si
-    // se desvían hacia fuera no deben salirse del margen.
     final byWidth =
-        (availableWidth - (_cardsPerRow - 1) * _cardGapX - 2 * _cardJitterX) /
-            (_cardsPerRow * tiltW);
+        (availableWidth - (_cardsWidestRow - 1) * _cardGapX) /
+            (_cardsWidestRow * tiltW);
+    // Arriba y abajo se reserva el arco: la carta central de la primera fila
+    // sube, y no debe salirse por el borde superior.
     final byHeight =
-        (availableHeight - (_cardRows - 1) * _cardGapY - 2 * _cardJitterY) /
+        (availableHeight - (_cardRows - 1) * _cardGapY - 2 * _cardArc) /
             (_cardRows * tiltH);
 
     cardWidth = min(min(byWidth, byHeight), _cardMaxWidth);
@@ -416,12 +420,10 @@ class PackOpeningGame extends FlameGame with HorizontalDragDetector {
 
     final targetPositions = _generateCardPositions(random: random);
 
-    // Cada una cae con su propia inclinación. El tope es el mismo que se usó
-    // para repartirlas, así que por mucho que se ladeen siguen sin tocarse.
-    final targetAngles = List.generate(
-      _cards.length,
-      (_) => (random.nextDouble() * 2 - 1) * _cardTilt,
-    );
+    // La inclinación va en abanico, no al azar: dentro de cada fila la carta
+    // se ladea según lo lejos que esté del centro, como en la web. El tope es
+    // el mismo que se usó para repartirlas, así que siguen sin tocarse.
+    final targetAngles = _generateCardAngles();
     
     final originPos = Vector2(
       _packPosition.x + _packSize.x / 2 - cardWidth / 2,
@@ -481,13 +483,11 @@ class PackOpeningGame extends FlameGame with HorizontalDragDetector {
       final rowStartX = size.x / 2 - rowWidth / 2;
       final baseY = startY + row * (slotH + _cardGapY);
 
-      // La fila de una sola carta (la del medio en el 2-1-2) no tiene vecinas
-      // al lado, así que puede vagar por todo el hueco libre y no quedarse
-      // clavada en el centro. Las filas de dos, en cambio, se ciñen al desfase
-      // base: es el único que el hueco entre cartas puede absorber cuando las
-      // dos se desvían la una hacia la otra.
-      final freeX = (size.x - 2 * _cardsMargin) - rowWidth;
-      final jitterX = n == 1 ? max(_cardJitterX, freeX / 2) : _cardJitterX;
+      // El desvío ya no es al azar sino un ARCO: dentro de cada fila, la carta
+      // del medio queda un poco más alta que las de los lados, igual que en el
+      // dashboard de la web. Con el desfase aleatorio el reparto parecía un
+      // montón de cartas rociadas; así se lee como un abanico puesto a mano.
+      final mid = (n - 1) / 2;
 
       for (var i = 0; i < n; i++) {
         // La carta va centrada en su hueco: el hueco es su caja inclinada, que
@@ -496,14 +496,28 @@ class PackOpeningGame extends FlameGame with HorizontalDragDetector {
         final x = slotX + (slotW - cardWidth) / 2;
         final y = baseY + (slotH - cardHeight) / 2;
 
-        positions.add(Vector2(
-          x + (random.nextDouble() * 2 - 1) * jitterX,
-          y + (random.nextDouble() * 2 - 1) * _cardJitterY,
-        ));
+        // 1 en el centro de la fila y 0 en los extremos. El alto del arco se
+        // limita al desfase que [_computeCardSize] ya tenía reservado, así que
+        // no puede hacer que dos cartas se toquen.
+        final t = mid == 0 ? 0.0 : 1 - pow((i - mid) / mid, 2).toDouble();
+        positions.add(Vector2(x, y - t * _cardArc));
       }
     }
 
     return positions;
+  }
+
+  /// Inclinación de cada carta, en el mismo orden que [_generateCardPositions].
+  List<double> _generateCardAngles() {
+    final angles = <double>[];
+    for (final n in _rowSizes) {
+      final mid = (n - 1) / 2;
+      for (var i = 0; i < n; i++) {
+        // Las de la izquierda hacia un lado y las de la derecha hacia el otro.
+        angles.add(mid == 0 ? 0 : ((i - mid) / mid) * _cardTilt);
+      }
+    }
+    return angles;
   }
 
   void _startRevealSequence() {

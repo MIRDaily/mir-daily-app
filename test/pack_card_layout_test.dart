@@ -91,7 +91,7 @@ void main() {
     expect(game.cardHeight / game.cardWidth, closeTo(115 / 85, 0.01));
   });
 
-  test('las 5 cartas del daily se reparten 2-1-2', () {
+  test('las 5 cartas del daily se reparten 3-2, como en la web', () {
     final game = buildGame();
     final positions = game.debugCardLayout(Vector2(360, 780), Random(1));
 
@@ -107,6 +107,6 @@ void main() {
 
     final counts = rows.entries.toList()
       ..sort((a, b) => a.key.compareTo(b.key));
-    expect(counts.map((e) => e.value).toList(), [2, 1, 2]);
+    expect(counts.map((e) => e.value).toList(), [3, 2]);
   });
 }
