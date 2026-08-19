@@ -9,6 +9,13 @@ import 'package:provider/provider.dart';
 import '../../core/models/models.dart';
 import '../../core/services/api_service.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/data/mir_weights.dart';
+import '../../shared/sticker/sticker.dart';
+import 'widgets/count_slider.dart';
+import 'widgets/highlightable_statement.dart';
+import 'widgets/layout_mode_art.dart';
+import 'widgets/subject_shortcuts.dart';
+import 'simulacro_historial_screen.dart';
 import '../../shared/widgets/pressable.dart';
 import '../../shared/widgets/zoomable_image.dart';
 
@@ -27,10 +34,18 @@ class _SimulacroScreenState extends State<SimulacroScreen> {
   String _phase = 'builder'; // builder | running | results
   String _mode = 'immediate'; // immediate | deferred
   String _layout = 'classic'; // classic | carousel
-  bool _showSubject = true; // mostrar la asignatura en el enunciado
+
+  /// Mostrar la asignatura en el enunciado. Apagado por defecto: saberla acota
+  /// la respuesta antes de leer el caso, y un simulacro imita al examen.
+  bool _showSubject = false;
   List<SimQuestion> _questions = [];
   List<int?> _answers = [];
   List<SimResult?> _results = [];
+
+  /// Segundos que costó cada pregunta, para mandarlos con la respuesta. Sin
+  /// esto el backend hace COALESCE(...,0) y toda la analítica de tiempo de la
+  /// app queda a cero, indistinguible de la web.
+  List<int?> _times = [];
   bool _generating = false;
   String? _generationError;
   bool _finishing = false;
@@ -59,6 +74,7 @@ class _SimulacroScreenState extends State<SimulacroScreen> {
     required String mode,
     required String layout,
     required bool showSubject,
+    List<MirAllocation>? weights,
   }) async {
     setState(() {
       _generating = true;
@@ -67,11 +83,15 @@ class _SimulacroScreenState extends State<SimulacroScreen> {
       _showSubject = showSubject;
     });
     try {
-      final fetched = await _api.getSimulacroQuestions(
-        subjectIds: subjectIds,
-        topicIds: topicIds,
-        count: count,
-      );
+      // Con reparto MIR se pide asignatura por asignatura con su cuota; sin
+      // él, una sola petición con el total.
+      final fetched = weights != null && weights.isNotEmpty
+          ? await _api.getSimulacroQuestionsWeighted(weights)
+          : await _api.getSimulacroQuestions(
+              subjectIds: subjectIds,
+              topicIds: topicIds,
+              count: count,
+            );
       if (!mounted) return;
       if (fetched.isEmpty) {
         setState(() => _generationError =
@@ -82,6 +102,7 @@ class _SimulacroScreenState extends State<SimulacroScreen> {
         _questions = fetched;
         _answers = List<int?>.filled(fetched.length, null);
         _results = List<SimResult?>.filled(fetched.length, null);
+        _times = List<int?>.filled(fetched.length, null);
         _mode = mode;
         _sessionId = _genSessionId();
         _phase = 'running';
@@ -95,32 +116,51 @@ class _SimulacroScreenState extends State<SimulacroScreen> {
     }
   }
 
-  void _handleSelect(int qIndex, int optIndex) {
-    setState(() => _answers[qIndex] = optIndex);
-    if (_mode == 'immediate') {
-      final q = _questions[qIndex];
-      _api.checkSimulacro([
-        {'questionId': q.id, 'selectedIndex': optIndex}
-      ], sessionId: _sessionId).then((res) {
-        if (!mounted || res.isEmpty) return;
-        setState(() => _results[qIndex] = res.first);
-      }).catchError((_) {});
+  /// Apunta la opción elegida. **No corrige**, ni siquiera en modo inmediato:
+  /// eso lo hace [_handleCheck] cuando el usuario pulsa "Comprobar". Así se
+  /// puede cambiar de idea antes de comprometerse, que es como se responde un
+  /// test de verdad.
+  void _handleSelect(int qIndex, int optIndex, [int? timeSpent]) {
+    setState(() {
+      _answers[qIndex] = optIndex;
+      _times[qIndex] = timeSpent;
+    });
+  }
+
+  /// Manda al servidor la respuesta de UNA pregunta y guarda su corrección.
+  /// Solo se usa en modo inmediato; en diferido se manda todo al terminar.
+  Future<void> _handleCheck(int qIndex, [int? timeSpent]) async {
+    if (_mode != 'immediate' || _results[qIndex] != null) return;
+    final q = _questions[qIndex];
+    final answer = _answers[qIndex];
+    // El tiempo se cuenta hasta que se comprueba, no hasta que se elige: es
+    // lo que de verdad ha tardado en decidirse.
+    if (timeSpent != null) _times[qIndex] = timeSpent;
+    try {
+      final res = await _api.checkSimulacro([
+        {
+          'questionId': q.id,
+          'selectedIndex': (answer == null || answer < 0) ? null : answer,
+          if (_times[qIndex] != null) 'timeSpent': _times[qIndex],
+        }
+      ], sessionId: _sessionId);
+      if (!mounted || res.isEmpty) return;
+      setState(() => _results[qIndex] = res.first);
+    } catch (_) {
+      // Sin conexión no se corrige, pero la respuesta queda apuntada y el
+      // envío diferido del final la recogerá igual.
     }
   }
 
   /// Dejar la pregunta en blanco (no puntúa ni penaliza, pero se registra).
   /// Se usa -1 como centinela de "en blanco" en [_answers].
-  void _handleBlank(int qIndex) {
-    setState(() => _answers[qIndex] = -1);
-    if (_mode == 'immediate') {
-      final q = _questions[qIndex];
-      _api.checkSimulacro([
-        {'questionId': q.id, 'selectedIndex': null}
-      ], sessionId: _sessionId).then((res) {
-        if (!mounted || res.isEmpty) return;
-        setState(() => _results[qIndex] = res.first);
-      }).catchError((_) {});
-    }
+  /// Deja la pregunta en blanco. Como al elegir, se apunta y ya: la corrección
+  /// espera a "Comprobar".
+  void _handleBlank(int qIndex, [int? timeSpent]) {
+    setState(() {
+      _answers[qIndex] = -1;
+      _times[qIndex] = timeSpent;
+    });
   }
 
   Future<void> _handleFinish() async {
@@ -134,6 +174,7 @@ class _SimulacroScreenState extends State<SimulacroScreen> {
               // -1 (o sin responder) => en blanco (null) para el backend.
               'selectedIndex':
                   (_answers[i] == null || _answers[i]! < 0) ? null : _answers[i],
+              if (_times[i] != null) 'timeSpent': _times[i],
             }
         ];
         final res = await _api.checkSimulacro(payload, sessionId: _sessionId);
@@ -149,6 +190,15 @@ class _SimulacroScreenState extends State<SimulacroScreen> {
       }
     }
     if (mounted) setState(() => _phase = 'results');
+
+    // Guarda el simulacro en el historial. Igual que en la web es
+    // "best-effort": el backend solo lo guarda de verdad si hay >=50
+    // respuestas persistidas, y un fallo de red aquí no debe estropear la
+    // pantalla de resultados que el usuario ya está viendo.
+    final sessionId = _sessionId;
+    if (sessionId != null) {
+      _api.finishSimulacro(sessionId, _mode).catchError((_) {});
+    }
   }
 
   void _handleRestart() {
@@ -156,6 +206,7 @@ class _SimulacroScreenState extends State<SimulacroScreen> {
       _questions = [];
       _answers = [];
       _results = [];
+      _times = [];
       _generationError = null;
       _finishing = false;
       _phase = 'builder';
@@ -169,8 +220,8 @@ class _SimulacroScreenState extends State<SimulacroScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(99),
-        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: kInk, width: 2),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -204,6 +255,7 @@ class _SimulacroScreenState extends State<SimulacroScreen> {
         finishing: _finishing,
         onSelect: _handleSelect,
         onBlank: _handleBlank,
+        onCheck: _handleCheck,
         onFinish: _handleFinish,
         onExit: _exitRunning,
       );
@@ -217,6 +269,7 @@ class _SimulacroScreenState extends State<SimulacroScreen> {
       finishing: _finishing,
       onSelect: _handleSelect,
       onBlank: _handleBlank,
+      onCheck: _handleCheck,
       onFinish: _handleFinish,
       onExit: _exitRunning,
     );
@@ -289,12 +342,21 @@ class _SimulacroScreenState extends State<SimulacroScreen> {
               Padding(
                 padding: const EdgeInsets.only(right: 14),
                 child: Center(child: _modeBadge()),
+              )
+            else if (_phase == 'builder')
+              IconButton(
+                tooltip: 'Historial',
+                icon: const Icon(Icons.history_rounded),
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                      builder: (_) => const SimulacroHistorialScreen()),
+                ),
               ),
           ],
         ),
         body: switch (_phase) {
           'running' => _runner(),
-        'results' => _SimResults(
+        'results' => SimResultsView(
             questions: _questions,
             answers: _answers,
             results: _results,
@@ -326,6 +388,7 @@ class _SimBuilder extends StatefulWidget {
     required String mode,
     required String layout,
     required bool showSubject,
+    List<MirAllocation>? weights,
   }) onSubmit;
 
   const _SimBuilder({
@@ -350,6 +413,93 @@ class _SimBuilderState extends State<_SimBuilder> {
   final Set<int> _selectedTopicIds = {};
   int _count = 10;
   String _mode = 'immediate';
+
+  /// Reparto ponderado por peso en el MIR (botón "MIR").
+  bool _weighted = false;
+
+  /// Qué atajo produjo la selección actual, o null si se ha tocado a mano.
+  /// Es lo que mantiene los tres botones marcados, no solo el de MIR.
+  SubjectShortcut? _shortcut;
+
+  /// Atajos de tamaño; 210 son las preguntas de un MIR real.
+  // 150 rellena el salto de 100 a 210, que era el más grande con diferencia.
+  static const List<int> _countPresets = [10, 25, 50, 100, 150, 210];
+  static const int _maxCount = 210;
+
+  /// Las asignatura elegidas, en la forma que espera [allocateByWeight].
+  List<({int id, String name})> get _chosenSubjects => [
+        for (final s in _subjects)
+          if (_selectedSubjectIds.contains(s.id)) (id: s.id, name: s.name),
+      ];
+
+  /// Reparto que se va a pedir en modo MIR, para enseñarlo antes de generar.
+  ///
+  /// Si se quita una asignatura, [_weighted] NO se desactiva: los pesos se
+  /// renormalizan sobre las que quedan, así que el reparto sigue siendo
+  /// proporcional al MIR entre las elegidas. Enseñarlo aquí evita que ese
+  /// recálculo sea invisible.
+  List<MirAllocation> get _mirBreakdown {
+    if (!_weighted) return const [];
+    return allocateByWeight(_count, _chosenSubjects)
+        .where((a) => a.count > 0)
+        .toList()
+      ..sort((a, b) => b.count.compareTo(a.count));
+  }
+
+  void _selectAllSubjects() {
+    setState(() {
+      _selectedSubjectIds
+        ..clear()
+        ..addAll(_subjects.map((s) => s.id));
+      _weighted = false;
+      _shortcut = SubjectShortcut.todas;
+    });
+    _reloadTopics();
+  }
+
+  void _clearSubjects() {
+    setState(() {
+      _selectedSubjectIds.clear();
+      _selectedTopicIds.clear();
+      _weighted = false;
+      _shortcut = null;
+    });
+    _reloadTopics();
+  }
+
+  /// Un puñado de asignaturas al azar, para salir del bloqueo de elegir.
+  void _pickRandomSubjects() {
+    if (_subjects.isEmpty) return;
+    final shuffled = [..._subjects]..shuffle();
+    // Entre 2 y 7, pero nunca más de las que hay.
+    final howMany = (2 + Random().nextInt(6)).clamp(1, _subjects.length);
+    setState(() {
+      _selectedSubjectIds
+        ..clear()
+        ..addAll(shuffled.take(howMany).map((s) => s.id));
+      _selectedTopicIds.clear();
+      _weighted = false;
+      _shortcut = SubjectShortcut.aleatorias;
+    });
+    _reloadTopics();
+  }
+
+  /// Simulacro tipo MIR: todas las asignaturas, pero repartiendo las preguntas
+  /// según su peso en el examen real en vez de a partes iguales. Los temas se
+  /// limpian porque aquí manda el reparto por asignatura.
+  void _useMirDistribution() {
+    setState(() {
+      _selectedSubjectIds
+        ..clear()
+        ..addAll(_subjects.map((s) => s.id));
+      _selectedTopicIds.clear();
+      _weighted = true;
+      _shortcut = SubjectShortcut.mir;
+      // Un MIR son 210 preguntas: el atajo las pone solo.
+      _count = _maxCount;
+    });
+    _reloadTopics();
+  }
 
   ApiService get _api => context.read<ApiService>();
 
@@ -406,6 +556,14 @@ class _SimBuilderState extends State<_SimBuilder> {
     }
   }
 
+  /// Nombre de una asignatura por su id, o null si ya no está en el catálogo.
+  String? _subjectName(int id) {
+    for (final s in _subjects) {
+      if (s.id == id) return s.name;
+    }
+    return null;
+  }
+
   void _toggleSubject(int id) {
     setState(() {
       if (_selectedSubjectIds.contains(id)) {
@@ -413,6 +571,10 @@ class _SimBuilderState extends State<_SimBuilder> {
       } else {
         _selectedSubjectIds.add(id);
       }
+      // La selección ya no es la que dejó el atajo, así que deja de estar
+      // marcado. Y el reparto MIR, que va con "todas", deja de tener sentido.
+      _shortcut = null;
+      _weighted = false;
     });
     _reloadTopics();
   }
@@ -453,6 +615,7 @@ class _SimBuilderState extends State<_SimBuilder> {
       subjectIds: List<int>.from(_selectedSubjectIds),
       topicIds: _selectedTopicIds.toList(),
       count: _count,
+      weights: _weighted ? _mirBreakdown : null,
       mode: _mode,
       layout: choice.$1,
       showSubject: choice.$2,
@@ -470,21 +633,15 @@ class _SimBuilderState extends State<_SimBuilder> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(18, 8, 18, 40),
       children: [
-        const Text(
-          'Diseña tu simulacro',
-          style: TextStyle(
-            color: AppColors.textPrimary,
-            fontSize: 26,
-            fontWeight: FontWeight.w900,
-          ),
+        const StickerHero(
+          badge: 'Exámenes',
+          badgeIcon: Icons.quiz_rounded,
+          title: 'Diseña tu simulacro',
+          subtitle:
+              'Elige asignaturas y temas, cuántas preguntas quieres y cómo corregirlo.',
+          accent: Color(0xFF6E8E6B),
         ),
-        const SizedBox(height: 6),
-        const Text(
-          'Elige asignaturas y temas, cuántas preguntas quieres y cómo corregirlo.',
-          style: TextStyle(
-              color: AppColors.textSecondary, fontSize: 14, height: 1.4),
-        ),
-        const SizedBox(height: 22),
+        const SizedBox(height: 24),
 
         // Paso 1 — Asignaturas
         _section(
@@ -500,17 +657,39 @@ class _SimBuilderState extends State<_SimBuilder> {
               : _subjectsError != null
                   ? Text(_subjectsError!,
                       style: const TextStyle(color: AppColors.error))
-                  : Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: _subjects.map((s) {
-                        final active = _selectedSubjectIds.contains(s.id);
-                        return _chip(
-                          label: s.name,
-                          active: active,
-                          onTap: () => _toggleSubject(s.id),
-                        );
-                      }).toList(),
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Atajos: elegir una a una entre veinte asignaturas
+                        // es justo donde la gente se atasca.
+                        SubjectShortcutBar(
+                          active: _shortcut,
+                          canClear: _selectedSubjectIds.isNotEmpty,
+                          onPick: (s) => switch (s) {
+                            SubjectShortcut.todas => _selectAllSubjects(),
+                            SubjectShortcut.aleatorias => _pickRandomSubjects(),
+                            SubjectShortcut.mir => _useMirDistribution(),
+                            SubjectShortcut.quitar => _clearSubjects(),
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: _subjects.map((s) {
+                            final active = _selectedSubjectIds.contains(s.id);
+                            return _chip(
+                              label: s.name,
+                              active: active,
+                              onTap: () => _toggleSubject(s.id),
+                            );
+                          }).toList(),
+                        ),
+                        if (_weighted) ...[
+                          const SizedBox(height: 16),
+                          _MirBreakdown(allocations: _mirBreakdown),
+                        ],
+                      ],
                     ),
         ),
         const SizedBox(height: 14),
@@ -540,63 +719,31 @@ class _SimBuilderState extends State<_SimBuilder> {
                   : Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        if (selectedTopics.isEmpty)
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: AppColors.background,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                  color: AppColors.border,
-                                  style: BorderStyle.solid),
-                            ),
-                            child: const Text(
-                              'Ahora mismo se incluirán todos los temas de las asignaturas elegidas.',
-                              style: TextStyle(
-                                  color: AppColors.textSecondary,
-                                  fontSize: 13),
-                            ),
-                          )
-                        else
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: [
-                              for (final t in selectedTopics.take(8))
-                                _topicChip(t),
-                              if (selectedTopics.length > 8)
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 12, vertical: 7),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.surfaceVariant,
-                                    borderRadius: BorderRadius.circular(99),
-                                  ),
-                                  child: Text(
-                                    '+${selectedTopics.length - 8} más',
-                                    style: const TextStyle(
-                                      color: AppColors.textSecondary,
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 12.5,
-                                    ),
-                                  ),
-                                ),
-                            ],
+                        // Un renglón por asignatura, no una pastilla por tema:
+                        // con doce temas de Urología la lista se iba de las
+                        // manos y los nombres largos se salían de la pastilla.
+                        // Lo que hace falta saber aquí es CUÁNTO has acotado
+                        // cada asignatura, no cómo se llama cada tema.
+                        for (final sid in _selectedSubjectIds)
+                          _TopicSummaryRow(
+                            subject: _subjectName(sid),
+                            chosen: _topics
+                                .where((t) =>
+                                    t.subjectId == sid &&
+                                    _selectedTopicIds.contains(t.id))
+                                .length,
+                            total: _topics
+                                .where((t) => t.subjectId == sid)
+                                .length,
                           ),
                         const SizedBox(height: 12),
-                        OutlinedButton.icon(
-                          onPressed: _openTopicPicker,
-                          icon: const Icon(Icons.tune_rounded, size: 18),
-                          label: Text(selectedTopics.isEmpty
+                        GhostButton(
+                          label: selectedTopics.isEmpty
                               ? 'Elegir temas concretos'
-                              : 'Editar temas'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppColors.primaryDark,
-                            side: BorderSide(
-                                color: AppColors.primary
-                                    .withValues(alpha: 0.4)),
-                          ),
+                              : 'Editar temas',
+                          icon: Icons.tune_rounded,
+                          expand: true,
+                          onPressed: _openTopicPicker,
                         ),
                       ],
                     ),
@@ -612,34 +759,52 @@ class _SimBuilderState extends State<_SimBuilder> {
             children: [
               Row(
                 children: [
-                  _stepperBtn(Icons.remove_rounded,
-                      () => setState(() => _count = (_count - 1).clamp(1, 200))),
-                  Container(
-                    width: 56,
-                    alignment: Alignment.center,
-                    child: Text(
-                      '$_count',
-                      style: const TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w900,
+                  _stepperBtn(
+                      Icons.remove_rounded,
+                      () => setState(
+                          () => _count = (_count - 1).clamp(1, _maxCount))),
+                  Expanded(
+                    child: Center(
+                      child: Text(
+                        '$_count',
+                        style: const TextStyle(
+                          color: kInk,
+                          fontSize: 30,
+                          fontWeight: FontWeight.w900,
+                          height: 1,
+                        ),
                       ),
                     ),
                   ),
-                  _stepperBtn(Icons.add_rounded,
-                      () => setState(() => _count = (_count + 1).clamp(1, 200))),
-                  const SizedBox(width: 12),
-                  for (final p in [5, 10, 20, 50])
-                    Padding(
-                      padding: const EdgeInsets.only(right: 6),
-                      child: _presetBtn(p),
-                    ),
+                  _stepperBtn(
+                      Icons.add_rounded,
+                      () => setState(
+                          () => _count = (_count + 1).clamp(1, _maxCount))),
                 ],
               ),
-              const SizedBox(height: 8),
-              const Text(
-                'Si hay menos preguntas disponibles que las pedidas, se usarán las que haya.',
-                style: TextStyle(color: AppColors.textLight, fontSize: 12),
+              const SizedBox(height: 6),
+              // Deslizador con muelle, como en la web: con 210 posiciones,
+              // llegar a golpe de botón sería absurdo.
+              CountSlider(
+                value: _count,
+                max: _maxCount,
+                onChanged: (v) => setState(() => _count = v),
+              ),
+              const SizedBox(height: 6),
+              // Los atajos van en su propia fila: con el 210 ya no caben al
+              // lado del contador sin apretarlos.
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [for (final p in _countPresets) _presetBtn(p)],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                _count == _maxCount
+                    ? 'Un MIR real son $_maxCount preguntas.'
+                    : 'Si hay menos preguntas disponibles que las pedidas, '
+                        'se usarán las que haya.',
+                style: const TextStyle(color: AppColors.textLight, fontSize: 12),
               ),
             ],
           ),
@@ -724,46 +889,35 @@ class _SimBuilderState extends State<_SimBuilder> {
     String? subtitle,
     required Widget child,
   }) {
-    return Container(
-      width: double.infinity,
+    return StickerCard(
+      depth: 4,
+      radius: 18,
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.border),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Container(
-                width: 26,
-                height: 26,
-                alignment: Alignment.center,
-                decoration: const BoxDecoration(
-                  color: AppColors.surfaceVariant,
-                  shape: BoxShape.circle,
-                ),
-                child: Text(n,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w900,
-                        color: AppColors.textPrimary,
-                        fontSize: 13)),
+              StepBadge(
+                n: int.tryParse(n) ?? 1,
+                active: true,
+                color: const Color(0xFF6E8E6B),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 10),
               Text(title,
                   style: const TextStyle(
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w900,
+                      color: kInk,
                       fontSize: 16)),
             ],
           ),
           if (subtitle != null) ...[
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             Text(subtitle,
-                style: const TextStyle(
-                    color: AppColors.textLight, fontSize: 12, height: 1.4)),
+                style: TextStyle(
+                    color: kMuted.withOpacity(0.85),
+                    fontSize: 12,
+                    height: 1.4)),
           ],
           const SizedBox(height: 14),
           child,
@@ -783,46 +937,19 @@ class _SimBuilderState extends State<_SimBuilder> {
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
         decoration: BoxDecoration(
-          color: active ? AppColors.primary : Colors.white,
-          borderRadius: BorderRadius.circular(99),
-          border: Border.all(
-              color: active ? AppColors.primary : AppColors.border),
+          color: active ? kInk : Colors.white,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: active ? kInk : kHairline, width: 2),
+          boxShadow: active ? inkShadow(2) : const [],
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: active ? Colors.white : AppColors.textSecondary,
-            fontWeight: FontWeight.w700,
+            color: active ? Colors.white : kMuted,
+            fontWeight: FontWeight.w900,
             fontSize: 13,
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _topicChip(SimTopic t) {
-    return Container(
-      padding: const EdgeInsets.only(left: 12, right: 6, top: 6, bottom: 6),
-      decoration: BoxDecoration(
-        color: AppColors.success.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(99),
-        border: Border.all(color: AppColors.success.withValues(alpha: 0.4)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(t.name,
-              style: const TextStyle(
-                  color: AppColors.successDark,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13)),
-          const SizedBox(width: 2),
-          GestureDetector(
-            onTap: () => setState(() => _selectedTopicIds.remove(t.id)),
-            child: const Icon(Icons.close_rounded,
-                size: 16, color: AppColors.successDark),
-          ),
-        ],
       ),
     );
   }
@@ -838,10 +965,12 @@ class _SimBuilderState extends State<_SimBuilder> {
         height: 38,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: AppColors.surfaceVariant,
-          borderRadius: BorderRadius.circular(10),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: kInk, width: 2),
+          boxShadow: inkShadow(2),
         ),
-        child: Icon(icon, color: AppColors.textSecondary, size: 20),
+        child: Icon(icon, color: kInk, size: 20),
       ),
     );
   }
@@ -853,18 +982,16 @@ class _SimBuilderState extends State<_SimBuilder> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         decoration: BoxDecoration(
-          color: active
-              ? AppColors.primary.withValues(alpha: 0.12)
-              : Colors.white,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-              color: active ? AppColors.primary : AppColors.border),
+          color: active ? AppColors.primary : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: active ? kInk : kHairline, width: 2),
+          boxShadow: active ? inkShadow(2) : const [],
         ),
         child: Text(
           '$p',
           style: TextStyle(
-            color: active ? AppColors.primaryDark : AppColors.textSecondary,
-            fontWeight: FontWeight.w700,
+            color: active ? Colors.white : kMuted,
+            fontWeight: FontWeight.w900,
             fontSize: 13,
           ),
         ),
@@ -881,13 +1008,14 @@ class _SimBuilderState extends State<_SimBuilder> {
     final active = _mode == value;
     return Pressable(
       onTap: () => setState(() => _mode = value),
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: active ? const Color(0xFFFFF0EC) : Colors.white,
           borderRadius: BorderRadius.circular(14),
-          border:
-              Border.all(color: active ? AppColors.primary : AppColors.border),
+          border: Border.all(color: active ? kInk : kHairline, width: 2),
+          boxShadow: active ? inkShadow(3) : const [],
         ),
         child: Row(
           children: [
@@ -898,6 +1026,7 @@ class _SimBuilderState extends State<_SimBuilder> {
               decoration: BoxDecoration(
                 color: active ? AppColors.primary : AppColors.surfaceVariant,
                 borderRadius: BorderRadius.circular(11),
+                border: Border.all(color: kInk, width: 1.6),
               ),
               child: Icon(icon,
                   color: active ? Colors.white : AppColors.textSecondary,
@@ -930,6 +1059,155 @@ class _SimBuilderState extends State<_SimBuilder> {
 }
 
 /// Selector de temas (modal). Agrupa por asignatura con seleccionar todo.
+/// Cuántas preguntas le van a tocar a cada asignatura en el reparto MIR.
+///
+/// Se enseña ANTES de generar porque el reparto se renormaliza al quitar
+/// asignaturas: sin verlo, ese recálculo sería invisible y el usuario no
+/// sabría por qué le salen 18 de Digestivo y 4 de Oftalmología.
+class _MirBreakdown extends StatelessWidget {
+  final List<MirAllocation> allocations;
+
+  const _MirBreakdown({required this.allocations});
+
+  @override
+  Widget build(BuildContext context) {
+    if (allocations.isEmpty) return const SizedBox.shrink();
+    final total = allocations.fold<int>(0, (a, b) => a + b.count);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: tinted(const Color(0xFF6E8E6B), 0.10),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: kHairline, width: 2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.balance_rounded,
+                  size: 15, color: Color(0xFF4E6B4B)),
+              const SizedBox(width: 6),
+              Text(
+                'REPARTO MIR · $total PREGUNTAS',
+                style: const TextStyle(
+                  color: Color(0xFF4E6B4B),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.2,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              for (final a in allocations)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: kHairline, width: 1.6),
+                  ),
+                  child: Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(
+                          text: a.name,
+                          style: const TextStyle(
+                            color: kMuted,
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const TextSpan(text: '  '),
+                        TextSpan(
+                          text: '${a.count}',
+                          style: const TextStyle(
+                            color: kInk,
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Un renglón del paso de temas: qué asignatura y cuánto se ha acotado.
+///
+/// Sustituye a la lista de pastillas de tema. Con doce temas de Urología
+/// aquello eran diez líneas y los nombres largos se salían de la pastilla;
+/// además, lo que hace falta saber en este paso es cuánto has recortado cada
+/// asignatura, no cómo se llama cada tema — para eso está el selector.
+class _TopicSummaryRow extends StatelessWidget {
+  final String? subject;
+  final int chosen;
+  final int total;
+
+  const _TopicSummaryRow({
+    required this.subject,
+    required this.chosen,
+    required this.total,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // Sin temas marcados entra la asignatura entera: es la regla del backend.
+    final todos = chosen == 0;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              subject ?? 'Asignatura',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: kInk,
+                fontSize: 13.5,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: todos ? Colors.white : tinted(AppColors.primary, 0.16),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: kHairline, width: 2),
+            ),
+            child: Text(
+              todos ? 'Todos' : '$chosen de $total',
+              style: TextStyle(
+                color: todos ? kMuted : AppColors.primaryDark,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _TopicPickerSheet extends StatefulWidget {
   final List<SimSubject> subjects;
   final List<int> selectedSubjectIds;
@@ -1082,6 +1360,49 @@ class _TopicPickerSheetState extends State<_TopicPickerSheet> {
   }
 }
 
+/// Entrada de la pregunta nueva al cambiar de una a otra.
+///
+/// Antes era un corte seco y costaba saber si habías avanzado o si la pantalla
+/// se había quedado colgada. Se desplaza desde el lado hacia el que vas, así
+/// que también dice la dirección.
+mixin _QuestionSwap<T extends StatefulWidget> on State<T>
+    implements TickerProvider {
+  late final AnimationController _swap = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 260),
+    value: 1,
+  );
+
+  /// +1 al avanzar, -1 al retroceder.
+  int _swapDir = 1;
+
+  void _playSwap(int dir) {
+    _swapDir = dir;
+    _swap.forward(from: 0);
+  }
+
+  void _disposeSwap() => _swap.dispose();
+
+  /// Envuelve el cuerpo de la pregunta. El contenido va como `child` para que
+  /// no se reconstruya en cada fotograma de la transición.
+  Widget _swapped(Widget child) {
+    return AnimatedBuilder(
+      animation: _swap,
+      child: child,
+      builder: (context, inner) {
+        final t = Curves.easeOutCubic.transform(_swap.value);
+        return Opacity(
+          opacity: t,
+          child: Transform.translate(
+            offset: Offset(_swapDir * 28 * (1 - t), 0),
+            child: inner,
+          ),
+        );
+      },
+    );
+  }
+}
+
 // ==========================
 // FASE 2 — RUNNER (carrusel: enunciado → imagen → opciones → corrección)
 // ==========================
@@ -1093,8 +1414,11 @@ class _SimRunnerCarousel extends StatefulWidget {
   final List<int?> answers;
   final List<SimResult?> results;
   final bool finishing;
-  final void Function(int qIndex, int optIndex) onSelect;
-  final void Function(int qIndex) onBlank;
+  final void Function(int qIndex, int optIndex, [int? timeSpent]) onSelect;
+  final void Function(int qIndex, [int? timeSpent]) onBlank;
+
+  /// Manda la respuesta y trae la corrección. Solo en modo inmediato.
+  final Future<void> Function(int qIndex, [int? timeSpent]) onCheck;
   final VoidCallback onFinish;
   final VoidCallback onExit;
 
@@ -1107,6 +1431,7 @@ class _SimRunnerCarousel extends StatefulWidget {
     required this.finishing,
     required this.onSelect,
     required this.onBlank,
+    required this.onCheck,
     required this.onFinish,
     required this.onExit,
   });
@@ -1116,13 +1441,25 @@ class _SimRunnerCarousel extends StatefulWidget {
 }
 
 class _SimRunnerCarouselState extends State<_SimRunnerCarousel>
-    with SingleTickerProviderStateMixin {
+    // Plural, no `Single`: aquí conviven el parpadeo de la pista y la
+    // transición entre preguntas, y `Single` solo admite un ticker.
+    with TickerProviderStateMixin, _QuestionSwap {
   static const _letters = ['A', 'B', 'C', 'D', 'E', 'F'];
-  static const _highlightColor = Color(0xFFFFE082);
 
   int _index = 0;
   int _page = 0;
   late final PageController _carousel;
+
+  /// Cierto mientras se espera la corrección del servidor.
+  bool _checking = false;
+
+  /// Momento en que se mostró la pregunta actual. Se reinicia al cambiar de
+  /// pregunta, igual que el `shownAtRef` del runner de la web.
+  DateTime _shownAt = DateTime.now();
+
+  /// Segundos transcurridos desde que apareció la pregunta.
+  int get _elapsed =>
+      (DateTime.now().difference(_shownAt).inMilliseconds / 1000).round().clamp(0, 86400);
 
   // Subrayado del enunciado: índices de palabras marcadas. EFÍMERO: se borra
   // al cambiar de pregunta (no se guarda).
@@ -1153,14 +1490,18 @@ class _SimRunnerCarouselState extends State<_SimRunnerCarousel>
     _hintTimer?.cancel();
     _hintBlink.dispose();
     _carousel.dispose();
+    _disposeSwap();
     super.dispose();
   }
 
   void _goToQuestion(int newIndex) {
     if (newIndex < 0 || newIndex >= widget.questions.length) return;
+    _playSwap(newIndex > _index ? 1 : -1);
     setState(() {
       _index = newIndex;
       _page = 0;
+      _checking = false;
+      _shownAt = DateTime.now();
       _highlighted.clear(); // el subrayado no se conserva entre preguntas
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -1178,14 +1519,13 @@ class _SimRunnerCarouselState extends State<_SimRunnerCarousel>
     final isLast = _index == total - 1;
     final immediate = widget.mode == 'immediate';
     final revealed = immediate && selected != null && result != null;
-    final checking = immediate && selected != null && result == null;
     final hasImage = q.hasImage && q.imageUrl != null;
 
     // Páginas del carrusel
     final pages = <Widget>[
       _statementPage(q),
       if (hasImage) _imagePage(q),
-      _optionsPage(q, selected, revealed, checking, correctIndex),
+      _optionsPage(q, selected, revealed, correctIndex),
       if (revealed) _correctionPage(q, result, correctIndex),
     ];
 
@@ -1207,10 +1547,12 @@ class _SimRunnerCarouselState extends State<_SimRunnerCarousel>
       children: [
         _progress(total),
         Expanded(
-          child: PageView(
-            controller: _carousel,
-            onPageChanged: (p) => setState(() => _page = p),
-            children: pages,
+          child: _swapped(
+            PageView(
+              controller: _carousel,
+              onPageChanged: (p) => setState(() => _page = p),
+              children: pages,
+            ),
           ),
         ),
         _dots(pages.length),
@@ -1285,14 +1627,8 @@ class _SimRunnerCarouselState extends State<_SimRunnerCarousel>
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: AppColors.border),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.textSecondary.withValues(alpha: 0.06),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
-            ),
-          ],
+          border: Border.all(color: kInk, width: 2),
+          boxShadow: inkShadow(5),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1325,28 +1661,12 @@ class _SimRunnerCarouselState extends State<_SimRunnerCarousel>
 
   // ---- PÁGINA 1: ENUNCIADO (con subrayado) ----
   Widget _statementPage(SimQuestion q) {
-    final words = q.statement.trim().split(RegExp(r'\s+'));
     return _pageShell(
       label: 'ENUNCIADO',
       icon: Icons.article_rounded,
       trailing: _highlighted.isEmpty
           ? null
-          : GestureDetector(
-              onTap: () => setState(_highlighted.clear),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.format_clear_rounded,
-                      size: 16, color: AppColors.textSecondary),
-                  SizedBox(width: 4),
-                  Text('Limpiar',
-                      style: TextStyle(
-                          color: AppColors.textSecondary,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 12)),
-                ],
-              ),
-            ),
+          : ClearHighlightButton(onTap: () => setState(_highlighted.clear)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1367,37 +1687,12 @@ class _SimRunnerCarouselState extends State<_SimRunnerCarousel>
             ),
             const SizedBox(height: 16),
           ],
-          Wrap(
-            spacing: 5,
-            runSpacing: 8,
-            children: [
-              for (var i = 0; i < words.length; i++)
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () => setState(() {
-                    if (!_highlighted.remove(i)) _highlighted.add(i);
-                  }),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 1.5, vertical: 1),
-                    decoration: BoxDecoration(
-                      color: _highlighted.contains(i)
-                          ? _highlightColor
-                          : Colors.transparent,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      words[i],
-                      style: const TextStyle(
-                        fontSize: 19,
-                        height: 1.5,
-                        color: AppColors.textPrimary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-            ],
+          HighlightableStatement(
+            statement: q.statement,
+            highlighted: _highlighted,
+            onToggle: (i) => setState(() {
+              if (!_highlighted.remove(i)) _highlighted.add(i);
+            }),
           ),
           // Pistas solo en la PRIMERA pregunta del simulacro.
           if (_index == 0) ...[
@@ -1447,9 +1742,12 @@ class _SimRunnerCarouselState extends State<_SimRunnerCarousel>
   }
 
   // ---- PÁGINA 3: OPCIONES ----
-  Widget _optionsPage(SimQuestion q, int? selected, bool revealed,
-      bool checking, int correctIndex) {
-    final locked = widget.mode == 'immediate' && selected != null;
+  Widget _optionsPage(
+      SimQuestion q, int? selected, bool revealed, int correctIndex) {
+    // Se bloquea al corregir, no al elegir: hasta que se pulsa "Comprobar"
+    // se puede cambiar de opción.
+    final locked =
+        widget.mode == 'immediate' && widget.results[_index] != null;
     return _pageShell(
       label: 'OPCIONES',
       icon: Icons.checklist_rounded,
@@ -1493,7 +1791,7 @@ class _SimRunnerCarouselState extends State<_SimRunnerCarousel>
             return Padding(
               padding: const EdgeInsets.only(bottom: 10),
               child: Pressable(
-                onTap: locked ? null : () => widget.onSelect(_index, i),
+                onTap: locked ? null : () => widget.onSelect(_index, i, _elapsed),
                 pressedScale: 0.98,
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 180),
@@ -1545,23 +1843,6 @@ class _SimRunnerCarouselState extends State<_SimRunnerCarousel>
             );
           }),
           _blankButton(selected),
-          if (checking) ...[
-            const SizedBox(height: 4),
-            const Row(
-              children: [
-                SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                      color: AppColors.primary, strokeWidth: 2),
-                ),
-                SizedBox(width: 8),
-                Text('Comprobando tu respuesta...',
-                    style:
-                        TextStyle(color: AppColors.textSecondary, fontSize: 13)),
-              ],
-            ),
-          ],
         ],
       ),
     );
@@ -1570,12 +1851,15 @@ class _SimRunnerCarouselState extends State<_SimRunnerCarousel>
   /// Botón "Dejar en blanco" (no puntúa ni penaliza; se registra igual).
   Widget _blankButton(int? selected) {
     final isBlank = selected == -1;
-    final locked = widget.mode == 'immediate' && selected != null;
+    // Se bloquea al corregir, no al elegir: hasta que se pulsa "Comprobar"
+    // se puede cambiar de opción.
+    final locked =
+        widget.mode == 'immediate' && widget.results[_index] != null;
     if (locked && !isBlank) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.only(top: 2, bottom: 2),
       child: Pressable(
-        onTap: locked ? null : () => widget.onBlank(_index),
+        onTap: locked ? null : () => widget.onBlank(_index, _elapsed),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
           decoration: BoxDecoration(
@@ -1711,8 +1995,23 @@ class _SimRunnerCarouselState extends State<_SimRunnerCarousel>
   }
 
   // ---- BARRA INFERIOR: navegación entre preguntas ----
+  /// Manda la respuesta y espera la corrección, con el spinner mientras.
+  Future<void> _comprobar() async {
+    if (_checking) return;
+    setState(() => _checking = true);
+    await widget.onCheck(_index, _elapsed);
+    if (mounted) setState(() => _checking = false);
+  }
+
   Widget _bottomBar(int? selected, bool isLast) {
-    final canNext = selected != null && !widget.finishing;
+    // En inmediato hay un paso más: primero se comprueba y luego se avanza.
+    final debeComprobar = widget.mode == 'immediate' &&
+        selected != null &&
+        widget.results[_index] == null;
+    // Mientras se espera al servidor el botón no admite otro toque: sin esto
+    // se puede pedir la corrección dos veces.
+    final canNext = selected != null && !widget.finishing && !_checking;
+    final ocupado = _checking || (isLast && widget.finishing);
     return SafeArea(
       top: false,
       child: Padding(
@@ -1734,7 +2033,9 @@ class _SimRunnerCarouselState extends State<_SimRunnerCarousel>
             Pressable(
               onTap: canNext
                   ? () {
-                      if (isLast) {
+                      if (debeComprobar) {
+                        _comprobar();
+                      } else if (isLast) {
                         widget.onFinish();
                       } else {
                         _goToQuestion(_index + 1);
@@ -1745,24 +2046,32 @@ class _SimRunnerCarouselState extends State<_SimRunnerCarousel>
                 padding:
                     const EdgeInsets.symmetric(horizontal: 26, vertical: 15),
                 decoration: BoxDecoration(
-                  color: canNext ? AppColors.primary : AppColors.border,
+                  color: canNext || ocupado
+                      ? AppColors.primary
+                      : AppColors.border,
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      isLast
-                          ? (widget.finishing ? 'Corrigiendo' : 'Finalizar')
-                          : 'Siguiente',
+                      _checking
+                          ? 'Comprobando'
+                          : debeComprobar
+                              ? 'Comprobar'
+                              : isLast
+                                  ? (widget.finishing
+                                      ? 'Corrigiendo'
+                                      : 'Finalizar')
+                                  : 'Siguiente',
                       style: TextStyle(
                         color: canNext ? Colors.white : AppColors.textLight,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w900,
                         fontSize: 15,
                       ),
                     ),
                     const SizedBox(width: 6),
-                    if (isLast && widget.finishing)
+                    if (ocupado)
                       const SizedBox(
                         width: 16,
                         height: 16,
@@ -1771,9 +2080,11 @@ class _SimRunnerCarouselState extends State<_SimRunnerCarousel>
                       )
                     else
                       Icon(
-                        isLast
-                            ? Icons.done_all_rounded
-                            : Icons.arrow_forward_rounded,
+                        debeComprobar
+                            ? Icons.check_rounded
+                            : isLast
+                                ? Icons.done_all_rounded
+                                : Icons.arrow_forward_rounded,
                         color: canNext ? Colors.white : AppColors.textLight,
                         size: 19,
                       ),
@@ -1799,8 +2110,11 @@ class _SimRunnerClassic extends StatefulWidget {
   final List<int?> answers;
   final List<SimResult?> results;
   final bool finishing;
-  final void Function(int qIndex, int optIndex) onSelect;
-  final void Function(int qIndex) onBlank;
+  final void Function(int qIndex, int optIndex, [int? timeSpent]) onSelect;
+  final void Function(int qIndex, [int? timeSpent]) onBlank;
+
+  /// Manda la respuesta y trae la corrección. Solo en modo inmediato.
+  final Future<void> Function(int qIndex, [int? timeSpent]) onCheck;
   final VoidCallback onFinish;
   final VoidCallback onExit;
 
@@ -1813,6 +2127,7 @@ class _SimRunnerClassic extends StatefulWidget {
     required this.finishing,
     required this.onSelect,
     required this.onBlank,
+    required this.onCheck,
     required this.onFinish,
     required this.onExit,
   });
@@ -1821,9 +2136,48 @@ class _SimRunnerClassic extends StatefulWidget {
   State<_SimRunnerClassic> createState() => _SimRunnerClassicState();
 }
 
-class _SimRunnerClassicState extends State<_SimRunnerClassic> {
+class _SimRunnerClassicState extends State<_SimRunnerClassic>
+    with SingleTickerProviderStateMixin, _QuestionSwap {
   static const _letters = ['A', 'B', 'C', 'D', 'E', 'F'];
   int _index = 0;
+
+  /// Cierto mientras se espera la corrección del servidor.
+  bool _checking = false;
+
+  /// Palabras subrayadas del enunciado. No se conserva entre preguntas.
+  final Set<int> _highlighted = {};
+
+  /// Momento en que se mostró la pregunta actual (ver el runner de carrusel).
+  DateTime _shownAt = DateTime.now();
+
+  int get _elapsed =>
+      (DateTime.now().difference(_shownAt).inMilliseconds / 1000).round().clamp(0, 86400);
+
+  /// Cambia de pregunta y reinicia el cronómetro.
+  void _goToQuestion(int newIndex) {
+    if (newIndex < 0 || newIndex >= widget.questions.length) return;
+    _playSwap(newIndex > _index ? 1 : -1);
+    setState(() {
+      _index = newIndex;
+      _checking = false;
+      _highlighted.clear(); // el subrayado no se conserva entre preguntas
+      _shownAt = DateTime.now();
+    });
+  }
+
+  @override
+  void dispose() {
+    _disposeSwap();
+    super.dispose();
+  }
+
+  /// Manda la respuesta y espera la corrección, con el spinner mientras.
+  Future<void> _comprobar() async {
+    if (_checking) return;
+    setState(() => _checking = true);
+    await widget.onCheck(_index, _elapsed);
+    if (mounted) setState(() => _checking = false);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1833,10 +2187,14 @@ class _SimRunnerClassicState extends State<_SimRunnerClassic> {
     final result = widget.results[_index];
     final correctIndex = result?.correctIndex ?? -1;
     final isLast = _index == total - 1;
+    // En inmediato hay un paso más: primero se comprueba y luego se avanza.
+    final debeComprobar =
+        widget.mode == 'immediate' && selected != null && result == null;
+    final ocupado = _checking || (isLast && widget.finishing);
     final immediate = widget.mode == 'immediate';
-    final locked = immediate && selected != null;
-    final revealed = locked && result != null;
-    final checking = locked && result == null;
+    // Se bloquea al corregir, no al elegir.
+    final locked = immediate && result != null;
+    final revealed = locked;
     final explanation = result?.explanation?.trim() ?? '';
 
     return Column(
@@ -1880,7 +2238,7 @@ class _SimRunnerClassicState extends State<_SimRunnerClassic> {
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(99),
-                      border: Border.all(color: AppColors.border),
+                      border: Border.all(color: kHairline, width: 2),
                     ),
                     child: Text(
                       q.subject!.toUpperCase(),
@@ -1893,14 +2251,24 @@ class _SimRunnerClassicState extends State<_SimRunnerClassic> {
                   ),
                   const SizedBox(height: 12),
                 ],
-                Text(
-                  q.statement,
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 20,
-                    height: 1.35,
-                    fontWeight: FontWeight.w700,
-                  ),
+                Row(
+                  children: [
+                    const Spacer(),
+                    if (_highlighted.isNotEmpty)
+                      ClearHighlightButton(
+                        onTap: () => setState(_highlighted.clear),
+                      ),
+                  ],
+                ),
+                HighlightableStatement(
+                  statement: q.statement,
+                  highlighted: _highlighted,
+                  onToggle: (i) => setState(() {
+                    if (!_highlighted.remove(i)) _highlighted.add(i);
+                  }),
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  lineHeight: 1.3,
                 ),
                 if (q.hasImage && q.imageUrl != null) ...[
                   const SizedBox(height: 14),
@@ -1944,7 +2312,9 @@ class _SimRunnerClassicState extends State<_SimRunnerClassic> {
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 10),
                     child: Pressable(
-                      onTap: locked ? null : () => widget.onSelect(_index, i),
+                      onTap: locked
+                          ? null
+                          : () => widget.onSelect(_index, i, _elapsed),
                       pressedScale: 0.98,
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 180),
@@ -1997,23 +2367,6 @@ class _SimRunnerClassicState extends State<_SimRunnerClassic> {
                   );
                 }),
                 _blankButton(selected),
-                if (checking) ...[
-                  const SizedBox(height: 4),
-                  const Row(
-                    children: [
-                      SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                            color: AppColors.primary, strokeWidth: 2),
-                      ),
-                      SizedBox(width: 8),
-                      Text('Comprobando tu respuesta...',
-                          style: TextStyle(
-                              color: AppColors.textSecondary, fontSize: 13)),
-                    ],
-                  ),
-                ],
                 if (revealed) ...[
                   const SizedBox(height: 6),
                   Container(
@@ -2022,7 +2375,7 @@ class _SimRunnerClassicState extends State<_SimRunnerClassic> {
                     decoration: BoxDecoration(
                       color: AppColors.background,
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: AppColors.border),
+                      border: Border.all(color: kHairline, width: 2),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2059,9 +2412,7 @@ class _SimRunnerClassicState extends State<_SimRunnerClassic> {
             child: Row(
               children: [
                 OutlinedButton.icon(
-                  onPressed: _index == 0
-                      ? null
-                      : () => setState(() => _index--),
+                  onPressed: _index == 0 ? null : () => _goToQuestion(_index - 1),
                   icon: const Icon(Icons.arrow_back_rounded, size: 18),
                   label: const Text('Anterior'),
                   style: OutlinedButton.styleFrom(
@@ -2073,20 +2424,22 @@ class _SimRunnerClassicState extends State<_SimRunnerClassic> {
                 ),
                 const Spacer(),
                 Pressable(
-                  onTap: (selected == null || widget.finishing)
+                  onTap: (selected == null || widget.finishing || _checking)
                       ? null
                       : () {
-                          if (isLast) {
+                          if (debeComprobar) {
+                            _comprobar();
+                          } else if (isLast) {
                             widget.onFinish();
                           } else {
-                            setState(() => _index++);
+                            _goToQuestion(_index + 1);
                           }
                         },
                   child: Container(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 26, vertical: 15),
                     decoration: BoxDecoration(
-                      color: (selected == null || widget.finishing)
+                      color: (selected == null && !ocupado)
                           ? AppColors.border
                           : AppColors.primary,
                       borderRadius: BorderRadius.circular(16),
@@ -2095,19 +2448,25 @@ class _SimRunnerClassicState extends State<_SimRunnerClassic> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          isLast
-                              ? (widget.finishing ? 'Corrigiendo' : 'Finalizar')
-                              : 'Siguiente',
+                          _checking
+                              ? 'Comprobando'
+                              : debeComprobar
+                                  ? 'Comprobar'
+                                  : isLast
+                                      ? (widget.finishing
+                                          ? 'Corrigiendo'
+                                          : 'Finalizar')
+                                      : 'Siguiente',
                           style: TextStyle(
                             color: (selected == null || widget.finishing)
                                 ? AppColors.textLight
                                 : Colors.white,
-                            fontWeight: FontWeight.w800,
+                            fontWeight: FontWeight.w900,
                             fontSize: 15,
                           ),
                         ),
                         const SizedBox(width: 6),
-                        if (isLast && widget.finishing)
+                        if (ocupado)
                           const SizedBox(
                             width: 16,
                             height: 16,
@@ -2116,9 +2475,11 @@ class _SimRunnerClassicState extends State<_SimRunnerClassic> {
                           )
                         else
                           Icon(
-                            isLast
-                                ? Icons.done_all_rounded
-                                : Icons.arrow_forward_rounded,
+                            debeComprobar
+                                ? Icons.check_rounded
+                                : isLast
+                                    ? Icons.done_all_rounded
+                                    : Icons.arrow_forward_rounded,
                             color: (selected == null || widget.finishing)
                                 ? AppColors.textLight
                                 : Colors.white,
@@ -2139,12 +2500,15 @@ class _SimRunnerClassicState extends State<_SimRunnerClassic> {
   /// Botón "Dejar en blanco" (no puntúa ni penaliza; se registra igual).
   Widget _blankButton(int? selected) {
     final isBlank = selected == -1;
-    final locked = widget.mode == 'immediate' && selected != null;
+    // Se bloquea al corregir, no al elegir: hasta que se pulsa "Comprobar"
+    // se puede cambiar de opción.
+    final locked =
+        widget.mode == 'immediate' && widget.results[_index] != null;
     if (locked && !isBlank) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.only(top: 12),
       child: Pressable(
-        onTap: locked ? null : () => widget.onBlank(_index),
+        onTap: locked ? null : () => widget.onBlank(_index, _elapsed),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
           decoration: BoxDecoration(
@@ -2193,19 +2557,36 @@ _SimStatus _statusOf(int? selected, SimResult? result) {
       : _SimStatus.incorrect;
 }
 
-class _SimResults extends StatelessWidget {
+/// Rejilla de corrección de un simulacro. La comparten la fase de resultados
+/// y el repaso del historial, igual que en la web (`SimulacroResultsGrid`):
+/// los datos tienen la misma forma en los dos sitios, así que la pantalla
+/// también.
+class SimResultsView extends StatelessWidget {
   final List<SimQuestion> questions;
   final List<int?> answers;
   final List<SimResult?> results;
   final VoidCallback onRestart;
-  final VoidCallback onClose;
+  final VoidCallback? onClose;
 
-  const _SimResults({
+  /// Rótulo de la acción principal. En el historial no se "crea otro
+  /// simulacro", se vuelve a la lista.
+  final String restartLabel;
+  final IconData restartIcon;
+
+  /// Antetítulo. Un simulacro recién hecho se "completa"; uno del historial
+  /// se repasa.
+  final String eyebrow;
+
+  const SimResultsView({
+    super.key,
     required this.questions,
     required this.answers,
     required this.results,
     required this.onRestart,
-    required this.onClose,
+    this.onClose,
+    this.restartLabel = 'Crear otro simulacro',
+    this.restartIcon = Icons.replay_rounded,
+    this.eyebrow = 'SIMULACRO COMPLETADO',
   });
 
   Color _cellColor(_SimStatus s) => switch (s) {
@@ -2236,16 +2617,16 @@ class _SimResults extends StatelessWidget {
         Center(
           child: Column(
             children: [
-              const Text('SIMULACRO COMPLETADO',
-                  style: TextStyle(
+              Text(eyebrow,
+                  style: const TextStyle(
                       color: AppColors.primaryDark,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w900,
                       fontSize: 11,
                       letterSpacing: 1.4)),
               const SizedBox(height: 10),
               Text('$correct / $total aciertos',
                   style: const TextStyle(
-                      color: AppColors.textPrimary,
+                      color: kInk,
                       fontSize: 30,
                       fontWeight: FontWeight.w900)),
               const SizedBox(height: 4),
@@ -2271,7 +2652,7 @@ class _SimResults extends StatelessWidget {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: AppColors.border),
+            border: Border.all(color: kHairline, width: 2),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -2333,26 +2714,16 @@ class _SimResults extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 18),
-        ElevatedButton.icon(
+        StickerButton(
+          label: restartLabel,
+          icon: restartIcon,
+          expand: true,
           onPressed: onRestart,
-          icon: const Icon(Icons.replay_rounded),
-          label: const Text('Crear otro simulacro'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primary,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 15),
-          ),
         ),
-        const SizedBox(height: 10),
-        OutlinedButton(
-          onPressed: onClose,
-          style: OutlinedButton.styleFrom(
-            foregroundColor: AppColors.textSecondary,
-            side: const BorderSide(color: AppColors.border),
-            padding: const EdgeInsets.symmetric(vertical: 15),
-          ),
-          child: const Text('Volver'),
-        ),
+        if (onClose != null) ...[
+          const SizedBox(height: 10),
+          GhostButton(label: 'Volver', expand: true, onPressed: onClose),
+        ],
       ],
     );
   }
@@ -2377,7 +2748,8 @@ class _SimResults extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: color.withValues(alpha: 0.3)),
+          border: Border.all(color: kInk, width: 2),
+          boxShadow: inkShadow(3),
         ),
         child: Column(
           children: [
@@ -2389,8 +2761,8 @@ class _SimResults extends StatelessWidget {
             const SizedBox(height: 2),
             Text(label.toUpperCase(),
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                    color: AppColors.textSecondary,
+                style: TextStyle(
+                    color: kMuted.withOpacity(0.75),
                     fontWeight: FontWeight.w700,
                     fontSize: 9.5,
                     letterSpacing: 0.5)),
@@ -2605,7 +2977,7 @@ class _SimDetailDialogState extends State<_SimDetailDialog> {
                       decoration: BoxDecoration(
                         color: AppColors.background,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.border),
+                        border: Border.all(color: kHairline, width: 2),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2747,7 +3119,8 @@ class _LayoutPickerDialog extends StatefulWidget {
 }
 
 class _LayoutPickerDialogState extends State<_LayoutPickerDialog> {
-  bool _showSubject = true;
+  // Ver la nota de `_SimulacroScreenState._showSubject`: viene apagado.
+  bool _showSubject = false;
 
   @override
   Widget build(BuildContext context) {
@@ -2765,9 +3138,7 @@ class _LayoutPickerDialogState extends State<_LayoutPickerDialog> {
               'Antes de empezar',
               textAlign: TextAlign.center,
               style: TextStyle(
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 18),
+                  color: kInk, fontWeight: FontWeight.w900, fontSize: 19),
             ),
             const SizedBox(height: 16),
             // ¿Mostrar la asignatura?
@@ -2776,7 +3147,7 @@ class _LayoutPickerDialogState extends State<_LayoutPickerDialog> {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.border),
+                border: Border.all(color: kHairline, width: 2),
               ),
               child: Row(
                 children: [
@@ -2784,49 +3155,31 @@ class _LayoutPickerDialogState extends State<_LayoutPickerDialog> {
                       size: 20, color: AppColors.primary),
                   const SizedBox(width: 10),
                   const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Mostrar la asignatura',
-                            style: TextStyle(
-                                color: AppColors.textPrimary,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 14)),
-                        SizedBox(height: 2),
-                        Text(
-                            'Si la ocultas, no la verás en el enunciado durante el test.',
-                            style: TextStyle(
-                                color: AppColors.textSecondary,
-                                fontSize: 11.5,
-                                height: 1.3)),
-                      ],
-                    ),
+                    child: Text('Mostrar la asignatura',
+                        style: TextStyle(
+                            color: kInk,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 14)),
                   ),
-                  Switch(
+                  const SizedBox(width: 8),
+                  InkSwitch(
                     value: _showSubject,
                     onChanged: (v) => setState(() => _showSubject = v),
-                    activeColor: AppColors.primary,
                   ),
+                  const SizedBox(width: 4),
                 ],
               ),
             ),
             const SizedBox(height: 18),
             const Align(
               alignment: Alignment.centerLeft,
-              child: Text('MODO DE VISUALIZACIÓN',
-                  style: TextStyle(
-                      color: AppColors.textLight,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 10.5,
-                      letterSpacing: 1.2)),
+              child: SectionLabel('Cómo quieres verlo'),
             ),
-            const SizedBox(height: 10),
             _option(
               context,
               value: 'classic',
               title: 'Clásico',
-              desc:
-                  'Todo en una pantalla. Desplázate hacia abajo para ver imagen y opciones.',
+              desc: 'Todo en una pantalla. Bajas para ver las opciones.',
               graphic: _classicGraphic(),
             ),
             const SizedBox(height: 12),
@@ -2835,8 +3188,7 @@ class _LayoutPickerDialogState extends State<_LayoutPickerDialog> {
               value: 'carousel',
               title: 'Deslizar',
               badge: 'NUEVO',
-              desc:
-                  'Una tarjeta cada vez (enunciado → imagen → opciones). Desliza para avanzar. Incluye subrayado del enunciado.',
+              desc: 'Una tarjeta cada vez. Pasas de lado.',
               graphic: _carouselGraphic(),
             ),
           ],
@@ -2861,11 +3213,11 @@ class _LayoutPickerDialogState extends State<_LayoutPickerDialog> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: AppColors.border),
+          border: Border.all(color: kHairline, width: 2),
         ),
         child: Row(
           children: [
-            SizedBox(width: 76, height: 92, child: Center(child: graphic)),
+            SizedBox(width: 72, height: 94, child: Center(child: graphic)),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
@@ -2915,199 +3267,12 @@ class _LayoutPickerDialogState extends State<_LayoutPickerDialog> {
     );
   }
 
-  Widget _classicGraphic() => const _ClassicAnim();
+  Widget _classicGraphic() => const ClassicLayoutArt();
 
-  Widget _carouselGraphic() => const _CarouselAnim();
+  Widget _carouselGraphic() => const SwipeLayoutArt();
 }
-
-Widget _miniBar(double h, {Color? color}) => Container(
-      height: h,
-      decoration: BoxDecoration(
-        color: color ?? AppColors.surfaceVariant,
-        borderRadius: BorderRadius.circular(3),
-      ),
-    );
 
 /// Mini maqueta vertical con flecha que pulsa hacia abajo (scroll).
-class _ClassicAnim extends StatefulWidget {
-  const _ClassicAnim();
-
-  @override
-  State<_ClassicAnim> createState() => _ClassicAnimState();
-}
-
-class _ClassicAnimState extends State<_ClassicAnim>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _c;
-
-  @override
-  void initState() {
-    super.initState();
-    _c = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 1300))
-      ..repeat();
-  }
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 56,
-      height: 84,
-      padding: const EdgeInsets.all(7),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-            color: AppColors.primary.withValues(alpha: 0.4), width: 1.5),
-      ),
-      child: Stack(
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _miniBar(11, color: AppColors.primary.withValues(alpha: 0.55)),
-              const SizedBox(height: 7),
-              _miniBar(6),
-              const SizedBox(height: 4),
-              _miniBar(6),
-              const SizedBox(height: 4),
-              _miniBar(6),
-            ],
-          ),
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: AnimatedBuilder(
-              animation: _c,
-              builder: (context, _) {
-                final t = _c.value; // 0..1
-                return Opacity(
-                  opacity: (1 - t).clamp(0.0, 1.0),
-                  child: Transform.translate(
-                    offset: Offset(0, t * 12),
-                    child: const Icon(Icons.keyboard_arrow_down_rounded,
-                        size: 18, color: AppColors.primaryDark),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Mini maqueta horizontal con flecha que pulsa hacia la izquierda (swipe).
-class _CarouselAnim extends StatefulWidget {
-  const _CarouselAnim();
-
-  @override
-  State<_CarouselAnim> createState() => _CarouselAnimState();
-}
-
-class _CarouselAnimState extends State<_CarouselAnim>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _c;
-
-  @override
-  void initState() {
-    super.initState();
-    _c = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 1300))
-      ..repeat();
-  }
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 74,
-      height: 84,
-      child: Stack(
-        children: [
-          // Peek de la siguiente tarjeta
-          Positioned(
-            right: 0,
-            top: 14,
-            bottom: 20,
-            child: Container(
-              width: 14,
-              decoration: BoxDecoration(
-                color: AppColors.surfaceVariant,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppColors.border),
-              ),
-            ),
-          ),
-          // Tarjeta principal
-          Positioned(
-            left: 0,
-            right: 20,
-            top: 4,
-            bottom: 18,
-            child: Container(
-              padding: const EdgeInsets.all(7),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                    color: AppColors.primary.withValues(alpha: 0.4),
-                    width: 1.5),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _miniBar(10,
-                      color: AppColors.primary.withValues(alpha: 0.55)),
-                  const SizedBox(height: 6),
-                  _miniBar(6),
-                  const SizedBox(height: 4),
-                  _miniBar(6),
-                ],
-              ),
-            ),
-          ),
-          // Flecha de deslizar (pulsa hacia la izquierda)
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: AnimatedBuilder(
-              animation: _c,
-              builder: (context, _) {
-                final t = _c.value; // 0..1
-                return Opacity(
-                  opacity: (1 - t).clamp(0.0, 1.0),
-                  child: Transform.translate(
-                    offset: Offset(-t * 14, 0),
-                    child: const Icon(Icons.arrow_back_ios_rounded,
-                        size: 15, color: AppColors.primaryDark),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Pista de deslizar: una mano que se desliza dejando una estela desde la
-/// punta del dedo y se desvanece, en bucle suave. Solo en la primera pregunta.
 class _SwipeHandHint extends StatefulWidget {
   const _SwipeHandHint();
 
