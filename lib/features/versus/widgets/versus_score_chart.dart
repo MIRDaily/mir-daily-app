@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/sticker/sticker.dart';
 import '../models/versus_models.dart';
 
 /// Evolución de la puntuación ronda a ronda, una línea por jugador.
@@ -71,7 +72,7 @@ class VersusScoreChart extends StatelessWidget {
           decoration: BoxDecoration(
             color: AppColors.surface,
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: AppColors.border, width: 2),
+            border: Border.all(color: kHairline, width: 2),
           ),
           child: TweenAnimationBuilder<double>(
             tween: Tween(begin: 0, end: 1),
@@ -155,23 +156,33 @@ class _ScoreChartPainter extends CustomPainter {
         series.map((s) => s.points.length).reduce((a, b) => a > b ? a : b) + 1;
     if (rounds < 2) return;
 
-    // El techo se calcula sobre TODAS las series para que las líneas sean
-    // comparables entre sí; con un máximo por línea, el último no se vería peor
-    // que el primero.
+    // Techo y SUELO sobre TODAS las series, para que las líneas sean
+    // comparables entre sí; con un máximo por línea, el último no se vería
+    // peor que el primero.
+    //
+    // El suelo hace falta porque en Número de orden el acumulado baja: fallar
+    // resta un punto, así que se puede ir por debajo de cero. Escalando solo
+    // con el máximo, esos tramos se salían por debajo de la tarjeta.
     var maxY = 1;
+    var minY = 0;
     for (final s in series) {
       for (final p in s.points) {
         if (p > maxY) maxY = p;
+        if (p < minY) minY = p;
       }
     }
+    // Un rango de altura cero dejaría la división en nada.
+    final span = (maxY - minY) == 0 ? 1 : (maxY - minY);
 
     double dx(int i) => padLeft + w * (i / (rounds - 1));
-    double dy(int value) => padTop + h * (1 - value / maxY);
+    double dy(int value) => padTop + h * (1 - (value - minY) / span);
 
-    // Rejilla mínima: solo la base, para no competir con las líneas.
+    // Rejilla mínima: solo la línea del cero, para no competir con las
+    // líneas de puntuación. Con puntuaciones negativas ya no está abajo del
+    // todo, y ahí es justo donde más dice.
     canvas.drawLine(
-      Offset(padLeft, padTop + h),
-      Offset(padLeft + w, padTop + h),
+      Offset(padLeft, dy(0)),
+      Offset(padLeft + w, dy(0)),
       Paint()
         ..color = AppColors.border
         ..strokeWidth = 1,
@@ -236,10 +247,15 @@ class _ScoreChartPainter extends CustomPainter {
   /// Interpolación cúbica MONÓTONA (Fritsch–Carlson), la misma que usa la web.
   ///
   /// Una suavidad normal (una spline de Catmull-Rom, por ejemplo) se pasa de
-  /// largo al cambiar la pendiente, y aquí eso sería mentir: la puntuación es
-  /// acumulada y NUNCA baja, así que un sobrepaso dibujaría una bajada que no
-  /// ocurrió. Esta preserva la monotonía — lo plano se queda plano y lo que
-  /// sube solo sube, sin los picos de unir los puntos con rectas.
+  /// largo al cambiar la pendiente, y aquí eso sería mentir: entre dos rondas
+  /// no pasó nada, así que un sobrepaso dibujaría una subida o una bajada que
+  /// no ocurrieron. Esta preserva la monotonía tramo a tramo — lo plano se
+  /// queda plano y lo que sube solo sube, sin los picos de unir los puntos
+  /// con rectas.
+  ///
+  /// Ojo: NO se puede dar por hecho que la puntuación solo crece. En Clásico y
+  /// en Guardia sí, pero en Número de orden un fallo resta, y la curva baja de
+  /// verdad. Fritsch–Carlson maneja las dos direcciones, así que sirve igual.
   static Path _monotonePath(List<Offset> p) {
     final path = Path();
     if (p.isEmpty) return path;

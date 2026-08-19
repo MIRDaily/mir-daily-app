@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/services/haptics_service.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/sticker/sticker.dart';
 import '../models/versus_models.dart';
 import '../providers/versus_room_controller.dart';
 import 'versus_avatar.dart';
@@ -168,14 +169,9 @@ class _VersusScoreboardOverlayState extends State<VersusScoreboardOverlay>
                       gradient: const LinearGradient(
                         colors: [AppColors.primaryDark, AppColors.primary],
                       ),
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.primary.withValues(alpha: 0.4),
-                          blurRadius: 16,
-                          offset: const Offset(0, 5),
-                        ),
-                      ],
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: kInk, width: 2),
+                      boxShadow: inkShadow(3),
                     ),
                     child: const Text(
                       'MARCADOR',
@@ -260,28 +256,20 @@ class _ScoreboardRow extends StatelessWidget {
           end: Alignment.centerRight,
           colors: isMe
               ? [
-                  AppColors.primary.withValues(alpha: 0.28),
-                  AppColors.primary.withValues(alpha: 0.08),
+                  tinted(AppColors.primary, 0.32),
+                  tinted(AppColors.primary, 0.10),
                 ]
               : [AppColors.surface, AppColors.surface],
         ),
         borderRadius: BorderRadius.circular(16),
+        // Con trazo de tinta ya no hace falta el color del borde para decir
+        // quién eres: eso lo dice el relleno. El borde solo separa.
         border: Border.all(
-          color: isMe
-              ? AppColors.primary
-              : medal != null
-                  ? medal[1].withValues(alpha: 0.55)
-                  : AppColors.border,
+          color: isMe || medal != null ? kInk : kHairline,
           width: 2,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: (leader ? AppColors.gold : AppColors.secondary)
-                .withValues(alpha: leader ? 0.32 : 0.12),
-            blurRadius: leader ? 18 : 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        // El líder se despega un poco más del papel; el resto, lo justo.
+        boxShadow: isMe || medal != null ? inkShadow(leader ? 5 : 3) : const [],
       ),
       child: Row(
         children: [
@@ -300,6 +288,7 @@ class _ScoreboardRow extends StatelessWidget {
                     ),
               color: medal == null ? AppColors.surfaceVariant : null,
               borderRadius: BorderRadius.circular(11),
+              border: Border.all(color: kInk, width: 1.8),
             ),
             child: Text(
               '$position',

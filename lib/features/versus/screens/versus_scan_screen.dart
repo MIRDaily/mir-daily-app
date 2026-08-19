@@ -3,6 +3,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../../core/services/haptics_service.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/sticker/sticker.dart';
 import '../services/versus_links.dart';
 
 /// Escáner del QR de una sala. Devuelve el PIN con `Navigator.pop`, o null si
@@ -139,8 +140,14 @@ class _VersusScanScreenState extends State<VersusScanScreen> {
               width: 240,
               height: 240,
               decoration: BoxDecoration(
+                // Doble trazo: coral por dentro y tinta por fuera, para que el
+                // marco se lea igual sobre una pared clara que sobre una
+                // oscura, que es lo que tiene apuntar con la cámara.
                 border: Border.all(color: AppColors.primary, width: 3),
                 borderRadius: BorderRadius.circular(24),
+                boxShadow: const [
+                  BoxShadow(color: kInk, blurRadius: 0, spreadRadius: 2),
+                ],
               ),
             ),
           ),

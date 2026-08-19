@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/config/app_config.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/sticker/sticker.dart';
 import '../models/versus_models.dart';
 
 /// Avisos de conexión, en píldoras de una sola línea ancladas abajo.
@@ -89,15 +90,9 @@ class _NoticePillState extends State<_NoticePill> {
             padding: const EdgeInsets.fromLTRB(6, 6, 14, 6),
             decoration: BoxDecoration(
               color: AppColors.surface,
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: color.withValues(alpha: 0.35)),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.secondary.withValues(alpha: 0.18),
-                  blurRadius: 16,
-                  offset: const Offset(0, 4),
-                ),
-              ],
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: kInk, width: 2),
+              boxShadow: inkShadow(3),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,

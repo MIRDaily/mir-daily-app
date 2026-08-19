@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 
 import '../../../core/services/haptics_service.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/sticker/sticker.dart';
 import '../../../shared/widgets/zoomable_image.dart';
 import '../models/versus_models.dart';
 import '../providers/versus_room_controller.dart';
@@ -336,7 +337,8 @@ class _VersusRunnerState extends State<VersusRunner> {
             decoration: BoxDecoration(
               color: AppColors.surface,
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: AppColors.border, width: 2),
+              border: Border.all(color: kInk, width: 2),
+              boxShadow: inkShadow(4),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -499,12 +501,10 @@ class _VersusRunnerState extends State<VersusRunner> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: 0.08),
+        color: tinted(AppColors.primary, 0.16),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: AppColors.primary.withValues(alpha: 0.35),
-          width: 2,
-        ),
+        border: Border.all(color: kInk, width: 2),
+        boxShadow: inkShadow(4),
       ),
       child: Column(
         children: [
@@ -620,6 +620,8 @@ class _VersusRunnerState extends State<VersusRunner> {
                 colors: [AppColors.primary, AppColors.primaryHover],
               ),
               borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: kInk, width: 2),
+              boxShadow: inkShadow(4),
             ),
             child: const Icon(Icons.emoji_events_rounded,
                 color: Colors.white, size: 32),
@@ -817,7 +819,7 @@ class _RoundCarouselState extends State<_RoundCarousel> {
                     width: i == _page ? 18 : 6,
                     height: 6,
                     decoration: BoxDecoration(
-                      color: i == _page ? AppColors.primary : AppColors.border,
+                      color: i == _page ? kInk : kHairline,
                       borderRadius: BorderRadius.circular(3),
                     ),
                   ),
@@ -996,12 +998,10 @@ class _CorrectionPage extends StatelessWidget {
           width: double.infinity,
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: headlineColor.withValues(alpha: 0.1),
+            color: tinted(headlineColor, 0.18),
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: headlineColor.withValues(alpha: 0.4),
-              width: 2,
-            ),
+            border: Border.all(color: kInk, width: 2),
+            boxShadow: inkShadow(4),
           ),
           child: Row(
             children: [
@@ -1013,7 +1013,7 @@ class _CorrectionPage extends StatelessWidget {
                   style: TextStyle(
                     color: headlineColor,
                     fontSize: 19,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
               ),
@@ -1086,23 +1086,35 @@ class _OptionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Color border = AppColors.border;
+    Color border = kHairline;
     Color background = AppColors.surface;
+    Color letterBg = AppColors.surfaceVariant;
+    Color letterFg = kInk;
     double opacity = 1;
+    bool raised = false;
 
     if (isCorrect != null) {
       if (isCorrect!) {
-        border = AppColors.success;
-        background = AppColors.success.withValues(alpha: 0.1);
+        border = kInk;
+        background = tinted(AppColors.success, 0.18);
+        letterBg = AppColors.success;
+        letterFg = Colors.white;
+        raised = true;
       } else if (isMine) {
-        border = AppColors.error;
-        background = AppColors.error.withValues(alpha: 0.08);
+        border = kInk;
+        background = tinted(AppColors.error, 0.16);
+        letterBg = AppColors.error;
+        letterFg = Colors.white;
+        raised = true;
       } else {
-        opacity = 0.6;
+        opacity = 0.55;
       }
     } else if (isMine) {
-      border = AppColors.primary;
-      background = AppColors.primary.withValues(alpha: 0.1);
+      border = kInk;
+      background = tinted(AppColors.primary, 0.20);
+      letterBg = AppColors.primary;
+      letterFg = Colors.white;
+      raised = true;
     }
 
     return Opacity(
@@ -1117,6 +1129,7 @@ class _OptionTile extends StatelessWidget {
             color: background,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: border, width: 2),
+            boxShadow: raised ? inkShadow(3) : const [],
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
@@ -1126,15 +1139,16 @@ class _OptionTile extends StatelessWidget {
                 height: 32,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: AppColors.surfaceVariant,
+                  color: letterBg,
                   borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: kInk, width: 1.6),
                 ),
                 child: Text(
                   letter,
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
+                  style: TextStyle(
+                    color: letterFg,
                     fontSize: 13,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
               ),
@@ -1143,7 +1157,7 @@ class _OptionTile extends StatelessWidget {
                 child: Text(
                   text,
                   style: const TextStyle(
-                    color: AppColors.textPrimary,
+                    color: kInk,
                     fontSize: 14,
                     height: 1.4,
                   ),
@@ -1376,7 +1390,7 @@ class _LifeChipState extends State<_LifeChip>
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isMe ? AppColors.primary : AppColors.border,
+            color: isMe ? kInk : kHairline,
             width: isMe ? 2 : 1,
           ),
         ),
@@ -1608,7 +1622,7 @@ class _ScoreRow extends StatelessWidget {
               : AppColors.surface,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: isMe ? AppColors.primary : AppColors.border,
+            color: isMe ? kInk : kHairline,
             width: compact ? 1 : 2,
           ),
         ),

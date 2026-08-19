@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/services/api_service.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/sticker/sticker.dart';
 import '../../../shared/widgets/misc_widgets.dart';
 import '../../../shared/widgets/pressable.dart';
 import '../models/versus_models.dart';
@@ -163,26 +164,14 @@ class _VersusScreenState extends State<VersusScreen> {
           physics: const BouncingScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
           children: [
-            SlideFadeIn(
-              child: Text(
-                'Versus',
-                style: Theme.of(context).textTheme.displayMedium,
-              ),
+            const StickerHero(
+              badge: 'Versus',
+              badgeIcon: Icons.bolt_rounded,
+              title: 'Compite en directo',
+              subtitle: 'Las mismas preguntas y el mismo reloj. Abre una sala '
+                  'y pasa el código, o entra en la de alguien.',
             ),
-            const SizedBox(height: 6),
-            const SlideFadeIn(
-              delay: Duration(milliseconds: 100),
-              child: Text(
-                'Compite en directo con las mismas preguntas y el mismo reloj. '
-                'Abre una sala y pasa el código, o entra en la de alguien.',
-                style: TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 14,
-                  height: 1.4,
-                ),
-              ),
-            ),
-            const SizedBox(height: 22),
+            const SizedBox(height: 24),
 
             SlideFadeIn(
               delay: const Duration(milliseconds: 160),
@@ -208,20 +197,8 @@ class _VersusScreenState extends State<VersusScreen> {
               _ErrorBanner(message: _error!),
             ],
 
-            const SizedBox(height: 28),
-            const SlideFadeIn(
-              delay: Duration(milliseconds: 300),
-              child: Text(
-                'MODOS PREVISTOS',
-                style: TextStyle(
-                  color: AppColors.textLight,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1.2,
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 30),
+            const SectionLabel('Modos por llegar'),
             ..._upcomingModes.map(
               (mode) => Padding(
                 padding: const EdgeInsets.only(bottom: 10),
@@ -253,31 +230,20 @@ class _CreateCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Pressable(
       onTap: onTap,
-      child: Container(
+      child: StickerCard(
+        depth: 5,
+        radius: 20,
+        background: AppColors.primary,
         padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [AppColors.primary, AppColors.primaryHover],
-          ),
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.primary.withValues(alpha: 0.28),
-              blurRadius: 16,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
         child: Row(
           children: [
             Container(
               width: 46,
               height: 46,
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.22),
+                color: Colors.white.withValues(alpha: 0.25),
                 borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: kInk, width: 2),
               ),
               child: busy
                   ? const Padding(
@@ -299,8 +265,8 @@ class _CreateCard extends StatelessWidget {
                     busy ? 'Abriendo sala…' : 'Crear una sala',
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 17,
-                      fontWeight: FontWeight.w700,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
                     ),
                   ),
                   const SizedBox(height: 3),
@@ -343,13 +309,10 @@ class _JoinCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return StickerCard(
+      depth: 5,
+      radius: 20,
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.border, width: 2),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -359,28 +322,19 @@ class _JoinCard extends StatelessWidget {
                 child: Text(
                   'Entrar con un código',
                   style: TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
+                    color: kInk,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
               ),
               // Escanear es el camino corto: en persona nadie quiere teclear
               // seis caracteres.
-              TextButton.icon(
+              GhostButton(
+                label: 'Escanear',
+                icon: Icons.qr_code_scanner_rounded,
+                compact: true,
                 onPressed: enabled ? onScan : null,
-                style: TextButton.styleFrom(
-                  foregroundColor: AppColors.primaryDark,
-                  backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                icon: const Icon(Icons.qr_code_scanner_rounded, size: 18),
-                label: const Text('Escanear',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
               ),
             ],
           ),
@@ -410,44 +364,36 @@ class _JoinCard extends StatelessWidget {
                     counterText: '',
                     hintText: 'ABC123',
                     hintStyle: TextStyle(
-                      color: AppColors.textLight.withValues(alpha: 0.7),
+                      color: kMuted.withValues(alpha: 0.55),
                       letterSpacing: 6,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w900,
                     ),
                     filled: true,
-                    fillColor: AppColors.surfaceVariant,
+                    fillColor: Colors.white,
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: 16,
                       vertical: 14,
                     ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
-                      borderSide: BorderSide.none,
+                      borderSide: const BorderSide(color: kHairline, width: 2),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: const BorderSide(color: kHairline, width: 2),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: const BorderSide(color: kInk, width: 2),
                     ),
                   ),
                 ),
               ),
               const SizedBox(width: 10),
-              SizedBox(
-                height: 54,
-                child: ElevatedButton(
-                  onPressed: enabled ? onSubmit : null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.secondary,
-                    disabledBackgroundColor: AppColors.surfaceVariant,
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                  ),
-                  child: busy
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.4,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Text('Entrar'),
-                ),
+              StickerButton(
+                label: busy ? '…' : 'Entrar',
+                color: AppColors.secondary,
+                onPressed: enabled ? onSubmit : null,
               ),
             ],
           ),
@@ -485,6 +431,7 @@ class _ErrorBanner extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.errorSoft,
         borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.error, width: 2),
       ),
       child: Row(
         children: [
@@ -520,19 +467,10 @@ class _UpcomingMode {
   const _UpcomingMode(this.icon, this.title, this.description);
 }
 
-// Los mismos que anuncia la web: cada uno es un conjunto de reglas sobre el
-// motor de sala que ya existe, no una pantalla aparte.
+// Los que TODAVÍA no tienen reglas escritas. Clásico, Guardia y Número de
+// orden ya se juegan y se eligen en el panel de la sala, así que no pintan
+// aquí: anunciarlos como futuros era mentirle al usuario.
 const List<_UpcomingMode> _upcomingModes = [
-  _UpcomingMode(
-    Icons.trending_up_rounded,
-    'Número de orden',
-    'Puntuación real del MIR (+3 / −1 / 0) y marcador por puesto y percentil.',
-  ),
-  _UpcomingMode(
-    Icons.flash_on_rounded,
-    'Guardia',
-    'Supervivencia: quien falla, cae. El último en pie gana.',
-  ),
   _UpcomingMode(
     Icons.visibility_rounded,
     'Ojo clínico',
@@ -555,9 +493,11 @@ class _UpcomingModeTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.surface.withValues(alpha: 0.6),
+        color: Colors.white.withValues(alpha: 0.55),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
+        // Trazo discontinuo en espíritu: el mismo grosor que el resto pero en
+        // gris, para que se lea "esto todavía no".
+        border: Border.all(color: kHairline, width: 2),
       ),
       child: Row(
         children: [
@@ -567,8 +507,9 @@ class _UpcomingModeTile extends StatelessWidget {
             decoration: BoxDecoration(
               color: AppColors.surfaceVariant,
               borderRadius: BorderRadius.circular(11),
+              border: Border.all(color: kHairline, width: 2),
             ),
-            child: Icon(mode.icon, color: AppColors.textLight, size: 20),
+            child: Icon(mode.icon, color: kMuted, size: 19),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -578,9 +519,9 @@ class _UpcomingModeTile extends StatelessWidget {
                 Text(
                   mode.title,
                   style: const TextStyle(
-                    color: AppColors.textSecondary,
+                    color: kMuted,
                     fontSize: 14,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
                 const SizedBox(height: 2),

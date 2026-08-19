@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/services/haptics_service.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/sticker/sticker.dart';
 import '../models/versus_models.dart';
 import 'versus_avatar.dart';
 
@@ -366,7 +367,7 @@ class _Fighter extends StatelessWidget {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             border: Border.all(
-              color: isMe ? AppColors.primary : AppColors.border,
+              color: isMe ? kInk : kHairline,
               width: 3,
             ),
             boxShadow: isMe

@@ -6,18 +6,32 @@
 /// respuesta correcta hasta que el servidor la manda en el revelado.
 library;
 
-/// Modos previstos. Hoy solo `classic` está implementado de punta a punta.
+/// Modos jugables. Los tres tienen reglas escritas en el backend
+/// (`src/game/rulesets.js`) y se pueden elegir desde el panel de la sala.
 class VersusMode {
   VersusMode._();
 
   /// Velocidad + acierto, estilo Kahoot.
   static const String classic = 'classic';
 
+  /// Puntuación real del MIR: +3 el acierto, −1 el fallo, 0 el blanco, y sin
+  /// premio a la velocidad. Es el único modo en el que el acumulado BAJA.
   static const String mirRank = 'mir_rank';
 
   /// Guardia: quien falla pierde una vida y sin vidas cae. Gana el último en
   /// pie, y la partida acaba al quedar uno aunque sobren preguntas.
   static const String survival = 'survival';
+
+  /// Nombre visible del modo, en un solo sitio.
+  ///
+  /// Estaba repartido en ternarios binarios por la interfaz, y al añadir el
+  /// tercer modo el panel de espera del invitado seguía enseñando "Clásico".
+  static String labelOf(String? mode) => switch (mode) {
+        classic => 'Clásico',
+        mirRank => 'Número de orden',
+        survival => 'Guardia',
+        _ => 'Modo sin elegir',
+      };
 }
 
 /// Fases de una sala. `picks` es el momento en que ya se ve qué ha elegido cada

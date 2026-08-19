@@ -8,6 +8,7 @@ import '../../../core/services/haptics_service.dart';
 
 import '../../../core/services/api_service.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/sticker/sticker.dart';
 import '../models/versus_models.dart';
 import '../providers/versus_room_controller.dart';
 import '../services/versus_api.dart';
@@ -465,11 +466,12 @@ class _PinCard extends StatelessWidget {
           colors: [AppColors.primary, AppColors.primaryHover],
         ),
         borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: kInk, width: 2),
         boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.25),
-            blurRadius: 16,
-            offset: const Offset(0, 8),
+          const BoxShadow(
+            color: kInk,
+            offset: Offset(6, 6),
+            blurRadius: 0,
           ),
         ],
       ),
@@ -621,7 +623,7 @@ class _QrDialog extends StatelessWidget {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.border, width: 2),
+                border: Border.all(color: kHairline, width: 2),
               ),
               child: QrImageView(
                 data: _roomDeepLink(pin),
@@ -687,7 +689,7 @@ class _PlayerChip extends StatelessWidget {
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(30),
         border: Border.all(
-          color: isMe ? AppColors.primary : AppColors.border,
+          color: isMe ? kInk : kHairline,
           width: 2,
         ),
       ),
@@ -753,7 +755,7 @@ class _WaitingForHost extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.border, width: 2),
+        border: Border.all(color: kHairline, width: 2),
       ),
       child: Column(
         children: [
@@ -795,29 +797,25 @@ class _WaitingForHost extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(
-                  d.mode == null
-                      ? Icons.help_outline_rounded
-                      : survival
-                          ? Icons.favorite_rounded
-                          : Icons.bolt_rounded,
+                  switch (d.mode) {
+                    VersusMode.survival => Icons.favorite_rounded,
+                    VersusMode.mirRank => Icons.trending_up_rounded,
+                    VersusMode.classic => Icons.bolt_rounded,
+                    _ => Icons.help_outline_rounded,
+                  },
                   size: 18,
-                  color: d.mode == null
-                      ? AppColors.textLight
-                      : AppColors.primaryDark,
+                  color: d.mode == null ? kMuted : AppColors.primaryDark,
                 ),
                 const SizedBox(width: 8),
-                Text(
-                  d.mode == null
-                      ? 'Modo sin elegir'
-                      : survival
-                          ? 'Guardia'
-                          : 'Clásico',
-                  style: TextStyle(
-                    color: d.mode == null
-                        ? AppColors.textLight
-                        : AppColors.textPrimary,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
+                Flexible(
+                  child: Text(
+                    VersusMode.labelOf(d.mode),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: d.mode == null ? kMuted : kInk,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
                 ),
                 if (survival) ...[

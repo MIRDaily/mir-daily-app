@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/models/models.dart';
+import '../../../shared/sticker/sticker.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/services/haptics_service.dart';
 import '../../../core/theme/app_theme.dart';
@@ -155,21 +156,12 @@ class _VersusStartPanelState extends State<VersusStartPanel> {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.border, width: 2),
+        border: Border.all(color: kHairline, width: 2),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'CONFIGURA LA PARTIDA',
-            style: TextStyle(
-              color: AppColors.textLight,
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 1.2,
-            ),
-          ),
-          const SizedBox(height: 14),
+          const SectionLabel('Configura la partida'),
 
           // El modo se elige aquí y no al crear la sala, para poder cambiarlo
           // mientras la gente va entrando.
@@ -182,28 +174,29 @@ class _VersusStartPanelState extends State<VersusStartPanel> {
             ),
           ),
           const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: _ModeCard(
-                  icon: Icons.bolt_rounded,
-                  title: 'Clásico',
-                  subtitle: 'Acertar rápido puntúa más',
-                  selected: _mode == VersusMode.classic,
-                  onTap: () => _change(() => _mode = VersusMode.classic),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _ModeCard(
-                  icon: Icons.favorite_rounded,
-                  title: 'Guardia',
-                  subtitle: 'Quien falla, cae',
-                  selected: _mode == VersusMode.survival,
-                  onTap: () => _change(() => _mode = VersusMode.survival),
-                ),
-              ),
-            ],
+          _ModeCard(
+            icon: Icons.bolt_rounded,
+            title: 'Clásico',
+            subtitle: 'Acertar y ser rápido. Gana quien más puntúa.',
+            selected: _mode == VersusMode.classic,
+            onTap: () => _change(() => _mode = VersusMode.classic),
+          ),
+          const SizedBox(height: 8),
+          _ModeCard(
+            icon: Icons.trending_up_rounded,
+            title: 'Número de orden',
+            subtitle: 'Como el MIR: +3 acertar, −1 fallar. Sin premio a la '
+                'velocidad.',
+            selected: _mode == VersusMode.mirRank,
+            onTap: () => _change(() => _mode = VersusMode.mirRank),
+          ),
+          const SizedBox(height: 8),
+          _ModeCard(
+            icon: Icons.favorite_rounded,
+            title: 'Guardia',
+            subtitle: 'Quien falla pierde una vida. El último en pie gana.',
+            selected: _mode == VersusMode.survival,
+            onTap: () => _change(() => _mode = VersusMode.survival),
           ),
 
           if (_mode == VersusMode.survival) ...[
@@ -442,40 +435,55 @@ class _ModeCard extends StatelessWidget {
         duration: const Duration(milliseconds: 160),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: selected
-              ? AppColors.primary.withValues(alpha: 0.12)
-              : AppColors.surface,
+          color: selected ? tinted(AppColors.primary, 0.20) : Colors.white,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: selected ? AppColors.primary : AppColors.border,
+            color: selected ? kInk : kHairline,
             width: 2,
           ),
+          boxShadow: selected ? inkShadow(3) : const [],
         ),
-        child: Column(
+        child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(
-              icon,
-              size: 20,
-              color: selected ? AppColors.primaryDark : AppColors.textLight,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              title,
-              style: TextStyle(
-                color:
-                    selected ? AppColors.primaryDark : AppColors.textSecondary,
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
+            Container(
+              width: 34,
+              height: 34,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: selected ? AppColors.primary : AppColors.surfaceVariant,
+                borderRadius: BorderRadius.circular(11),
+                border: Border.all(color: selected ? kInk : kHairline, width: 2),
+              ),
+              child: Icon(
+                icon,
+                size: 18,
+                color: selected ? Colors.white : kMuted,
               ),
             ),
-            const SizedBox(height: 2),
-            Text(
-              subtitle,
-              style: const TextStyle(
-                color: AppColors.textLight,
-                fontSize: 11,
-                height: 1.25,
+            const SizedBox(width: 11),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      color: selected ? kInk : kMuted,
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      color: kMuted,
+                      fontSize: 11.5,
+                      height: 1.3,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -508,21 +516,17 @@ class _Chip extends StatelessWidget {
           duration: const Duration(milliseconds: 160),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
           decoration: BoxDecoration(
-            color: selected
-                ? AppColors.primary.withValues(alpha: 0.12)
-                : AppColors.surface,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: selected ? AppColors.primary : AppColors.border,
-              width: 2,
-            ),
+            color: selected ? kInk : Colors.white,
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: selected ? kInk : kHairline, width: 2),
+            boxShadow: selected ? inkShadow(2) : const [],
           ),
           child: Text(
             label,
             style: TextStyle(
-              color: selected ? AppColors.primaryDark : AppColors.textSecondary,
+              color: selected ? Colors.white : kMuted,
               fontSize: 13,
-              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+              fontWeight: selected ? FontWeight.w900 : FontWeight.w500,
             ),
           ),
         ),
