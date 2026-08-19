@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../shared/sticker/sticker.dart';
+import '../../shared/sticker/textures.dart';
 import '../../shared/widgets/misc_widgets.dart';
 import '../../shared/widgets/pressable.dart';
 
@@ -113,37 +115,15 @@ class _LibraryScreenState extends State<LibraryScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  SlideFadeIn(
-                    child: Text(
-                      'Apuntes',
-                      style: Theme.of(context).textTheme.displayMedium,
-                    ),
+                  StickerHero(
+                    badge: 'Temario',
+                    badgeIcon: Icons.menu_book_rounded,
+                    title: 'Apuntes',
+                    subtitle:
+                        '${_subjects.length} asignaturas actualizadas con IA predictiva.',
+                    accent: const Color(0xFF7D8A96),
                   ),
-                  const SizedBox(height: 6),
-                  SlideFadeIn(
-                    delay: const Duration(milliseconds: 100),
-                    child: RichText(
-                      text: TextSpan(
-                        style: const TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: 14,
-                          height: 1.4,
-                        ),
-                        children: [
-                          TextSpan(
-                            text: '${_subjects.length} asignaturas ',
-                            style: const TextStyle(
-                              color: Color(0xFFD18D80),
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const TextSpan(
-                              text: 'actualizadas con IA predictiva.'),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 22),
                   SlideFadeIn(
                     delay: const Duration(milliseconds: 180),
                     child: SingleChildScrollView(
@@ -163,23 +143,18 @@ class _LibraryScreenState extends State<LibraryScreen>
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 16, vertical: 8),
                                 decoration: BoxDecoration(
-                                  color: active
-                                      ? AppColors.primary
-                                      : Colors.white,
-                                  borderRadius: BorderRadius.circular(99),
+                                  color: active ? kInk : Colors.white,
+                                  borderRadius: BorderRadius.circular(999),
                                   border: Border.all(
-                                    color: active
-                                        ? AppColors.primary
-                                        : AppColors.border,
+                                    color: active ? kInk : kHairline,
+                                    width: 2,
                                   ),
                                 ),
                                 child: Text(
                                   f,
                                   style: TextStyle(
-                                    color: active
-                                        ? Colors.white
-                                        : AppColors.textSecondary,
-                                    fontWeight: FontWeight.w700,
+                                    color: active ? Colors.white : kMuted,
+                                    fontWeight: FontWeight.w900,
                                     fontSize: 12,
                                     letterSpacing: 0.6,
                                   ),
@@ -239,25 +214,12 @@ class _LibraryScreenState extends State<LibraryScreen>
         );
       },
       pressedScale: 0.96,
-      child: Container(
+      child: StickerCard(
+        depth: 4,
+        radius: 20,
         padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: complete
-                ? AppColors.gold.withOpacity(0.8)
-                : AppColors.border,
-            width: complete ? 1.8 : 1.4,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.textSecondary.withOpacity(0.07),
-              blurRadius: 14,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
+        // Cartulina rayada: es temario, y la trama lo dice sin escribirlo.
+        texture: ruledPaper(step: 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -267,10 +229,12 @@ class _LibraryScreenState extends State<LibraryScreen>
                   width: 38,
                   height: 38,
                   decoration: BoxDecoration(
-                    color: typeColor.withOpacity(0.13),
+                    color: typeColor,
                     borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: kInk, width: 2),
+                    boxShadow: inkShadow(2),
                   ),
-                  child: Icon(subject.icon, color: typeColor, size: 20),
+                  child: Icon(subject.icon, color: Colors.white, size: 18),
                 ),
                 const Spacer(),
                 if (complete)
@@ -284,8 +248,8 @@ class _LibraryScreenState extends State<LibraryScreen>
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                color: AppColors.textPrimary,
-                fontWeight: FontWeight.w700,
+                color: kInk,
+                fontWeight: FontWeight.w900,
                 fontSize: 13.5,
                 height: 1.25,
               ),

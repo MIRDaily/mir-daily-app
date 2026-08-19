@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../core/models/models.dart';
 import '../../core/services/api_service.dart';
 import '../../core/theme/app_theme.dart';
+import '../../shared/sticker/sticker.dart';
 
 /// Papelera de mazos: los eliminados se conservan 24 h y pueden restaurarse.
 class DeckTrashScreen extends StatefulWidget {
@@ -117,14 +118,11 @@ class _DeckTrashScreenState extends State<DeckTrashScreen> {
                       separatorBuilder: (_, _) => const SizedBox(height: 10),
                       itemBuilder: (context, i) {
                         final e = _items![i];
-                        return Container(
+                        return StickerCard(
+                          depth: 3,
+                          radius: 16,
                           padding: const EdgeInsets.symmetric(
                               horizontal: 16, vertical: 12),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: AppColors.border),
-                          ),
                           child: Row(
                             children: [
                               Expanded(
@@ -136,8 +134,8 @@ class _DeckTrashScreenState extends State<DeckTrashScreen> {
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: const TextStyle(
-                                        color: AppColors.textPrimary,
-                                        fontWeight: FontWeight.w700,
+                                        color: kInk,
+                                        fontWeight: FontWeight.w900,
                                         fontSize: 15,
                                       ),
                                     ),

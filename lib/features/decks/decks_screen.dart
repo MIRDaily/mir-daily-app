@@ -5,6 +5,8 @@ import 'package:provider/provider.dart';
 import '../../core/models/models.dart';
 import '../../core/services/api_service.dart';
 import '../../core/theme/app_theme.dart';
+import '../../shared/sticker/sticker.dart';
+import '../../shared/sticker/textures.dart';
 import '../../shared/widgets/misc_widgets.dart';
 import '../../shared/widgets/pressable.dart';
 import 'deck_detail_screen.dart';
@@ -163,12 +165,13 @@ class _DecksScreenState extends State<DecksScreen>
         surfaceTintColor: Colors.transparent,
         elevation: 0,
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _createDeck,
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.add_rounded),
-        label: const Text('Nuevo mazo'),
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 4, right: 4),
+        child: StickerButton(
+          label: 'Nuevo mazo',
+          icon: Icons.add_rounded,
+          onPressed: _createDeck,
+        ),
       ),
       body: SafeArea(
         bottom: false,
@@ -181,49 +184,24 @@ class _DecksScreenState extends State<DecksScreen>
             slivers: [
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 18, 12, 10),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            SlideFadeIn(
-                              child: Text(
-                                'Tus Mazos',
-                                style:
-                                    Theme.of(context).textTheme.displayMedium,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            const SlideFadeIn(
-                              delay: Duration(milliseconds: 100),
-                              child: Text(
-                                'Repaso con repetición espaciada para fijar lo que fallas.',
-                                style: TextStyle(
-                                  color: AppColors.textSecondary,
-                                  fontSize: 14,
-                                  height: 1.4,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      IconButton(
-                        tooltip: 'Papelera',
-                        onPressed: () async {
-                          await Navigator.of(context).push(
-                            MaterialPageRoute(
-                                builder: (_) => const DeckTrashScreen()),
-                          );
-                          _load();
-                        },
-                        icon: const Icon(Icons.delete_outline_rounded,
-                            color: AppColors.textSecondary),
-                      ),
-                    ],
+                  padding: const EdgeInsets.fromLTRB(20, 6, 20, 22),
+                  child: StickerHero(
+                    badge: 'Dominio',
+                    badgeIcon: Icons.layers_rounded,
+                    title: 'Tus Mazos',
+                    subtitle:
+                        'Repaso con repetición espaciada para fijar lo que fallas.',
+                    aside: InkIconButton(
+                      icon: Icons.delete_outline_rounded,
+                      tooltip: 'Papelera',
+                      onTap: () async {
+                        await Navigator.of(context).push(
+                          MaterialPageRoute(
+                              builder: (_) => const DeckTrashScreen()),
+                        );
+                        _load();
+                      },
+                    ),
                   ),
                 ),
               ),
@@ -286,18 +264,20 @@ class _DecksScreenState extends State<DecksScreen>
                   width: 86,
                   height: 86,
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.12),
-                    shape: BoxShape.circle,
+                    color: AppColors.primary,
+                    borderRadius: BorderRadius.circular(26),
+                    border: Border.all(color: kInk, width: 2),
+                    boxShadow: inkShadow(4),
                   ),
                   child: const Icon(Icons.style_rounded,
-                      color: AppColors.primaryDark, size: 40),
+                      color: Colors.white, size: 40),
                 ),
                 const SizedBox(height: 18),
                 const Text(
                   'Aún no tienes mazos',
                   style: TextStyle(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w800,
+                    color: kInk,
+                    fontWeight: FontWeight.w900,
                     fontSize: 18,
                   ),
                 ),
@@ -453,24 +433,15 @@ class _DeckCard extends StatelessWidget {
     return Pressable(
       onTap: onOpen,
       pressedScale: 0.97,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
+      child: StickerCard(
+        margin: const EdgeInsets.only(bottom: 14),
+        depth: 4,
+        radius: 20,
+        background: style.bg,
         padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: style.bg,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: style.accent.withValues(alpha: 0.35),
-            width: 1.5,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: style.accent.withValues(alpha: 0.12),
-              blurRadius: 14,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
+        // Cartulina teñida con el estado del mazo: la trama dice de un vistazo
+        // si está en forma o si pide repaso, antes de leer la etiqueta.
+        texture: tintedPaper(style.accent, step: 24),
         child: Row(
           children: [
             SizedBox(
@@ -488,11 +459,10 @@ class _DeckCard extends StatelessWidget {
                           width: 42,
                           height: 54,
                           decoration: BoxDecoration(
-                            color: i == 0 ? Colors.white : Colors.white70,
+                            color:
+                                i == 0 ? Colors.white : const Color(0xFFFFF7F4),
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: style.accent.withValues(alpha: 0.4),
-                            ),
+                            border: Border.all(color: kInk, width: 1.6),
                           ),
                           child: i == 0
                               ? Icon(style.icon, color: style.accent, size: 20)
@@ -523,8 +493,8 @@ class _DeckCard extends StatelessWidget {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      color: AppColors.textPrimary,
-                      fontWeight: FontWeight.w700,
+                      color: kInk,
+                      fontWeight: FontWeight.w900,
                       fontSize: 15.5,
                       height: 1.25,
                     ),
@@ -644,10 +614,12 @@ class _DeckSkeletonState extends State<_DeckSkeleton>
       opacity: Tween(begin: 0.45, end: 1.0).animate(_shimmer),
       child: Container(
         height: 94,
-        margin: const EdgeInsets.only(bottom: 12),
+        margin: const EdgeInsets.only(bottom: 14),
         decoration: BoxDecoration(
           color: AppColors.surfaceVariant,
           borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: kInk, width: 2),
+          boxShadow: inkShadow(4),
         ),
       ),
     );

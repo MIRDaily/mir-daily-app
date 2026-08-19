@@ -4,7 +4,8 @@ import 'package:provider/provider.dart';
 import '../../core/models/models.dart';
 import '../../core/services/api_service.dart';
 import '../../core/theme/app_theme.dart';
-import '../../shared/widgets/pressable.dart';
+import '../../shared/sticker/sticker.dart';
+import '../../shared/sticker/textures.dart';
 import 'deck_study_screen.dart';
 
 /// Detalle de un mazo: resumen por estado, lista de preguntas y acceso a la
@@ -140,15 +141,7 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
                     children: [
                       if (_summary != null) _summaryCard(_summary!),
                       const SizedBox(height: 16),
-                      Text(
-                        'Preguntas (${_items?.length ?? 0})',
-                        style: const TextStyle(
-                          color: AppColors.textPrimary,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 16,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
+                      SectionLabel('Preguntas (${_items?.length ?? 0})'),
                       if ((_items?.isEmpty ?? true))
                         const Padding(
                           padding: EdgeInsets.symmetric(vertical: 28),
@@ -168,12 +161,13 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
                   ),
                 ),
       floatingActionButton: (_items?.isNotEmpty ?? false)
-          ? FloatingActionButton.extended(
-              onPressed: _study,
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-              icon: const Icon(Icons.play_arrow_rounded),
-              label: const Text('Estudiar'),
+          ? Padding(
+              padding: const EdgeInsets.only(bottom: 4, right: 4),
+              child: StickerButton(
+                label: 'Estudiar',
+                icon: Icons.play_arrow_rounded,
+                onPressed: _study,
+              ),
             )
           : null,
     );
@@ -185,8 +179,9 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
             margin: const EdgeInsets.symmetric(horizontal: 3),
             padding: const EdgeInsets.symmetric(vertical: 12),
             decoration: BoxDecoration(
-              color: c.withValues(alpha: 0.10),
+              color: Colors.white,
               borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: kHairline, width: 2),
             ),
             child: Column(
               children: [
@@ -194,15 +189,15 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
                   '$n',
                   style: TextStyle(
                     color: c,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w900,
                     fontSize: 20,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   label,
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
+                  style: TextStyle(
+                    color: kMuted.withOpacity(0.7),
                     fontSize: 10.5,
                     fontWeight: FontWeight.w700,
                   ),
@@ -212,13 +207,10 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
           ),
         );
 
-    return Container(
+    return StickerCard(
+      depth: 4,
+      radius: 18,
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.border),
-      ),
       child: Row(
         children: [
           chip('NUEVAS', s.newCount, AppColors.slate),
@@ -248,13 +240,12 @@ class _ItemCardState extends State<_ItemCard> {
   @override
   Widget build(BuildContext context) {
     final q = widget.item;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
+    return StickerCard(
+      margin: const EdgeInsets.only(bottom: 12),
+      depth: 3,
+      radius: 16,
+      // Cartulina rayada: son fichas de estudio, y la trama lo recuerda.
+      texture: ruledPaper(step: 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -265,8 +256,8 @@ class _ItemCardState extends State<_ItemCard> {
               maxLines: _expanded ? null : 2,
               overflow: _expanded ? null : TextOverflow.ellipsis,
               style: const TextStyle(
-                color: AppColors.textPrimary,
-                fontWeight: FontWeight.w600,
+                color: kInk,
+                fontWeight: FontWeight.w700,
                 fontSize: 14,
                 height: 1.35,
               ),

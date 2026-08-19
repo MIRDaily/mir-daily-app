@@ -5,6 +5,8 @@ import 'package:provider/provider.dart';
 import '../../core/models/models.dart';
 import '../../core/services/api_service.dart';
 import '../../core/theme/app_theme.dart';
+import '../../shared/sticker/sticker.dart';
+import '../../shared/sticker/textures.dart';
 import '../../shared/widgets/pressable.dart';
 import '../../shared/widgets/zoomable_image.dart';
 
@@ -213,37 +215,22 @@ class _DeckStudyScreenState extends State<DeckStudyScreen> {
   }
 
   Widget _questionCard(DeckCard q) {
-    return Container(
+    return StickerCard(
+      depth: 5,
+      radius: 22,
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AppColors.border, width: 1.5),
-      ),
+      // Cartulina rayada: la carta que se repasa es una ficha de estudio.
+      texture: ruledPaper(step: 30),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (q.subject != null)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.14),
-                borderRadius: BorderRadius.circular(99),
-              ),
-              child: Text(
-                q.subject!,
-                style: const TextStyle(
-                  color: AppColors.primaryDark,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 11.5,
-                ),
-              ),
-            ),
+            DocChip(label: q.subject!, tone: DocTone.accent),
           const SizedBox(height: 12),
           Text(
             q.statement,
             style: const TextStyle(
-              color: AppColors.textPrimary,
+              color: kInk,
               fontSize: 16,
               height: 1.5,
               fontWeight: FontWeight.w500,
@@ -266,28 +253,35 @@ class _DeckStudyScreenState extends State<DeckStudyScreen> {
       final selected = _selected == i;
       final isCorrect = q.correctIndex == i;
 
-      Color border = AppColors.border;
+      // En reposo la opcion lleva trazo suave; en cuanto se elige o se
+      // corrige pasa a trazo de tinta con sombra dura, que es como el sistema
+      // marca lo que esta "activo".
+      Color border = kHairline;
       Color bg = AppColors.surface;
       Color letterBg = AppColors.surfaceVariant;
-      Color letterFg = AppColors.textSecondary;
+      Color letterFg = kMuted;
+      bool raised = false;
 
       if (_revealed) {
         if (isCorrect) {
-          border = AppColors.success;
-          bg = AppColors.success.withValues(alpha: 0.12);
+          border = kInk;
+          bg = tinted(AppColors.success, 0.18);
           letterBg = AppColors.success;
           letterFg = Colors.white;
+          raised = true;
         } else if (selected) {
-          border = AppColors.error;
-          bg = AppColors.error.withValues(alpha: 0.10);
+          border = kInk;
+          bg = tinted(AppColors.error, 0.16);
           letterBg = AppColors.error;
           letterFg = Colors.white;
+          raised = true;
         }
       } else if (selected) {
-        border = AppColors.primary;
-        bg = AppColors.primary.withValues(alpha: 0.10);
+        border = kInk;
+        bg = tinted(AppColors.primary, 0.20);
         letterBg = AppColors.primary;
         letterFg = Colors.white;
+        raised = true;
       }
 
       widgets.add(
@@ -304,6 +298,7 @@ class _DeckStudyScreenState extends State<DeckStudyScreen> {
                 color: bg,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: border, width: 2),
+                boxShadow: raised ? inkShadow(3) : const [],
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -315,6 +310,7 @@ class _DeckStudyScreenState extends State<DeckStudyScreen> {
                     decoration: BoxDecoration(
                       color: letterBg,
                       borderRadius: BorderRadius.circular(9),
+                      border: Border.all(color: kInk, width: 1.6),
                     ),
                     child: _revealed && isCorrect
                         ? const Icon(Icons.check_rounded,
@@ -338,7 +334,7 @@ class _DeckStudyScreenState extends State<DeckStudyScreen> {
                       child: Text(
                         q.options[i],
                         style: const TextStyle(
-                          color: AppColors.textPrimary,
+                          color: kInk,
                           fontSize: 14.5,
                           height: 1.4,
                         ),
@@ -386,7 +382,7 @@ class _DeckStudyScreenState extends State<DeckStudyScreen> {
                     : 'La correcta era la ${_letters[q.correctIndex.clamp(0, 5)]}',
                 style: TextStyle(
                   color: _lastCorrect ? AppColors.successDark : AppColors.error,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w900,
                   fontSize: 16,
                 ),
               ),
@@ -398,7 +394,7 @@ class _DeckStudyScreenState extends State<DeckStudyScreen> {
                     child: Text(
                       q.explanation!,
                       style: const TextStyle(
-                        color: AppColors.textPrimary,
+                        color: kInk,
                         fontSize: 13,
                         height: 1.45,
                       ),
@@ -423,8 +419,11 @@ class _DeckStudyScreenState extends State<DeckStudyScreen> {
                       ? (_lastCorrect ? AppColors.success : AppColors.error)
                       : _selected != null
                           ? AppColors.primary
-                          : AppColors.border,
+                          : AppColors.surfaceVariant,
                   borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: kInk, width: 2),
+                  boxShadow:
+                      _revealed || _selected != null ? inkShadow(4) : const [],
                 ),
                 child: _busy
                     ? const SizedBox(
@@ -438,8 +437,8 @@ class _DeckStudyScreenState extends State<DeckStudyScreen> {
                         style: TextStyle(
                           color: _selected != null || _revealed
                               ? Colors.white
-                              : AppColors.textLight,
-                          fontWeight: FontWeight.w800,
+                              : kMuted,
+                          fontWeight: FontWeight.w900,
                           fontSize: 15.5,
                           letterSpacing: 1,
                         ),

@@ -1,17 +1,23 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../shared/sticker/sticker.dart';
+import '../../shared/sticker/textures.dart';
 import '../../shared/widgets/misc_widgets.dart';
-import '../../shared/widgets/pressable.dart';
 import '../decks/decks_screen.dart';
 import '../electros/electros_hub_screen.dart';
+import '../flashcards/flashcards_screen.dart';
 import '../library/library_screen.dart';
 import '../simulacro/simulacro_screen.dart';
 import 'widgets/studio_card_art.dart';
 
-/// Hub de Biblioteca: punto de entrada a las tres herramientas de estudio
-/// — Mazos (repetición espaciada), Simulacros (exámenes a medida) y Apuntes
-/// (temario por asignaturas). Cada una abre su propia pantalla.
+/// Hub de Studio: punto de entrada a las herramientas de estudio — Mazos
+/// (repetición espaciada), Simulacros (exámenes a medida), Electros (ECG) y
+/// Apuntes (temario por asignaturas).
+///
+/// Rediseñado con el lenguaje visual de la web (borde de tinta y sombra dura).
+/// Aquí la textura de cada tarjeta es un anticipo de la de su herramienta:
+/// cartulina rayada para lo que son fichas, papel milimetrado para el ECG.
 class BibliotecaHubScreen extends StatelessWidget {
   const BibliotecaHubScreen({super.key});
 
@@ -29,62 +35,74 @@ class BibliotecaHubScreen extends StatelessWidget {
           physics: const BouncingScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
           children: [
-            SlideFadeIn(
-              child: Text(
-                'Studio',
-                style: Theme.of(context).textTheme.displayMedium,
-              ),
+            const StickerHero(
+              badge: 'Studio',
+              badgeIcon: Icons.auto_awesome_rounded,
+              title: 'Tu centro de estudio',
+              subtitle: 'Repasa, ponte a prueba y consulta el temario.',
             ),
-            const SizedBox(height: 6),
-            const SlideFadeIn(
-              delay: Duration(milliseconds: 100),
-              child: Text(
-                'Tu centro de estudio: repasa, ponte a prueba y consulta el temario.',
-                style: TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 14,
-                  height: 1.4,
-                ),
-              ),
-            ),
-            const SizedBox(height: 22),
+            const SizedBox(height: 26),
+            const SectionLabel('Herramientas'),
             SlideFadeIn(
-              delay: const Duration(milliseconds: 160),
+              delay: const Duration(milliseconds: 120),
               beginOffset: const Offset(0, 0.12),
-              child: _HubCard(
+              child: _ToolCard(
                 title: 'Mazos',
-                subtitle: 'Flashcards con repetición espaciada para fijar lo que fallas.',
-                icon: Icons.style_rounded,
+                subtitle:
+                    'Repaso espaciado de tus preguntas guardadas para retenerlas a largo plazo.',
+                tag: 'Dominio',
+                icon: Icons.layers_rounded,
+                accent: const Color(0xFFE8A598),
                 art: const DeckCardArt(),
-                gradient: const [Color(0xFFE8A598), Color(0xFFD68C7F)],
-                tag: 'DOMINIO · TEXTURAS',
+                texture: ruledPaper(step: 22),
                 onTap: () => _open(context, const DecksScreen()),
               ),
             ),
             const SizedBox(height: 14),
             SlideFadeIn(
-              delay: const Duration(milliseconds: 230),
+              delay: const Duration(milliseconds: 155),
               beginOffset: const Offset(0, 0.12),
-              child: _HubCard(
+              child: _ToolCard(
+                title: 'Flashcards',
+                subtitle:
+                    'Crea y repasa tus propias tarjetas, con anverso y reverso.',
+                tag: 'Tarjetas',
+                icon: Icons.style_rounded,
+                accent: const Color(0xFFD68C7F),
+                art: const FlashcardFlipArt(),
+                texture: ruledPaper(step: 20),
+                onTap: () => _open(context, const FlashcardsScreen()),
+              ),
+            ),
+            const SizedBox(height: 14),
+            SlideFadeIn(
+              delay: const Duration(milliseconds: 220),
+              beginOffset: const Offset(0, 0.12),
+              child: _ToolCard(
                 title: 'Simulacros',
-                subtitle: 'Crea exámenes a medida por asignatura y tema, con corrección.',
+                subtitle:
+                    'Crea exámenes a medida por asignatura y tema, con corrección e historial.',
+                tag: 'Exámenes',
                 icon: Icons.quiz_rounded,
+                accent: const Color(0xFF6E8E6B),
                 art: const ExamSheetArt(),
-                gradient: const [Color(0xFF6E8E6B), Color(0xFF8BA888)],
-                tag: 'EXÁMENES',
+                texture: ruledPaper(step: 26),
                 onTap: () => _open(context, const SimulacroScreen()),
               ),
             ),
             const SizedBox(height: 14),
             SlideFadeIn(
-              delay: const Duration(milliseconds: 300),
+              delay: const Duration(milliseconds: 290),
               beginOffset: const Offset(0, 0.12),
-              child: _HubCard(
+              child: _ToolCard(
                 title: 'Electros',
-                subtitle: 'Aprende a leer el ECG y practica con un simulador de 12 derivaciones.',
-                icon: Icons.monitor_heart_rounded,
-                gradient: const [Color(0xFFC45B4B), Color(0xFFE8A598)],
+                subtitle:
+                    'Aprende a leer el ECG en la Academia y practica con un simulador de 12 derivaciones.',
                 tag: 'ECG',
+                icon: Icons.monitor_heart_rounded,
+                accent: const Color(0xFFC45B4B),
+                art: const EcgMonitorArt(),
+                texture: graphPaper(tint: const Color(0xFFC45B4B), step: 9),
                 onTap: () => _open(context, const ElectrosHubScreen()),
               ),
             ),
@@ -92,12 +110,13 @@ class BibliotecaHubScreen extends StatelessWidget {
             SlideFadeIn(
               delay: const Duration(milliseconds: 360),
               beginOffset: const Offset(0, 0.12),
-              child: _HubCard(
+              child: _ToolCard(
                 title: 'Apuntes',
                 subtitle: 'Temario por asignaturas, actualizado con IA predictiva.',
+                tag: 'Temario',
                 icon: Icons.menu_book_rounded,
-                gradient: const [Color(0xFF7D8A96), Color(0xFF94A3B8)],
-                tag: 'TEMARIO',
+                accent: const Color(0xFF7D8A96),
+                texture: ruledPaper(step: 18),
                 onTap: () => _open(context, const LibraryScreen()),
               ),
             ),
@@ -108,127 +127,120 @@ class BibliotecaHubScreen extends StatelessWidget {
   }
 }
 
-class _HubCard extends StatelessWidget {
+/// Tarjeta de herramienta: pastilla con el icono, título, descripción y la
+/// textura de la herramienta asomando por detrás.
+class _ToolCard extends StatelessWidget {
   final String title;
   final String subtitle;
-  final IconData icon;
-  final List<Color> gradient;
   final String tag;
+  final IconData icon;
+  final Color accent;
+  final Decoration texture;
   final VoidCallback onTap;
 
   /// Ilustración animada que sustituye al icono, cuando la hay. Las de Mazos y
   /// Simulacros vienen de la web; el resto sigue con su icono.
   final Widget? art;
 
-  const _HubCard({
+  const _ToolCard({
     required this.title,
     required this.subtitle,
-    required this.icon,
-    required this.gradient,
     required this.tag,
+    required this.icon,
+    required this.accent,
+    required this.texture,
     required this.onTap,
     this.art,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Pressable(
+    return StickerCard(
       onTap: onTap,
-      pressedScale: 0.98,
-      child: Container(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: AppColors.border),
-          boxShadow: [
-            BoxShadow(
-              color: gradient.first.withValues(alpha: 0.18),
-              blurRadius: 18,
-              offset: const Offset(0, 8),
+      // Se hunde contra su sombra y aguanta un instante antes de abrir la
+      // sección: sin esa espera, en un toque rápido la pantalla ya ha cambiado
+      // y el gesto no llega a verse.
+      pressDelay: const Duration(milliseconds: 120),
+      texture: texture,
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          // Con ilustración se deja respirar sobre el fondo de la tarjeta: la
+          // pastilla de color la aplastaría y taparía el dibujo.
+          if (art != null)
+            SizedBox(width: 56, height: 56, child: art)
+          else
+            Container(
+              width: 56,
+              height: 56,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: accent,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: kInk, width: 2),
+                boxShadow: inkShadow(3),
+              ),
+              child: Icon(icon, color: Colors.white, size: 26),
             ),
-          ],
-        ),
-        child: Row(
-          children: [
-            // Con ilustración se deja respirar sobre el fondo de la tarjeta: la
-            // pastilla de degradado la aplastaría y taparía el dibujo.
-            if (art != null)
-              SizedBox(width: 58, height: 58, child: art)
-            else
-              Container(
-                width: 58,
-                height: 58,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: gradient,
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(18),
-                  boxShadow: [
-                    BoxShadow(
-                      color: gradient.first.withValues(alpha: 0.4),
-                      blurRadius: 12,
-                      offset: const Offset(0, 6),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        title,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: kInk,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 19,
+                          letterSpacing: -0.3,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: accent.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        tag.toUpperCase(),
+                        style: TextStyle(
+                          color: accent,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 9,
+                          letterSpacing: 1.1,
+                        ),
+                      ),
                     ),
                   ],
                 ),
-                child: Icon(icon, color: Colors.white, size: 28),
-              ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Text(
-                        title,
-                        style: const TextStyle(
-                          color: AppColors.textPrimary,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 18,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 7, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: gradient.first.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(99),
-                        ),
-                        child: Text(
-                          tag,
-                          style: TextStyle(
-                            color: gradient.first,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 8,
-                            letterSpacing: 0.6,
-                          ),
-                        ),
-                      ),
-                    ],
+                const SizedBox(height: 5),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    color: kMuted,
+                    fontSize: 12.5,
+                    height: 1.4,
+                    fontWeight: FontWeight.w400,
+                    // Un pelo de fondo bajo el texto para que la textura no le
+                    // reste legibilidad en las líneas más apretadas.
+                    backgroundColor: Colors.white.withOpacity(0.55),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 12.5,
-                      height: 1.35,
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
-            const SizedBox(width: 6),
-            const Icon(Icons.arrow_forward_ios_rounded,
-                color: AppColors.textLight, size: 16),
-          ],
-        ),
+          ),
+          const SizedBox(width: 8),
+          Icon(Icons.arrow_forward_ios_rounded,
+              color: kMuted.withOpacity(0.6), size: 16),
+        ],
       ),
     );
   }

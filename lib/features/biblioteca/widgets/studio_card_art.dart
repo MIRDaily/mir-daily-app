@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/sticker/sticker.dart';
 
 /// Las ilustraciones animadas de las tarjetas del Studio, portadas de la web
 /// (`MazosHoverArt` y `SimulacrosHoverArt`) para sustituir a los iconos planos.
@@ -405,4 +406,298 @@ class _ExamSheetPainter extends CustomPainter {
   @override
   bool shouldRepaint(_ExamSheetPainter oldDelegate) =>
       oldDelegate.outline != outline;
+}
+
+// ============================================================================
+// Flashcards: una ficha que se voltea y enseña el reverso
+// ============================================================================
+
+/// Portada de `FlashcardsHoverArt` (`FlipCardArt`) de la web. Allí el volteo
+/// lo dispara el ratón; aquí, que no hay ratón, gira sola cada pocos segundos.
+class FlashcardFlipArt extends StatefulWidget {
+  final double size;
+
+  const FlashcardFlipArt({super.key, this.size = 58});
+
+  @override
+  State<FlashcardFlipArt> createState() => _FlashcardFlipArtState();
+}
+
+class _FlashcardFlipArtState extends State<FlashcardFlipArt>
+    with SingleTickerProviderStateMixin {
+  // Un ciclo: cara A, giro, cara B, giro. El giro ocupa poco del total; el
+  // resto es la pausa en la que se lee la ficha.
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 4200),
+  )..repeat();
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  /// Ángulo del volteo: dos medias vueltas por ciclo, cada una de 0,7 s.
+  double _angle(double t) {
+    const turn = 0.7 / 4.2; // fracción del ciclo que dura un giro
+    if (t < 0.5) {
+      final local = (t / 0.5 - (1 - turn / 0.5)) / (turn / 0.5);
+      return local <= 0 ? 0 : Curves.easeInOutCubic.transform(local) * math.pi;
+    }
+    final local = ((t - 0.5) / 0.5 - (1 - turn / 0.5)) / (turn / 0.5);
+    return local <= 0
+        ? math.pi
+        : math.pi + Curves.easeInOutCubic.transform(local) * math.pi;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return RepaintBoundary(
+      child: SizedBox(
+        width: widget.size,
+        height: widget.size,
+        child: AnimatedBuilder(
+          animation: _c,
+          builder: (context, _) {
+            final angle = _angle(_c.value);
+            // A partir del cuarto de vuelta se ve la otra cara.
+            final back = math.cos(angle) < 0;
+            return Transform(
+              alignment: Alignment.center,
+              transform: Matrix4.identity()
+                ..setEntry(3, 2, 0.0015) // perspectiva
+                ..rotateY(angle),
+              child: Transform(
+                alignment: Alignment.center,
+                // La cara de atrás se contragira, o saldría en espejo.
+                transform: Matrix4.identity()..rotateY(back ? math.pi : 0),
+                child: CustomPaint(
+                  painter: _FlashcardFacePainter(back: back),
+                  size: Size.square(widget.size),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _FlashcardFacePainter extends CustomPainter {
+  final bool back;
+
+  const _FlashcardFacePainter({required this.back});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final s = size.shortestSide;
+    final card = Rect.fromLTWH(s * 0.10, s * 0.06, s * 0.80, s * 0.88);
+    final rrect = RRect.fromRectAndRadius(card, Radius.circular(s * 0.12));
+
+    // El anverso es coral; el reverso, papel blanco con su renglón escrito.
+    canvas.drawRRect(
+      rrect,
+      Paint()..color = back ? Colors.white : const Color(0xFFD68C7F),
+    );
+    canvas.drawRRect(
+      rrect,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = s * 0.045
+        ..color = kInk,
+    );
+
+    final line = Paint()
+      ..strokeCap = StrokeCap.round
+      ..strokeWidth = s * 0.055
+      ..color = back ? const Color(0xFFD9D2CE) : Colors.white.withOpacity(0.92);
+
+    if (back) {
+      // Reverso: tres renglones de respuesta.
+      for (var i = 0; i < 3; i++) {
+        final y = card.top + s * (0.28 + i * 0.17);
+        canvas.drawLine(
+          Offset(card.left + s * 0.11, y),
+          Offset(card.right - s * (0.11 + i * 0.10), y),
+          line,
+        );
+      }
+    } else {
+      // Anverso: el signo de pregunta, resuelto con dos trazos y un punto.
+      final cx = card.center.dx;
+      final path = Path()
+        ..moveTo(cx - s * 0.11, card.top + s * 0.26)
+        ..arcToPoint(
+          Offset(cx + s * 0.06, card.top + s * 0.40),
+          radius: Radius.circular(s * 0.13),
+          clockwise: true,
+        )
+        ..lineTo(cx, card.top + s * 0.52);
+      canvas.drawPath(
+        path,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = s * 0.075
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round
+          ..color = Colors.white,
+      );
+      canvas.drawCircle(
+        Offset(cx, card.top + s * 0.64),
+        s * 0.042,
+        Paint()..color = Colors.white,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_FlashcardFacePainter old) => old.back != back;
+}
+
+// ============================================================================
+// Electros: un monitor que barre el trazo del ECG
+// ============================================================================
+
+/// Portada de `ElectrosHoverArt` (`EcgMonitorArt`). Se conserva lo que
+/// distingue al dibujo: el papel milimetrado y el cabezal que va destapando el
+/// trazo de izquierda a derecha, en bucle.
+class EcgMonitorArt extends StatefulWidget {
+  final double size;
+
+  const EcgMonitorArt({super.key, this.size = 58});
+
+  @override
+  State<EcgMonitorArt> createState() => _EcgMonitorArtState();
+}
+
+class _EcgMonitorArtState extends State<EcgMonitorArt>
+    with SingleTickerProviderStateMixin {
+  // Tres latidos por barrido a 0,8 s el latido: el monitor marca 75 lpm,
+  // igual que en la web.
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 2400),
+  )..repeat();
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return RepaintBoundary(
+      child: SizedBox(
+        width: widget.size,
+        height: widget.size,
+        child: CustomPaint(
+          painter: _EcgMonitorPainter(_c),
+          size: Size.square(widget.size),
+        ),
+      ),
+    );
+  }
+}
+
+class _EcgMonitorPainter extends CustomPainter {
+  final Animation<double> sweep;
+
+  /// Repintar se engancha al controlador: no hace falta reconstruir el widget
+  /// en cada fotograma, basta con volver a pintar.
+  _EcgMonitorPainter(this.sweep) : super(repaint: sweep);
+
+  /// Un latido completo dentro de [0..1] en x, con la línea de base en y=0 y
+  /// las deflexiones en fracción de la altura. Empieza y acaba en la base,
+  /// así que los latidos encadenan sin saltos.
+  static const List<Offset> _beat = [
+    Offset(0.00, 0), Offset(0.11, 0),
+    Offset(0.19, -0.26), Offset(0.27, 0), // onda P
+    Offset(0.37, 0),
+    Offset(0.41, 0.14), // Q
+    Offset(0.46, -1.00), // R
+    Offset(0.51, 0.44), // S
+    Offset(0.56, 0),
+    Offset(0.67, 0),
+    Offset(0.78, -0.40), Offset(0.89, 0), // onda T
+    Offset(1.00, 0),
+  ];
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final s = size.shortestSide;
+    final screen = Rect.fromLTWH(s * 0.06, s * 0.16, s * 0.88, s * 0.62);
+    final rrect = RRect.fromRectAndRadius(screen, Radius.circular(s * 0.10));
+
+    canvas.save();
+    canvas.clipRRect(rrect);
+    canvas.drawRect(screen, Paint()..color = Colors.white);
+
+    // Papel milimetrado: fina y, cada cinco, una más marcada.
+    final fine = s * 0.075;
+    void grid(double step, double w, Color c) {
+      final paint = Paint()
+        ..color = c
+        ..strokeWidth = w;
+      for (var x = screen.left; x <= screen.right; x += step) {
+        canvas.drawLine(Offset(x, screen.top), Offset(x, screen.bottom), paint);
+      }
+      for (var y = screen.top; y <= screen.bottom; y += step) {
+        canvas.drawLine(Offset(screen.left, y), Offset(screen.right, y), paint);
+      }
+    }
+
+    grid(fine, 0.6, const Color(0xFFF4D7CF));
+    grid(fine * 5, 1.1, const Color(0xFFE9B7AA));
+
+    // El trazo: tres latidos encadenados.
+    final baseY = screen.center.dy;
+    final amp = screen.height * 0.34;
+    final beatW = screen.width / 3;
+    final path = Path()..moveTo(screen.left, baseY);
+    for (var i = 0; i < 3; i++) {
+      final x0 = screen.left + i * beatW;
+      for (final p in _beat) {
+        path.lineTo(x0 + p.dx * beatW, baseY + p.dy * amp);
+      }
+    }
+
+    // El cabezal: se destapa lo ya recorrido y se deja el resto en sombra.
+    final head = screen.left + sweep.value * screen.width;
+    canvas.save();
+    canvas.clipRect(Rect.fromLTRB(screen.left, screen.top, head, screen.bottom));
+    canvas.drawPath(
+      path,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = s * 0.045
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round
+        ..color = const Color(0xFFC45B4B),
+    );
+    canvas.restore();
+
+    // El punto brillante que va delante del trazo.
+    canvas.drawCircle(
+      Offset(head, baseY),
+      s * 0.035,
+      Paint()..color = const Color(0xFFC45B4B),
+    );
+
+    canvas.restore();
+
+    // El marco del monitor, por encima de todo.
+    canvas.drawRRect(
+      rrect,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = s * 0.045
+        ..color = kInk,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_EcgMonitorPainter old) => false;
 }
