@@ -7,12 +7,18 @@ import '../../../core/providers/daily_provider.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/services/notification_service.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/sticker/sticker.dart';
+import '../../../shared/sticker/textures.dart';
 import '../../onboarding/screens/onboarding_screen.dart';
+import '../widgets/profile_editor_sheet.dart';
 
-/// Perfil rediseñado con un layout moderno: cabecera con avatar centrado,
-/// fila de estadísticas reales (racha, récord, dailys), tarjeta Premium y
-/// ajustes agrupados en tarjetas. Conectado a los datos reales del backend
-/// (/api/profile, /api/stats/activity-heatmap, /api/profile/avatar).
+/// Perfil con el lenguaje visual de la web: borde de tinta, sombra dura y,
+/// como textura propia de esta pantalla, la de un **carné plastificado**
+/// (guilloche, campos rotulados, código de barras derivado del id del usuario
+/// y un destello de laminado que cruza de vez en cuando).
+///
+/// Conectado a los datos reales del backend (/api/profile,
+/// /api/stats/activity-heatmap, /api/profile/avatar, /api/profile/academic).
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -93,10 +99,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       onTap: _showAvatarSelectionSheet,
                     ),
                     _MenuItemData(
-                      icon: Icons.assignment_ind_outlined,
+                      icon: Icons.badge_outlined,
                       color: AppColors.primary,
-                      title: 'Completar / rehacer perfil',
-                      subtitle: 'Objetivo, curso, universidad…',
+                      title: 'Editar tus datos',
+                      subtitle: 'Usuario, bio, objetivo, curso, universidad…',
+                      onTap: _openProfileEditor,
+                    ),
+                    _MenuItemData(
+                      icon: Icons.assignment_ind_outlined,
+                      color: AppColors.slate,
+                      title: 'Rehacer el perfil entero',
+                      subtitle: 'Vuelve a pasar por el alta',
                       onTap: _openOnboarding,
                     ),
                     _MenuItemData(
@@ -189,127 +202,197 @@ class _ProfileScreenState extends State<ProfileScreen> {
     bool isPremium,
     List<String> chips,
   ) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 26, horizontal: 20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(28),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.secondary.withOpacity(0.08),
-            blurRadius: 24,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
+    final profile = context.read<AuthProvider>().profile;
+    // La serie y las barras salen del id del usuario, así que son siempre las
+    // mismas para la misma persona y coinciden con las que ve en la web.
+    final seed = profile?.id ?? 'mirdaily';
+
+    return StickerCard(
+      depth: 6,
+      radius: 26,
+      texture: laminatedPaper(),
+      padding: EdgeInsets.zero,
+      child: Stack(
         children: [
-          GestureDetector(
-            onTap: _showAvatarSelectionSheet,
-            child: Stack(
+          // El destello del plastificado, por debajo del contenido. Se
+          // recorta contra el radio INTERIOR (el de la tarjeta menos el trazo):
+          // recortando la tarjeta entera, el destello pintaba sobre la mitad
+          // interna del borde y las esquinas perdían la línea.
+          Positioned.fill(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(24),
+              child: const LaminateSheen(),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: 100,
-                  height: 100,
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: LinearGradient(
-                      colors: [
-                        AppColors.primary,
-                        AppColors.primary.withOpacity(0.6),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                  ),
-                  child: ClipOval(
-                    child: Container(
-                      color: Colors.white,
-                      padding: const EdgeInsets.all(3),
-                      child: ClipOval(
-                        child: _buildRawAvatarImage(avatarId: avatarId),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // La foto del carné: cuadrada y con su trazo, no redonda.
+                    GestureDetector(
+                      onTap: _showAvatarSelectionSheet,
+                      child: Stack(
+                        children: [
+                          Container(
+                            width: 84,
+                            height: 84,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(18),
+                              border: Border.all(color: kInk, width: 2),
+                              boxShadow: inkShadow(4),
+                            ),
+                            clipBehavior: Clip.antiAlias,
+                            child: _buildRawAvatarImage(avatarId: avatarId),
+                          ),
+                          Positioned(
+                            bottom: -2,
+                            right: -2,
+                            child: Container(
+                              width: 26,
+                              height: 26,
+                              decoration: BoxDecoration(
+                                color: AppColors.primary,
+                                borderRadius: BorderRadius.circular(9),
+                                border: Border.all(color: kInk, width: 2),
+                              ),
+                              child: const Icon(Icons.edit,
+                                  size: 12, color: Colors.white),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ),
-                ),
-                Positioned(
-                  bottom: 0,
-                  right: 0,
-                  child: Container(
-                    width: 30,
-                    height: 30,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 2.5),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            name,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 21,
+                              fontWeight: FontWeight.w900,
+                              color: kInk,
+                              height: 1.15,
+                              letterSpacing: -0.4,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            handle,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: kMuted,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    child: const Icon(Icons.edit,
-                        size: 14, color: Colors.white),
+                  ],
+                ),
+                if ((profile?.bio ?? '').isNotEmpty) ...[
+                  const SizedBox(height: 14),
+                  Text(
+                    profile!.bio!,
+                    style: const TextStyle(
+                      color: kInk,
+                      fontSize: 13.5,
+                      height: 1.5,
+                    ),
                   ),
+                ],
+                const SizedBox(height: 14),
+                // Todos los datos del carné en una sola fila de pastillas:
+                // estado, especialidad, universidad y curso.
+                Wrap(
+                  spacing: 7,
+                  runSpacing: 7,
+                  children: [
+                    if (isPremium)
+                      const DocChip(
+                        label: 'Premium',
+                        icon: Icons.verified_rounded,
+                        tone: DocTone.accent,
+                      ),
+                    DocChip(
+                      label: (profile?.profilePublic ?? false)
+                          ? 'Público'
+                          : 'Privado',
+                      icon: (profile?.profilePublic ?? false)
+                          ? Icons.visibility_rounded
+                          : Icons.lock_rounded,
+                    ),
+                    for (final c in chips) _chip(c),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                // El pie del documento: barras y número de serie.
+                Container(height: 2, color: kHairline),
+                const SizedBox(height: 12),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    // El código tiene ancho propio; recortarlo es mejor que
+                    // estirarlo, que le cambiaría el paso de las barras.
+                    Flexible(
+                      child: ClipRect(
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          heightFactor: 1,
+                          child: SerialBarcode(seed: seed, height: 22),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Nº ${serialOf(seed)}',
+                      style: TextStyle(
+                        color: kMuted.withOpacity(0.9),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 14),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Flexible(
-                child: Text(
-                  name,
-                  textAlign: TextAlign.center,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.textPrimary,
-                    letterSpacing: -0.3,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 6),
-              Icon(Icons.verified,
-                  size: 20,
-                  color: isPremium ? AppColors.primary : Colors.grey[300]),
-            ],
-          ),
-          const SizedBox(height: 3),
-          Text(
-            handle,
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[600],
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          if (chips.isNotEmpty) ...[
-            const SizedBox(height: 14),
-            Wrap(
-              alignment: WrapAlignment.center,
-              spacing: 8,
-              runSpacing: 8,
-              children: [for (final c in chips) _chip(c)],
-            ),
-          ],
         ],
       ),
     );
+  }
+
+  /// Abre el editor de datos y refresca el perfil si guardó algo.
+  Future<void> _openProfileEditor() async {
+    final profile = context.read<AuthProvider>().profile;
+    if (profile == null) return;
+    final saved = await showProfileEditor(context, profile);
+    if (saved && mounted) context.read<AuthProvider>().refreshProfile();
   }
 
   Widget _chip(String label) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: AppColors.primary.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(20),
+        color: const Color(0xFFFFF4EF),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: const Color(0xFFF1D3C9), width: 2),
       ),
       child: Text(
         label,
         style: const TextStyle(
-          fontSize: 12.5,
-          fontWeight: FontWeight.w600,
-          color: AppColors.primaryDark,
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          color: Color(0xFFB9705F),
         ),
       ),
     );
@@ -454,27 +537,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: Text(
           title.toUpperCase(),
           style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-            color: Colors.grey[500],
-            letterSpacing: 1.2,
+            fontSize: 11,
+            fontWeight: FontWeight.w900,
+            color: kMuted.withOpacity(0.7),
+            letterSpacing: 1.6,
           ),
         ),
       );
 
   Widget _buildGroup(List<_MenuItemData> items) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.secondary.withOpacity(0.06),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
+    return StickerCard(
+      depth: 4,
+      radius: 22,
       child: Column(
         children: [
           for (var i = 0; i < items.length; i++) ...[
@@ -775,19 +849,10 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return StickerCard(
+      depth: 4,
+      radius: 20,
       padding: const EdgeInsets.symmetric(vertical: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.secondary.withOpacity(0.06),
-            blurRadius: 14,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
       child: Column(
         children: [
           Icon(icon, color: iconColor, size: 24),
