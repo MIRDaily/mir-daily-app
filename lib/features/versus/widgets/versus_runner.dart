@@ -195,6 +195,7 @@ class _VersusRunnerState extends State<VersusRunner> {
         children: [
           Text(
             'Pregunta ${phase.idx + 1} de ${phase.total}',
+            textAlign: TextAlign.center,
             style: const TextStyle(
               color: AppColors.textLight,
               fontSize: 12,
@@ -272,28 +273,41 @@ class _VersusRunnerState extends State<VersusRunner> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  question != null
-                      ? 'Pregunta ${phase.idx + 1} de ${question.total}'
-                      : 'Pregunta ${phase.idx + 1}',
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
+                // Flexibles los dos: con "Respuestas bloqueadas" y una cuenta
+                // de preguntas larga, en una pantalla estrecha el Row
+                // desbordaba y Flutter pinta las rayas de aviso.
+                Flexible(
+                  child: Text(
+                    question != null
+                        ? 'Pregunta ${phase.idx + 1} de ${question.total}'
+                        : 'Pregunta ${phase.idx + 1}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
-                Text(
-                  secondsLeft != null
-                      ? '${secondsLeft}s'
-                      : phase is VersusPicksPhase
-                          ? 'Respuestas bloqueadas'
-                          : 'Solución',
-                  style: TextStyle(
-                    color: secondsLeft != null && secondsLeft <= 5
-                        ? AppColors.error
-                        : AppColors.textLight,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
+                const SizedBox(width: 10),
+                Flexible(
+                  child: Text(
+                    secondsLeft != null
+                        ? '${secondsLeft}s'
+                        : phase is VersusPicksPhase
+                            ? 'Respuestas bloqueadas'
+                            : 'Solución',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.end,
+                    style: TextStyle(
+                      color: secondsLeft != null && secondsLeft <= 5
+                          ? AppColors.error
+                          : AppColors.textLight,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ],
@@ -414,6 +428,7 @@ class _VersusRunnerState extends State<VersusRunner> {
           const Center(
             child: Text(
               'Esto ha elegido cada uno… ¿quién tiene razón?',
+              textAlign: TextAlign.center,
               style: TextStyle(
                 color: AppColors.textSecondary,
                 fontSize: 13,
@@ -476,6 +491,7 @@ class _VersusRunnerState extends State<VersusRunner> {
     return Center(
       child: Text(
         text,
+        textAlign: TextAlign.center,
         style: const TextStyle(
           color: AppColors.textSecondary,
           fontSize: 13,
@@ -631,6 +647,7 @@ class _VersusRunnerState extends State<VersusRunner> {
         const Center(
           child: Text(
             'Se acabó',
+            textAlign: TextAlign.center,
             style: TextStyle(
               color: AppColors.textPrimary,
               fontSize: 28,

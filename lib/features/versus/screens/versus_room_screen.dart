@@ -392,6 +392,7 @@ class _VersusRoomScreenState extends State<VersusRoomScreen> {
             const SizedBox(height: 16),
             const Text(
               'La sala se ha cerrado',
+              textAlign: TextAlign.center,
               style: TextStyle(
                 color: AppColors.textPrimary,
                 fontSize: 18,
