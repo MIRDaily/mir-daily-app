@@ -340,11 +340,17 @@ class ProfileCard extends StatelessWidget {
         children: [
           for (var i = 0; i < badges.length; i++) ...[
             if (i > 0) const SizedBox(width: 8),
-            // Con dos, a partes iguales: así ninguno se estruja mientras el
-            // otro tiene sitio de sobra, que es lo que pasaba con el barras al
-            // lado. Con uno solo NO se estira, o parecería un botón.
-            if (badges.length > 1)
-              Expanded(
+            // Cada uno ocupa LO QUE NECESITA, no la mitad: repartir a partes
+            // iguales dejaba un "3º" en un badge enorme y vacío mientras la
+            // universidad se recortaba al lado.
+            //
+            // Los de delante van sin flex, así que se miden por su contenido;
+            // el último se lleva lo que sobre — `loose`, no `Expanded`, para
+            // que tampoco se estire si su texto es corto. Funciona porque la
+            // lista va del dato más corto al más largo.
+            if (i == badges.length - 1)
+              Flexible(
+                fit: FlexFit.loose,
                 child: DocChip(
                   label: badges[i].label,
                   icon: badges[i].icon,
@@ -352,15 +358,15 @@ class ProfileCard extends StatelessWidget {
                 ),
               )
             else
-              Flexible(
-                child: DocChip(
-                  label: badges[i].label,
-                  icon: badges[i].icon,
-                  tone: DocTone.ink,
-                ),
+              DocChip(
+                label: badges[i].label,
+                icon: badges[i].icon,
+                tone: i == 0 ? DocTone.ink : DocTone.neutral,
               ),
           ],
-          if (badges.length == 1) const Spacer(),
+          // Sin `Spacer`: tiene flex 1 y se repartiria el hueco a medias con
+          // el ultimo badge, que entonces se recortaria teniendo sitio. El
+          // sobrante ya se queda a la derecha porque la fila alinea al inicio.
         ],
       ),
     );
