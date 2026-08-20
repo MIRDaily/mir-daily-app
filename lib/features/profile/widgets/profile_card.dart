@@ -63,18 +63,26 @@ class ProfileCard extends StatelessWidget {
 
   static const double _photo = 92;
 
-  /// Las pastillas de la columna de datos, en el orden del documento.
+  /// Lo que acompaña al nombre: la especialidad, que es lo que más te
+  /// identifica de un vistazo.
   List<String> get _chips => [
         if (campos.contains(CardField.especialidad) &&
             (especialidad ?? '').isNotEmpty)
           especialidad!,
-        if (campos.contains(CardField.universidad) &&
-            (universidad ?? '').isNotEmpty)
-          universidad!,
       ];
 
-  bool get _verEstatus =>
-      campos.contains(CardField.estatus) && (estatus ?? '').isNotEmpty;
+  /// Lo que va al pie, repartido a partes iguales.
+  ///
+  /// Antes ahí abajo solo cabía uno, porque el código de barras se comía media
+  /// fila y dejaba un hueco enorme en medio; el badge acababa comprimido con
+  /// sitio de sobra al lado.
+  List<({String label, IconData icon})> get _pieBadges => [
+        if (campos.contains(CardField.estatus) && (estatus ?? '').isNotEmpty)
+          (label: estatus!, icon: Icons.school_rounded),
+        if (campos.contains(CardField.universidad) &&
+            (universidad ?? '').isNotEmpty)
+          (label: universidad!, icon: Icons.account_balance_rounded),
+      ];
 
   @override
   Widget build(BuildContext context) {
@@ -87,10 +95,22 @@ class ProfileCard extends StatelessWidget {
       padding: EdgeInsets.zero,
       child: Stack(
         children: [
+          // El código de barras es SOLO decoración —el número legible ya está
+          // en la cabecera—, así que se va arriba del todo, pegado al borde y
+          // por detrás de los datos. Deja de robarle la mitad al pie.
+          if (campos.contains(CardField.codigo))
+            Positioned(
+              top: 10,
+              right: 16,
+              child: Opacity(
+                opacity: 0.28,
+                child: SerialBarcode(seed: seed, height: 26, bars: 34),
+              ),
+            ),
           // El brillo recorre la tarjeta ENTERA, así que va por encima de la
-          // textura pero por debajo del contenido, y se recorta contra el radio
-          // interior: recortando la tarjeta entera pintaría sobre la mitad
-          // interna del borde y las esquinas perderían la línea.
+          // textura y del barras, pero por debajo del contenido. Se recorta
+          // contra el radio INTERIOR: recortando la tarjeta entera pintaría
+          // sobre la mitad interna del borde y las esquinas perderían la línea.
           Positioned.fill(
             child: ClipRRect(
               borderRadius: BorderRadius.circular(24),
@@ -281,6 +301,9 @@ class ProfileCard extends StatelessWidget {
             const SizedBox(width: 8),
             Expanded(
               child: Text(
+                // Tres líneas: con el tope de 160 caracteres del backend, una
+                // bio larga no cabe entera en el carné. Se recorta aquí y se
+                // lee completa al tocarla, que abre el editor.
                 vacia ? 'Escribe algo sobre ti' : texto,
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis,
@@ -298,28 +321,38 @@ class ProfileCard extends StatelessWidget {
     );
   }
 
-  /// Pie del documento: las barras, ahora más cortas, y el estatus a su lado.
-  ///
-  /// El número de serie se fue arriba, así que aquí queda sitio para el dato
-  /// que de verdad dice quién eres.
+  /// Pie del documento: los datos que acreditan, repartiéndose el ancho.
   Widget _pie() {
-    final barras = campos.contains(CardField.codigo);
-    if (!barras && !_verEstatus) return const SizedBox(height: 12);
+    final badges = _pieBadges;
+    if (badges.isEmpty) return const SizedBox(height: 12);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(18, 11, 18, 13),
       child: Row(
         children: [
-          if (barras) SerialBarcode(seed: seed, height: 18, bars: 22),
-          const Spacer(),
-          if (_verEstatus)
-            Flexible(
-              child: DocChip(
-                label: estatus!,
-                icon: Icons.school_rounded,
-                tone: DocTone.ink,
+          for (var i = 0; i < badges.length; i++) ...[
+            if (i > 0) const SizedBox(width: 8),
+            // Con dos, a partes iguales: así ninguno se estruja mientras el
+            // otro tiene sitio de sobra, que es lo que pasaba con el barras al
+            // lado. Con uno solo NO se estira, o parecería un botón.
+            if (badges.length > 1)
+              Expanded(
+                child: DocChip(
+                  label: badges[i].label,
+                  icon: badges[i].icon,
+                  tone: i == 0 ? DocTone.ink : DocTone.neutral,
+                ),
+              )
+            else
+              Flexible(
+                child: DocChip(
+                  label: badges[i].label,
+                  icon: badges[i].icon,
+                  tone: DocTone.ink,
+                ),
               ),
-            ),
+          ],
+          if (badges.length == 1) const Spacer(),
         ],
       ),
     );

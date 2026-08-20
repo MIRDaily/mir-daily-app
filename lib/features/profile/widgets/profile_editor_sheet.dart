@@ -156,7 +156,7 @@ class _ProfileEditorSheetState extends State<_ProfileEditorSheet> {
   @override
   Widget build(BuildContext context) {
     final locked = widget.profile.usernameLocked;
-    final bioLeft = ApiService.maxBioLength - _bio.text.characters.length;
+    final bioLen = _bio.text.characters.length;
 
     return Padding(
       padding: EdgeInsets.only(
@@ -232,7 +232,7 @@ class _ProfileEditorSheetState extends State<_ProfileEditorSheet> {
                       ),
                       const SizedBox(height: 18),
 
-                      _Label('Sobre ti  ·  $bioLeft'),
+                      _Label('Sobre ti  ·  $bioLen/${ApiService.maxBioLength}'),
                       InkInput(
                         controller: _bio,
                         hint: 'Una línea sobre ti (opcional)',

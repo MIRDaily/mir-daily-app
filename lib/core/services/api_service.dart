@@ -164,8 +164,11 @@ class ApiService {
     await _request('POST', '/api/profile/avatar', body: {'avatarId': avatarId});
   }
 
-  /// Tope de la bio en el backend.
-  static const int maxBioLength = 280;
+  /// Tope de la bio. Lo fija el backend (`BIO_MAX_LENGTH` en
+  /// `src/routes/profile.js`) y la web usa el mismo, así que una bio escrita
+  /// en un sitio vale en el otro. Estaba puesto a 280 y el servidor rechazaba
+  /// todo lo que pasara de aquí.
+  static const int maxBioLength = 160;
 
   /// Días que hay que esperar entre dos cambios de username.
   static const int usernameCooldownDays = 30;

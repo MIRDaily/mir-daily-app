@@ -186,7 +186,7 @@ class AuthProvider extends ChangeNotifier {
     final url = authService.oauthAuthorizeUrl('google');
     final launched = await launchUrl(
       url,
-      mode: LaunchMode.externalApplication,
+      mode: LaunchMode.inAppBrowserView,
     );
 
     if (!launched) {
