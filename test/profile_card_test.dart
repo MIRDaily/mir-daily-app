@@ -39,7 +39,7 @@ void main() {
                   name: 'Alejandro',
                   handle: '@alejandro',
                   avatar: _avatarFalso(),
-                  estatus: 'Estudiante de 6º',
+                  estatus: '6º',
                   especialidad: 'Alergología',
                   universidad: 'Universidad de Sevilla',
                   bio: 'Probando el carné nuevo desde producción. '

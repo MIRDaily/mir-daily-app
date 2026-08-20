@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/models/models.dart';
@@ -33,6 +34,25 @@ class _ProfileEditorSheet extends StatefulWidget {
 
   @override
   State<_ProfileEditorSheet> createState() => _ProfileEditorSheetState();
+}
+
+/// Cuántas líneas admite la bio. Son las que caben en el carné.
+const int _bioLineas = 3;
+
+/// No deja meter más saltos de línea de los que el carné puede enseñar.
+class _LimiteDeLineas extends TextInputFormatter {
+  final int maximo;
+
+  const _LimiteDeLineas(this.maximo);
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue anterior,
+    TextEditingValue nuevo,
+  ) {
+    final lineas = '\n'.allMatches(nuevo.text).length + 1;
+    return lineas > maximo ? anterior : nuevo;
+  }
 }
 
 class _ProfileEditorSheetState extends State<_ProfileEditorSheet> {
@@ -236,8 +256,12 @@ class _ProfileEditorSheetState extends State<_ProfileEditorSheet> {
                       InkInput(
                         controller: _bio,
                         hint: 'Una línea sobre ti (opcional)',
-                        maxLines: 3,
+                        maxLines: _bioLineas,
                         maxLength: ApiService.maxBioLength,
+                        // Se podían escribir todas las líneas que se quisiera
+                        // aunque el carné solo enseñe tres: se veía bien en la
+                        // web y recortada en la app.
+                        formatters: const [_LimiteDeLineas(_bioLineas)],
                         onChanged: (_) => setState(() {}),
                       ),
                       const SizedBox(height: 18),

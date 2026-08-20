@@ -203,15 +203,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  /// Estatus académico en una línea, a partir del curso.
+  /// Estatus académico, a partir del curso.
   ///
-  /// El 0 del onboarding es "Médico/a", no un curso cero; el resto son cursos
-  /// de carrera.
+  /// Solo el curso: el gorro de graduado que lleva el badge ya dice que eres
+  /// estudiante, y "Estudiante de 3º" no cabía — se recortaba justo por el
+  /// número, que es el único dato que aportaba.
+  ///
+  /// El 0 del onboarding es "Médico/a", no un curso cero.
   String? _estatusDe(UserProfile? p) {
     final year = p?.medicalYear;
     if (year == null) return null;
     if (year == 0) return 'Médico/a';
-    return 'Estudiante de $yearº';
+    return '$yearº';
   }
 
   Widget _buildHeader(

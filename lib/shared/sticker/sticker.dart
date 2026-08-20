@@ -12,6 +12,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 /// Trazo de tinta: casi negro, nunca gris suave. Es la firma del sistema.
 const Color kInk = Color(0xFF2C3E50);
@@ -809,6 +810,10 @@ class InkInput extends StatelessWidget {
   final bool autofocus;
   final int maxLines;
   final TextInputAction? textInputAction;
+
+  /// Reglas de escritura: limitar líneas, forzar mayúsculas… Lo que el
+  /// `maxLength` no cubre.
+  final List<TextInputFormatter>? formatters;
   final ValueChanged<String>? onChanged;
   final ValueChanged<String>? onSubmitted;
 
@@ -823,6 +828,7 @@ class InkInput extends StatelessWidget {
     this.autofocus = false,
     this.maxLines = 1,
     this.textInputAction,
+    this.formatters,
     this.onChanged,
     this.onSubmitted,
   });
@@ -861,6 +867,7 @@ class InkInput extends StatelessWidget {
                 maxLines: maxLines,
                 maxLength: maxLength,
                 textInputAction: textInputAction,
+                inputFormatters: formatters,
                 onChanged: onChanged,
                 onSubmitted: onSubmitted,
                 style: const TextStyle(

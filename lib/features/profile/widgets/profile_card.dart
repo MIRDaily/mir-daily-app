@@ -100,11 +100,19 @@ class ProfileCard extends StatelessWidget {
           // por detrás de los datos. Deja de robarle la mitad al pie.
           if (campos.contains(CardField.codigo))
             Positioned(
-              top: 10,
-              right: 16,
-              child: Opacity(
-                opacity: 0.28,
-                child: SerialBarcode(seed: seed, height: 26, bars: 34),
+              top: 12,
+              left: 0,
+              right: 0,
+              // Centrado en el HUECO LIBRE, no en la tarjeta: a la izquierda
+              // está el número y a la derecha el botón de campos, así que el
+              // medio de lo que queda cae algo a la derecha del centro. Y
+              // corto, para que le sobre aire por los dos lados.
+              child: Align(
+                alignment: const Alignment(0.22, 0),
+                child: Opacity(
+                  opacity: 0.3,
+                  child: SerialBarcode(seed: seed, height: 22, bars: 22),
+                ),
               ),
             ),
           // El brillo recorre la tarjeta ENTERA, así que va por encima de la
