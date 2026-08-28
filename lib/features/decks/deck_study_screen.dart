@@ -9,14 +9,23 @@ import '../../shared/sticker/sticker.dart';
 import '../../shared/sticker/textures.dart';
 import '../../shared/widgets/pressable.dart';
 import '../../shared/widgets/zoomable_image.dart';
+import 'widgets/deck_study_options.dart';
 
 /// Sesión de estudio de un mazo (repetición espaciada). Pide items al backend
 /// (start-session → next → log → end) y da feedback inmediato tipo flashcard.
 class DeckStudyScreen extends StatefulWidget {
   final Deck deck;
-  final int limit;
 
-  const DeckStudyScreen({super.key, required this.deck, required this.limit});
+  /// Cuántas cartas, en qué modo y con qué filtros. Los filtros no se fijan al
+  /// crear la sesión: el backend los recibe en cada petición de carta, así que
+  /// hay que arrastrarlos toda la sesión.
+  final DeckStudyOptions options;
+
+  const DeckStudyScreen({
+    super.key,
+    required this.deck,
+    required this.options,
+  });
 
   @override
   State<DeckStudyScreen> createState() => _DeckStudyScreenState();
@@ -48,7 +57,8 @@ class _DeckStudyScreenState extends State<DeckStudyScreen> {
 
   Future<void> _begin() async {
     try {
-      _sessionId = await _api.startDeckSession(widget.deck.id, widget.limit);
+      _sessionId =
+          await _api.startDeckSession(widget.deck.id, widget.options.limit);
       await _loadNext();
     } catch (e) {
       if (!mounted) return;
@@ -68,7 +78,13 @@ class _DeckStudyScreenState extends State<DeckStudyScreen> {
       _revealed = false;
     });
     try {
-      final item = await _api.getNextDeckItem(widget.deck.id, _sessionId!);
+      final item = await _api.getNextDeckItem(
+        widget.deck.id,
+        _sessionId!,
+        subjectId: widget.options.subjectId,
+        status: widget.options.status,
+        mode: widget.options.mode,
+      );
       if (!mounted) return;
       if (item == null) {
         await _finish();
@@ -188,29 +204,54 @@ class _DeckStudyScreenState extends State<DeckStudyScreen> {
 
     if (_finished) return _summary();
 
-    if (_loadingItem || _current == null) {
-      return const Center(
-          child: CircularProgressIndicator(color: AppColors.primary));
-    }
+    final q = _current;
+    final loading = _loadingItem || q == null;
 
-    final q = _current!;
-    return Column(
-      children: [
-        Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+    // Antes, al pulsar CONTINUAR, la pantalla entera saltaba a un indicador de
+    // carga y volvía de golpe: un corte seco entre preguntas, y la primera
+    // aparecía sin ninguna transición. Ahora las dos se cruzan con un fundido.
+    //
+    // La `key` por pregunta no es decorativa: monta un subárbol nuevo por
+    // carta, así que la caja de la explicación arranca SIEMPRE cerrada en vez
+    // de heredar la transición de la pregunta anterior — que es lo que hacía
+    // que por un instante se viera "la respuesta ya extendida" de la pregunta
+    // nueva antes de contestarla.
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 240),
+      switchInCurve: Curves.easeOut,
+      switchOutCurve: Curves.easeIn,
+      layoutBuilder: (current, previous) => Stack(
+        fit: StackFit.expand,
+        alignment: Alignment.topCenter,
+        children: [
+          ...previous,
+          if (current != null) current,
+        ],
+      ),
+      child: loading
+          ? const Center(
+              key: ValueKey('deck-study-loading'),
+              child: CircularProgressIndicator(color: AppColors.primary),
+            )
+          : Column(
+              key: ValueKey('deck-study-item-${q.itemId}'),
               children: [
-                _questionCard(q),
-                const SizedBox(height: 18),
-                ..._options(q),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _questionCard(q),
+                        const SizedBox(height: 18),
+                        ..._options(q),
+                      ],
+                    ),
+                  ),
+                ),
+                _bottomBar(q),
               ],
             ),
-          ),
-        ),
-        _bottomBar(q),
-      ],
     );
   }
 
@@ -371,81 +412,96 @@ class _DeckStudyScreenState extends State<DeckStudyScreen> {
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 22),
       child: SafeArea(
         top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (_revealed) ...[
-              Text(
-                _lastCorrect
-                    ? '¡Correcto!'
-                    : 'La correcta era la ${_letters[q.correctIndex.clamp(0, 5)]}',
-                style: TextStyle(
-                  color: _lastCorrect ? AppColors.successDark : AppColors.error,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 16,
+        // La barra crece al mostrar la solución. Con AnimatedSize el salto es
+        // un despliegue, no un tirón.
+        child: AnimatedSize(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          alignment: Alignment.bottomCenter,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (_revealed) ...[
+                Text(
+                  _lastCorrect
+                      ? '¡Correcto!'
+                      : 'La correcta era la ${_letters[q.correctIndex.clamp(0, 5)]}',
+                  style: TextStyle(
+                    color: _lastCorrect ? AppColors.successDark : AppColors.error,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 16,
+                  ),
                 ),
-              ),
-              if ((q.explanation ?? '').isNotEmpty) ...[
-                const SizedBox(height: 8),
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxHeight: 100),
-                  child: SingleChildScrollView(
-                    child: Text(
-                      q.explanation!,
-                      style: const TextStyle(
-                        color: kInk,
-                        fontSize: 13,
-                        height: 1.45,
+                if ((q.explanation ?? '').isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  // 100 px eran unas cuatro líneas: cualquier explicación normal
+                  // quedaba encerrada en un hueco diminuto con scroll propio.
+                  // Se sube el tope a una fracción real de la pantalla (el
+                  // equivalente del 70vh de la web, recortado a lo que cabe sin
+                  // tapar la pregunta): las explicaciones normales se leen
+                  // enteras, y solo las muy largas mantienen su scroll.
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxHeight: MediaQuery.sizeOf(context).height * 0.38,
+                    ),
+                    child: SingleChildScrollView(
+                      child: Text(
+                        q.explanation!,
+                        style: const TextStyle(
+                          color: kInk,
+                          fontSize: 13,
+                          height: 1.45,
+                        ),
                       ),
                     ),
                   ),
-                ),
+                ],
+                const SizedBox(height: 14),
               ],
-              const SizedBox(height: 14),
-            ],
-            Pressable(
-              onTap: _revealed
-                  ? _loadNext
-                  : _selected != null
-                      ? _check
-                      : null,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                height: 54,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: _revealed
-                      ? (_lastCorrect ? AppColors.success : AppColors.error)
-                      : _selected != null
-                          ? AppColors.primary
-                          : AppColors.surfaceVariant,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: kInk, width: 2),
-                  boxShadow:
-                      _revealed || _selected != null ? inkShadow(4) : const [],
-                ),
-                child: _busy
-                    ? const SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(
-                            color: Colors.white, strokeWidth: 2.4),
-                      )
-                    : Text(
-                        _revealed ? 'CONTINUAR' : 'COMPROBAR',
-                        style: TextStyle(
-                          color: _selected != null || _revealed
-                              ? Colors.white
-                              : kMuted,
-                          fontWeight: FontWeight.w900,
-                          fontSize: 15.5,
-                          letterSpacing: 1,
+              Pressable(
+                onTap: _revealed
+                    ? _loadNext
+                    : _selected != null
+                        ? _check
+                        : null,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  height: 54,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: _revealed
+                        ? (_lastCorrect ? AppColors.success : AppColors.error)
+                        : _selected != null
+                            ? AppColors.primary
+                            : AppColors.surfaceVariant,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: kInk, width: 2),
+                    boxShadow:
+                        _revealed || _selected != null ? inkShadow(4) : const [],
+                  ),
+                  child: _busy
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                              color: Colors.white, strokeWidth: 2.4),
+                        )
+                      : Text(
+                          _revealed ? 'CONTINUAR' : 'COMPROBAR',
+                          style: TextStyle(
+                            color: _selected != null || _revealed
+                                ? Colors.white
+                                : kMuted,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 15.5,
+                            letterSpacing: 1,
+                          ),
                         ),
-                      ),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
