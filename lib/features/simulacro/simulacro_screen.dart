@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 import '../../core/models/models.dart';
 import '../../core/services/api_service.dart';
 import '../../core/theme/app_theme.dart';
+import '../decks/widgets/save_to_deck.dart';
 import '../../core/data/mir_weights.dart';
 import '../../shared/sticker/sticker.dart';
 import 'widgets/count_slider.dart';
@@ -1584,6 +1585,13 @@ class _SimRunnerCarouselState extends State<_SimRunnerCarousel>
                   color: AppColors.textSecondary,
                   fontWeight: FontWeight.w800,
                   fontSize: 12.5)),
+          // En la fila de progreso, no dentro de una página concreta: así está
+          // a mano en el enunciado, en las opciones y en la corrección.
+          const SizedBox(width: 4),
+          SaveToDeckButton(
+            questionId: '${widget.questions[_index].id}',
+            size: 20,
+          ),
         ],
       ),
     );
@@ -1928,16 +1936,23 @@ class _SimRunnerCarouselState extends State<_SimRunnerCarousel>
                 child: Icon(headIcon, color: Colors.white, size: 22),
               ),
               const SizedBox(width: 12),
-              Text(
-                headText,
-                style: TextStyle(
-                  color: blank
-                      ? AppColors.textSecondary
-                      : (correct ? AppColors.successDark : AppColors.error),
-                  fontWeight: FontWeight.w900,
-                  fontSize: 20,
+              Expanded(
+                child: Text(
+                  headText,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: blank
+                        ? AppColors.textSecondary
+                        : (correct ? AppColors.successDark : AppColors.error),
+                    fontWeight: FontWeight.w900,
+                    fontSize: 20,
+                  ),
                 ),
               ),
+              // El botón de guardar vive en la fila de progreso, que se ve
+              // desde cualquier página: aquí sería un segundo botón para lo
+              // mismo.
             ],
           ),
           const SizedBox(height: 14),
@@ -2222,6 +2237,11 @@ class _SimRunnerClassicState extends State<_SimRunnerClassic>
                       color: AppColors.textSecondary,
                       fontWeight: FontWeight.w800,
                       fontSize: 12.5)),
+              // Sin condiciones: el botón sale en TODAS las preguntas, así
+              // que no delata ninguna, y el momento de querer guardarla suele
+              // ser mientras se lee, no después de corregir.
+              const SizedBox(width: 4),
+              SaveToDeckButton(questionId: '${q.id}', size: 20),
             ],
           ),
         ),
@@ -2848,6 +2868,7 @@ class _SimDetailDialogState extends State<_SimDetailDialog> {
                           letterSpacing: 0.6),
                     ),
                   ),
+                  SaveToDeckButton(questionId: '${q.id}', size: 20),
                   IconButton(
                     onPressed: () => Navigator.pop(context),
                     icon: const Icon(Icons.close_rounded,

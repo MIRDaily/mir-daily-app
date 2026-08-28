@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../../core/models/models.dart';
 import '../../core/providers/daily_provider.dart';
 import '../../core/theme/app_theme.dart';
+import '../decks/widgets/save_to_deck.dart';
 import '../../shared/widgets/goo_fission_loader.dart';
 import '../../shared/widgets/misc_widgets.dart';
 import '../../shared/widgets/pressable.dart';
@@ -340,6 +341,11 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
                     fontSize: 12,
                   ),
                 ),
+              // Guardar sobre la marcha, sin esperar a la revisión: el momento
+              // en que una pregunta te llama la atención es mientras la lees.
+              // Sale en TODAS, así que no adelanta nada de ninguna.
+              const SizedBox(width: 2),
+              SaveToDeckButton(questionId: question.id, size: 20),
             ],
           ),
           const SizedBox(height: 14),

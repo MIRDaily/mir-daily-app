@@ -13,6 +13,7 @@ import '../../core/providers/daily_provider.dart';
 import '../../core/services/api_service.dart';
 import '../../core/services/haptics_service.dart';
 import '../../core/theme/app_theme.dart';
+import '../decks/widgets/save_to_deck.dart';
 import '../../shared/widgets/confetti_overlay.dart';
 import '../../shared/widgets/misc_widgets.dart';
 import '../../shared/widgets/pressable.dart';
@@ -2513,6 +2514,10 @@ class _ReviewSlideState extends State<_ReviewSlide> {
                       ],
                     ),
                   ),
+                  // Guardar la pregunta en un mazo desde la propia revisión:
+                  // es justo el momento en que uno decide que quiere volver a
+                  // verla.
+                  SaveToDeckButton(questionId: q.questionId),
                 ],
               ),
               const SizedBox(height: 14),
