@@ -314,6 +314,12 @@ class UserProfile {
   /// cualquier dispositivo, no solo en el que hizo el cambio.
   final DateTime? usernameNextChangeAt;
 
+  /// Textura de las tarjetas de la galería de mazos: 'default' (las cartas
+  /// ilustradas de siempre) o 'gradient' (el degradado propio de cada mazo).
+  /// Es una preferencia GLOBAL del usuario, no por mazo — columna
+  /// `users.deck_gallery_style`, la misma que usa la web.
+  final String deckGalleryStyle;
+
   const UserProfile({
     required this.id,
     this.email,
@@ -331,7 +337,10 @@ class UserProfile {
     this.universityId,
     this.mirSpecialtyId,
     this.usernameNextChangeAt,
+    this.deckGalleryStyle = 'default',
   });
+
+  bool get deckGalleryIsGradient => deckGalleryStyle == 'gradient';
 
   /// True mientras el username siga bloqueado.
   bool get usernameLocked =>
@@ -364,6 +373,8 @@ class UserProfile {
       usernameNextChangeAt: DateTime.tryParse(
         json['username_next_change_at']?.toString() ?? '',
       )?.toLocal(),
+      deckGalleryStyle:
+          json['deck_gallery_style'] == 'gradient' ? 'gradient' : 'default',
     );
   }
 
@@ -397,6 +408,21 @@ class Deck {
   final int totalReviews;
   final String visualState; // perfect | clean | destroyed | failed
 
+  /// Bio corta del mazo (`decks.description`, tope 120 en el backend).
+  final String? description;
+
+  /// Preset de portada elegido por el usuario (`decks.banner_gradient`).
+  /// Vive en base de datos, no en el dispositivo: el mazo se ve igual en la
+  /// web y en la app. Null hasta que se elige uno.
+  final String? bannerGradient;
+
+  /// Nº de preguntas del mazo. Lo agrega Postgres (vista `deck_item_counts`),
+  /// no se cuenta aquí.
+  final int totalItems;
+
+  /// Cuándo se creó. Lo usa el orden por antigüedad de la galería.
+  final DateTime? createdAt;
+
   const Deck({
     required this.id,
     required this.name,
@@ -405,9 +431,30 @@ class Deck {
     required this.accuracy,
     required this.totalReviews,
     required this.visualState,
+    this.description,
+    this.bannerGradient,
+    this.totalItems = 0,
+    this.createdAt,
   });
 
+  /// El mazo automático de fallos: su contenido cambia solo con cada acierto
+  /// o fallo, así que no admite bio, ni gradiente, ni % de dominio (un dato
+  /// de largo plazo no significa nada ahí). El backend lo bloquea con 403.
+  bool get isAutoManaged => autoType == 'failed_global';
+
+  /// Mazos que no son del usuario: no siguen el ajuste de textura de la
+  /// galería, conservan siempre su aspecto original.
+  bool get isSystemDeck => systemGenerated || isAutoManaged;
+
+  /// El dominio se estima con las últimas 25 respuestas: por debajo de ahí no
+  /// hay dato que enseñar, solo ruido.
+  bool get hasMastery => totalReviews >= 25;
+
+  int? get masteryPercent =>
+      hasMastery ? (accuracy * 100).round().clamp(0, 100) : null;
+
   factory Deck.fromJson(Map<String, dynamic> json) {
+    final rawDescription = (json['description'] as String?)?.trim();
     return Deck(
       id: json['id'].toString(),
       name: (json['name'] ?? json['title'] ?? 'Mazo') as String,
@@ -416,9 +463,39 @@ class Deck {
       accuracy: ((json['accuracy'] ?? 0) as num).toDouble(),
       totalReviews: ((json['total_reviews'] ?? 0) as num).round(),
       visualState: (json['visual_state'] ?? 'clean') as String,
+      description: (rawDescription?.isEmpty ?? true) ? null : rawDescription,
+      bannerGradient: json['banner_gradient'] as String?,
+      totalItems: ((json['total_items'] ?? 0) as num).round(),
+      createdAt: DateTime.tryParse(json['created_at']?.toString() ?? '')
+          ?.toLocal(),
+    );
+  }
+
+  /// Para pintar al instante lo que el usuario acaba de elegir sin recargar
+  /// el mazo entero. `Object?` con centinela porque aquí null es un valor
+  /// legítimo (quitar la bio), no "no tocar este campo".
+  Deck copyWith({Object? description = _keep, Object? bannerGradient = _keep}) {
+    return Deck(
+      id: id,
+      name: name,
+      systemGenerated: systemGenerated,
+      autoType: autoType,
+      accuracy: accuracy,
+      totalReviews: totalReviews,
+      visualState: visualState,
+      description: identical(description, _keep)
+          ? this.description
+          : description as String?,
+      bannerGradient: identical(bannerGradient, _keep)
+          ? this.bannerGradient
+          : bannerGradient as String?,
+      totalItems: totalItems,
+      createdAt: createdAt,
     );
   }
 }
+
+const Object _keep = Object();
 
 /// Resumen de stats del usuario (GET /api/stats/summary).
 class StatsSummary {
@@ -545,6 +622,10 @@ class DeckCard {
   final String? imageUrl;
   final String? subject;
 
+  /// Año del MIR del que sale la pregunta. Lo usa la etiqueta de la lista,
+  /// junto a la asignatura.
+  final int? year;
+
   const DeckCard({
     required this.itemId,
     required this.questionId,
@@ -555,6 +636,7 @@ class DeckCard {
     this.hasImage = false,
     this.imageUrl,
     this.subject,
+    this.year,
   });
 
   int get correctIndex => resolveOptionIndex(correctAnswer, options);
@@ -580,8 +662,49 @@ class DeckCard {
       hasImage: (q['has_image'] ?? false) as bool,
       imageUrl: q['image_url'] as String?,
       subject: q['subject'] as String?,
+      year: (q['year'] as num?)?.round(),
     );
   }
+}
+
+/// Una página de preguntas de un mazo, con el total REAL que hay detrás.
+/// El backend pagina de 20 en 20: sin este total la pantalla creía que el mazo
+/// tenía solo las que había pedido.
+class DeckItemsPage {
+  final List<DeckCard> items;
+  final int total;
+  final int page;
+  final int totalPages;
+
+  const DeckItemsPage({
+    required this.items,
+    required this.total,
+    required this.page,
+    required this.totalPages,
+  });
+
+  bool get hasMore => page < totalPages;
+}
+
+/// Asignatura presente en un mazo (GET .../subjects). El `subjectId` es lo que
+/// hay que mandar para filtrar el estudio: la RPC del backend filtra por id
+/// numérico, no por nombre.
+class DeckSubject {
+  final int subjectId;
+  final String subject;
+  final int count;
+
+  const DeckSubject({
+    required this.subjectId,
+    required this.subject,
+    required this.count,
+  });
+
+  factory DeckSubject.fromJson(Map<String, dynamic> json) => DeckSubject(
+        subjectId: ((json['subject_id'] ?? 0) as num).round(),
+        subject: (json['subject'] ?? 'Desconocido') as String,
+        count: ((json['count'] ?? 0) as num).round(),
+      );
 }
 
 /// Conteo de items del mazo por estado (GET .../summary).

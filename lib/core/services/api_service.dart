@@ -190,6 +190,7 @@ class ApiService {
     Object? customUniversity = _absent,
     Object? profilePublic = _absent,
     Object? bio = _absent,
+    Object? galleryStyle = _absent,
   }) async {
     final body = <String, dynamic>{
       if (!identical(mainGoal, _absent)) 'mainGoal': mainGoal,
@@ -200,6 +201,7 @@ class ApiService {
         'customUniversity': customUniversity,
       if (!identical(profilePublic, _absent)) 'profilePublic': profilePublic,
       if (!identical(bio, _absent)) 'bio': bio,
+      if (!identical(galleryStyle, _absent)) 'galleryStyle': galleryStyle,
     };
     if (body.isEmpty) return;
     await _request('PATCH', '/api/profile/academic', body: body);
@@ -362,15 +364,78 @@ class ApiService {
   // STUDIO / MAZOS
   // ==========================
 
-  Future<List<DeckCard>> getDeckItems(String deckId) async {
-    final json = await _request('GET', '/api/studio/decks/$deckId/items');
-    return ((json['items'] ?? []) as List)
-        .map((e) => DeckCard.fromJson(e as Map<String, dynamic>))
-        .toList();
+  /// Tamaño de página del listado de preguntas. El backend admite hasta 50;
+  /// se pide el máximo para bajar el número de viajes en mazos grandes.
+  static const int deckItemsPageSize = 50;
+
+  /// Una página de preguntas del mazo, con búsqueda opcional por enunciado.
+  ///
+  /// Antes esto pedía la primera página y devolvía solo la lista: en un mazo
+  /// de 50 preguntas la pantalla enseñaba 20 y decía que eran todas.
+  Future<DeckItemsPage> getDeckItems(
+    String deckId, {
+    int page = 1,
+    String query = '',
+  }) async {
+    final params = <String, String>{
+      'page': '$page',
+      'pageSize': '$deckItemsPageSize',
+      if (query.trim().isNotEmpty) 'q': query.trim(),
+    };
+    final qs = params.entries
+        .map((e) =>
+            '${e.key}=${Uri.encodeQueryComponent(e.value)}')
+        .join('&');
+
+    final json =
+        await _request('GET', '/api/studio/decks/$deckId/items?$qs');
+    final pagination =
+        (json['pagination'] ?? const {}) as Map<String, dynamic>;
+
+    return DeckItemsPage(
+      items: ((json['items'] ?? []) as List)
+          .map((e) => DeckCard.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      total: ((pagination['total'] ?? 0) as num).round(),
+      page: ((pagination['page'] ?? page) as num).round(),
+      totalPages: ((pagination['totalPages'] ?? 1) as num).round(),
+    );
+  }
+
+  /// Asignaturas que componen el mazo, con cuántas preguntas aporta cada una.
+  Future<List<DeckSubject>> getDeckSubjects(String deckId) async {
+    final json = await _request('GET', '/api/studio/decks/$deckId/subjects');
+    return ((json['subjects'] ?? []) as List)
+        .map((e) => DeckSubject.fromJson(e as Map<String, dynamic>))
+        .toList()
+      ..sort((a, b) => b.count.compareTo(a.count));
   }
 
   Future<void> createDeck(String name) async {
     await _request('POST', '/api/studio/decks', body: {'name': name.trim()});
+  }
+
+  /// Tope de la bio de un mazo. Lo fija el backend
+  /// (`DECK_DESCRIPTION_MAX_LENGTH` en `src/routes/studio.js`) y la web usa el
+  /// mismo, así que una bio escrita en un sitio vale en el otro.
+  static const int maxDeckDescriptionLength = 120;
+
+  /// Edita la bio corta y/o el preset de portada de un mazo.
+  ///
+  /// Persistido en base de datos (antes el gradiente solo vivía en el
+  /// navegador de la web), así que la elección viaja entre dispositivos. El
+  /// mazo automático de fallos responde 403: no admite personalización.
+  Future<void> updateDeck(
+    String deckId, {
+    Object? description = _absent,
+    Object? gradient = _absent,
+  }) async {
+    final body = <String, dynamic>{
+      if (!identical(description, _absent)) 'description': description,
+      if (!identical(gradient, _absent)) 'gradient': gradient,
+    };
+    if (body.isEmpty) return;
+    await _request('POST', '/api/studio/decks/$deckId/update', body: body);
   }
 
   Future<void> deleteDeck(String deckId) async {
@@ -386,6 +451,62 @@ class ApiService {
     return ((json['trash'] ?? []) as List)
         .map((e) => DeckTrashEntry.fromJson(e as Map<String, dynamic>))
         .toList();
+  }
+
+  /// Añade preguntas a un mazo.
+  ///
+  /// Es idempotente por diseño del backend: una pregunta que ya está en el
+  /// mazo se ignora, y una que estaba en la papelera se restaura. Así que no
+  /// hace falta comprobar antes si ya estaba.
+  ///
+  /// El mazo automático de fallos responde 403: se rellena solo.
+  Future<void> addDeckItems(String deckId, List<String> questionIds) async {
+    if (questionIds.isEmpty) return;
+    await _request(
+      'POST',
+      '/api/studio/decks/$deckId/items',
+      body: {'questionIds': questionIds},
+    );
+  }
+
+  /// En qué mazos está ya una pregunta. Devuelve deckId -> itemId (el id de
+  /// la fila del mazo, que es lo que hace falta para poder quitarla).
+  ///
+  /// Va mazo por mazo porque el backend no tiene un endpoint de "¿dónde está
+  /// esta pregunta?": las peticiones salen en paralelo y cada mazo para en
+  /// cuanto la encuentra. La web hace lo mismo pero solo mira la PRIMERA
+  /// página de cada mazo (20 preguntas), así que se le escapan las que están
+  /// más abajo y las marca como no guardadas; aquí se recorren las páginas.
+  Future<Map<String, String>> findQuestionInDecks(
+    List<String> deckIds,
+    String questionId,
+  ) async {
+    final entries = await Future.wait(
+      deckIds.map((deckId) async {
+        try {
+          var page = 1;
+          while (true) {
+            final result = await getDeckItems(deckId, page: page);
+            for (final item in result.items) {
+              if (item.questionId == questionId) {
+                return MapEntry(deckId, item.itemId);
+              }
+            }
+            if (page >= result.totalPages) return null;
+            page++;
+          }
+        } catch (_) {
+          // Un mazo que falle no puede tumbar la comprobación entera: se da
+          // por "no guardada" y se sigue.
+          return null;
+        }
+      }),
+    );
+
+    return {
+      for (final e in entries)
+        if (e != null) e.key: e.value,
+    };
   }
 
   Future<void> removeDeckItem(String deckId, String itemId) async {
@@ -410,10 +531,32 @@ class ApiService {
 
   /// Siguiente item de la sesión. Devuelve null si la sesión terminó
   /// (done / limitReached / expired); el item en otro caso.
-  Future<DeckCard?> getNextDeckItem(String deckId, String sessionId) async {
+  /// Siguiente carta de la sesión.
+  ///
+  /// [subjectId], [status] y [mode] son los filtros de la sesión: el backend
+  /// los aplica en cada llamada (no al crear la sesión), así que viajan aquí.
+  /// [mode] 'smart' activa Smart Review; cualquier otra cosa es el orden
+  /// manual de siempre.
+  Future<DeckCard?> getNextDeckItem(
+    String deckId,
+    String sessionId, {
+    int? subjectId,
+    String? status,
+    String mode = 'normal',
+  }) async {
+    final params = <String, String>{
+      'sessionId': sessionId,
+      if (subjectId != null) 'subject': '$subjectId',
+      if (status != null && status.isNotEmpty) 'status': status,
+      'mode': mode == 'smart' ? 'smart' : 'normal',
+    };
+    final qs = params.entries
+        .map((e) => '${e.key}=${Uri.encodeQueryComponent(e.value)}')
+        .join('&');
+
     final json = await _request(
       'GET',
-      '/api/studio/decks/$deckId/next?sessionId=$sessionId',
+      '/api/studio/decks/$deckId/next?$qs',
     );
     if (json['item'] == null) return null;
     return DeckCard.fromJson(json['item'] as Map<String, dynamic>);
