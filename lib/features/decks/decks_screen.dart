@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/models/models.dart';
+import '../../core/providers/auth_provider.dart';
 import '../../core/services/api_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../shared/sticker/sticker.dart';
@@ -11,6 +15,9 @@ import '../../shared/widgets/misc_widgets.dart';
 import '../../shared/widgets/pressable.dart';
 import 'deck_detail_screen.dart';
 import 'deck_trash_screen.dart';
+import 'widgets/construction_deck.dart';
+import 'widgets/deck_gradient.dart';
+import 'widgets/deck_sort.dart';
 
 /// Sección Mazos — conectada al backend (/api/studio/decks): lista con estado
 /// visual, crear mazo, eliminar (papelera 24h) y abrir el detalle para estudiar.
@@ -30,10 +37,47 @@ class _DecksScreenState extends State<DecksScreen>
   String? _error;
   bool _loading = true;
 
+  /// Criterio de orden de la galería. Vive en el dispositivo, no en el
+  /// servidor: es una preferencia de cómo mirar la lista, y la web tiene su
+  /// propio orden manual guardado en `decks.position` que este no pisa.
+  DeckSort _sort = DeckSort.manual;
+  static const String _sortPrefKey = 'deck_gallery_sort';
+
+  /// La cascada de entrada ya se ha jugado: a partir de aquí ninguna tarjeta
+  /// vuelve a animarse. Ver [_entrance].
+  bool _entranceDone = false;
+  Timer? _entranceTimer;
+
+  /// Estilo elegido mientras el guardado viaja al servidor, para pintarlo al
+  /// instante. Cuando el perfil vuelve refrescado se descarta y manda el
+  /// valor real. Null = no hay nada pendiente.
+  String? _pendingGalleryStyle;
+  bool _savingGalleryStyle = false;
+
   @override
   void initState() {
     super.initState();
+    _restoreSort();
     _load();
+  }
+
+  Future<void> _restoreSort() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    final saved = deckSortFromId(prefs.getString(_sortPrefKey));
+    if (saved != _sort) setState(() => _sort = saved);
+  }
+
+  Future<void> _applySort(DeckSort sort) async {
+    setState(() => _sort = sort);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_sortPrefKey, sort.id);
+  }
+
+  @override
+  void dispose() {
+    _entranceTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -50,6 +94,7 @@ class _DecksScreenState extends State<DecksScreen>
         _decks = decks;
         _loading = false;
       });
+      _armEntrance();
     } catch (_) {
       if (!mounted) return;
       setState(() {
@@ -143,6 +188,144 @@ class _DecksScreenState extends State<DecksScreen>
     }
   }
 
+  /// Preferencia GLOBAL del usuario (`users.deck_gallery_style`), no por
+  /// mazo — la misma que la web. Se lee del perfil que ya carga AuthProvider,
+  /// así que activar el ajuste no añade ninguna petición de red.
+  String _galleryStyleOf(AuthProvider auth) =>
+      _pendingGalleryStyle ?? auth.profile?.deckGalleryStyle ?? 'default';
+
+  Future<void> _openGallerySettings() async {
+    // Los providers se leen ANTES del await del panel: despues de un gap
+    // asincrono el context puede haber quedado fuera del arbol.
+    final auth = context.read<AuthProvider>();
+    final api = context.read<ApiService>();
+    final current = _galleryStyleOf(auth);
+
+    // El panel devuelve UNA elección: o un orden nuevo o una textura nueva.
+    // Se cierra al tocar, que es lo que se espera de una lista de opciones.
+    final chosen = await showModalBottomSheet<Object>(
+      context: context,
+      backgroundColor: Colors.white,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(20, 18, 20, 12),
+                child: Text(
+                  'Ajustes de la galería',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 19,
+                    color: kInk,
+                  ),
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.fromLTRB(20, 0, 20, 6),
+                child: SectionLabel('Orden'),
+              ),
+              for (final sort in DeckSort.values)
+                _GalleryStyleOption(
+                  title: sort.label,
+                  subtitle: sort.hint,
+                  selected: _sort == sort,
+                  preview: Container(
+                    width: 34,
+                    height: 34,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: kHairline, width: 2),
+                    ),
+                    child: Icon(sort.icon, size: 17, color: kMuted),
+                  ),
+                  onTap: () => Navigator.pop(ctx, sort),
+                ),
+              const Padding(
+                padding: EdgeInsets.fromLTRB(20, 14, 20, 6),
+                child: SectionLabel('Textura'),
+              ),
+              const Padding(
+                padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
+                child: Text(
+                  'Solo afecta a tus mazos. El de fallos conserva el suyo.',
+                  style:
+                      TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                ),
+              ),
+              _GalleryStyleOption(
+                title: 'Predeterminado',
+                subtitle: 'La cartulina teñida con el estado del mazo.',
+                selected: current == 'default',
+                preview: Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: kInk, width: 2),
+                  ),
+                  child: const Icon(Icons.style_rounded,
+                      size: 18, color: AppColors.success),
+                ),
+                onTap: () => Navigator.pop(ctx, 'default'),
+              ),
+              _GalleryStyleOption(
+                title: 'Personalizado',
+                subtitle: 'El degradado que cada mazo tiene en su portada.',
+                selected: current == 'gradient',
+                preview: const DeckGradientSwatch(id: 'blueNight', size: 34),
+                onTap: () => Navigator.pop(ctx, 'gradient'),
+              ),
+              const SizedBox(height: 14),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (chosen == null || !mounted) return;
+
+    // El orden es local e instantáneo: no hay nada que pedirle al servidor.
+    if (chosen is DeckSort) {
+      if (chosen != _sort) await _applySort(chosen);
+      return;
+    }
+
+    final style = chosen as String;
+    if (style == current || _savingGalleryStyle) return;
+
+    setState(() {
+      _pendingGalleryStyle = style;
+      _savingGalleryStyle = true;
+    });
+
+    try {
+      await api.updateAcademicProfile(galleryStyle: style);
+      await auth.refreshProfile();
+      if (!mounted) return;
+      setState(() {
+        _pendingGalleryStyle = null;
+        _savingGalleryStyle = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _pendingGalleryStyle = null;
+        _savingGalleryStyle = false;
+      });
+      _toast('No se pudo guardar el ajuste.');
+    }
+  }
+
   void _toast(String msg) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
@@ -158,6 +341,9 @@ class _DecksScreenState extends State<DecksScreen>
   @override
   Widget build(BuildContext context) {
     super.build(context);
+    // `watch`: si el perfil llega o cambia (otro dispositivo, recarga), la
+    // galería se repinta sola con la textura correcta.
+    final galleryStyle = _galleryStyleOf(context.watch<AuthProvider>());
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -191,21 +377,32 @@ class _DecksScreenState extends State<DecksScreen>
                     title: 'Tus Mazos',
                     subtitle:
                         'Repaso con repetición espaciada para fijar lo que fallas.',
-                    aside: InkIconButton(
-                      icon: Icons.delete_outline_rounded,
-                      tooltip: 'Papelera',
-                      onTap: () async {
-                        await Navigator.of(context).push(
-                          MaterialPageRoute(
-                              builder: (_) => const DeckTrashScreen()),
-                        );
-                        _load();
-                      },
+                    aside: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        InkIconButton(
+                          icon: Icons.tune_rounded,
+                          tooltip: 'Ajustes',
+                          onTap: _openGallerySettings,
+                        ),
+                        const SizedBox(width: 10),
+                        InkIconButton(
+                          icon: Icons.delete_outline_rounded,
+                          tooltip: 'Papelera',
+                          onTap: () async {
+                            await Navigator.of(context).push(
+                              MaterialPageRoute(
+                                  builder: (_) => const DeckTrashScreen()),
+                            );
+                            _load();
+                          },
+                        ),
+                      ],
                     ),
                   ),
                 ),
               ),
-              ..._content(),
+              ..._content(galleryStyle),
               const SliverToBoxAdapter(child: SizedBox(height: 96)),
             ],
           ),
@@ -214,7 +411,7 @@ class _DecksScreenState extends State<DecksScreen>
     );
   }
 
-  List<Widget> _content() {
+  List<Widget> _content(String galleryStyle) {
     if (_loading) {
       return [
         SliverPadding(
@@ -252,12 +449,68 @@ class _DecksScreenState extends State<DecksScreen>
       ];
     }
 
-    final decks = _decks ?? [];
-    if (decks.isEmpty) {
-      return [
+    final todos = _decks ?? const <Deck>[];
+
+    // Dos grupos, como en la web: arriba lo que pone MIRDaily (hoy solo el
+    // mazo de fallos; en el futuro también el rotatorio), abajo lo que ha
+    // hecho el usuario. No es solo estética: los del sistema no se borran, no
+    // se reordenan y no siguen el ajuste de textura, así que mezclarlos hacía
+    // que la tarjeta de al lado se comportara distinto sin explicar por qué.
+    final sistema = todos.where((d) => d.isSystemDeck).toList();
+    final propios = sortDecks(
+      todos.where((d) => !d.isSystemDeck).toList(),
+      _sort,
+    );
+
+    // Mismo criterio que la web: si el único mazo del sistema es el de
+    // fallos, se reserva el hueco del siguiente con la tarjeta precintada.
+    final reservarHueco = sistema.any((d) => d.isAutoManaged) &&
+        sistema.length < 2;
+
+    // Índice continuo entre los dos grupos, para que la cascada de entrada no
+    // se reinicie al cambiar de sección.
+    var orden = 0;
+
+    Widget tarjeta(Deck deck) => _entrance(
+          orden++,
+          DeckGalleryCard(
+            deck: deck,
+            // Los mazos del sistema conservan siempre su textura original: el
+            // ajuste es solo para los mazos propios del usuario.
+            gradientStyle: galleryStyle == 'gradient' && !deck.isSystemDeck,
+            onOpen: () => _openDeck(deck),
+            onDelete:
+                deck.isSystemDeck ? null : () => _confirmDelete(deck),
+          ),
+        );
+
+    return [
+      if (sistema.isNotEmpty)
+        SliverPadding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          sliver: SliverToBoxAdapter(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SectionLabel('De MIRDaily'),
+                ...sistema.map(tarjeta),
+                if (reservarHueco) const ConstructionDeckCard(),
+              ],
+            ),
+          ),
+        ),
+      SliverPadding(
+        padding: const EdgeInsets.fromLTRB(20, 6, 20, 0),
+        sliver: SliverToBoxAdapter(
+          child: SectionLabel(
+            'Mis mazos${propios.isEmpty ? '' : ' (${propios.length})'}',
+          ),
+        ),
+      ),
+      if (propios.isEmpty)
         SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(32, 50, 32, 0),
+            padding: const EdgeInsets.fromLTRB(32, 14, 32, 0),
             child: Column(
               children: [
                 Container(
@@ -274,7 +527,8 @@ class _DecksScreenState extends State<DecksScreen>
                 ),
                 const SizedBox(height: 18),
                 const Text(
-                  'Aún no tienes mazos',
+                  'Aún no tienes mazos propios',
+                  textAlign: TextAlign.center,
                   style: TextStyle(
                     color: kInk,
                     fontWeight: FontWeight.w900,
@@ -283,7 +537,7 @@ class _DecksScreenState extends State<DecksScreen>
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  'Crea tu primer mazo con el botón “Nuevo mazo”, o guarda preguntas que falles para repasarlas.',
+                  'Crea el primero con el botón “Nuevo mazo”, o guarda una pregunta desde la revisión del daily o de un simulacro.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: AppColors.textSecondary,
@@ -294,32 +548,58 @@ class _DecksScreenState extends State<DecksScreen>
               ],
             ),
           ),
-        ),
-      ];
-    }
-
-    return [
-      SliverPadding(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        sliver: SliverList(
-          delegate: SliverChildBuilderDelegate(
-            (context, i) => SlideFadeIn(
-              delay: Duration(milliseconds: 70 * (i % 8)),
-              beginOffset: const Offset(0, 0.12),
-              child: _DeckCard(
-                deck: decks[i],
-                onOpen: () => _openDeck(decks[i]),
-                onDelete: decks[i].systemGenerated ||
-                        decks[i].autoType == 'failed_global'
-                    ? null
-                    : () => _confirmDelete(decks[i]),
-              ),
+        )
+      else
+        SliverPadding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          sliver: SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (context, i) => tarjeta(propios[i]),
+              childCount: propios.length,
             ),
-            childCount: decks.length,
           ),
         ),
-      ),
     ];
+  }
+
+  /// TODAS las tarjetas se animan al aparecer — la lista construye cada una
+  /// la primera vez que asoma, así que el fundido acompaña al scroll.
+  ///
+  /// Lo único que cambia con el tiempo es el RETARDO, no si hay animación:
+  ///
+  /// - Al abrir la galería, las tarjetas entran escalonadas (70 ms de
+  ///   diferencia entre una y la siguiente): es la cascada de bienvenida.
+  /// - Pasada esa ventana, cada tarjeta se funde en cuanto asoma, sin esperar
+  ///   su turno. Mantener el escalonado aquí era justo lo que se veía raro:
+  ///   una tarjeta con índice alto entraba en pantalla y se quedaba medio
+  ///   segundo invisible antes de aparecer.
+  ///
+  /// Se intentó antes limitar la animación a las N primeras tarjetas, pero eso
+  /// dejaba una costura: las de arriba parpadeaban al pasar y las de abajo no
+  /// se movían nunca. El coste que se buscaba evitar estaba en realidad en el
+  /// desenfoque sin cachear y en la barra de Dominio animada, las dos cosas ya
+  /// corregidas; el fundido nunca llegó a quedar señalado por las mediciones.
+  static const Duration _entranceWindow = Duration(milliseconds: 1100);
+
+  /// Tope del escalonado de bienvenida: pasada media docena de tarjetas, más
+  /// retardo solo sería hacer esperar.
+  static const int _entranceMaxStep = 7;
+
+  void _armEntrance() {
+    if (_entranceDone || _entranceTimer != null) return;
+    _entranceTimer = Timer(_entranceWindow, () {
+      if (mounted) setState(() => _entranceDone = true);
+    });
+  }
+
+  Widget _entrance(int index, Widget card) {
+    return SlideFadeIn(
+      delay: _entranceDone
+          ? Duration.zero
+          : Duration(milliseconds: 70 * index.clamp(0, _entranceMaxStep)),
+      beginOffset: const Offset(0, 0.12),
+      child: card,
+    );
   }
 
   Future<void> _openDeck(Deck deck) async {
@@ -380,13 +660,122 @@ class _DecksScreenState extends State<DecksScreen>
   }
 }
 
-class _DeckCard extends StatelessWidget {
+/// Una opción del ajuste de textura de la galería.
+class _GalleryStyleOption extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final bool selected;
+  final Widget preview;
+  final VoidCallback onTap;
+
+  const _GalleryStyleOption({
+    required this.title,
+    required this.subtitle,
+    required this.selected,
+    required this.preview,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      onTap: onTap,
+      leading: preview,
+      title: Text(
+        title,
+        style: TextStyle(
+          fontWeight: selected ? FontWeight.w900 : FontWeight.w700,
+          color: kInk,
+          fontSize: 15,
+        ),
+      ),
+      subtitle: Text(
+        subtitle,
+        style: const TextStyle(
+          color: AppColors.textSecondary,
+          fontSize: 12.5,
+        ),
+      ),
+      trailing: selected
+          ? const Icon(Icons.check_circle_rounded, color: AppColors.primaryDark)
+          : null,
+    );
+  }
+}
+
+/// Color de la barra de Dominio, con los mismos cortes que la web
+/// (rojo < 40 % < naranja < 70 % < amarillo < 85 % < verde).
+Color _domainColor(int percent) {
+  if (percent < 40) return const Color(0xFFF87171);
+  if (percent < 70) return const Color(0xFFFB923C);
+  if (percent < 85) return const Color(0xFFFACC15);
+  return const Color(0xFF10B981);
+}
+
+/// Pastilla blanca con borde de tinta: se lee igual sobre la cartulina teñida
+/// y sobre el degradado, que es lo que permite que las dos texturas compartan
+/// exactamente el mismo contenido de tarjeta.
+class _CardPill extends StatelessWidget {
+  final String label;
+  final IconData? icon;
+  final Color? accent;
+
+  const _CardPill({required this.label, this.icon, this.accent});
+
+
+  @override
+  Widget build(BuildContext context) {
+    final color = accent ?? AppColors.textSecondary;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: kInk, width: 1.6),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 12, color: color),
+            const SizedBox(width: 4),
+          ],
+          // Flexible + ellipsis: con un estado largo ("NECESITA REPASO") más
+          // el contador y la papelera, la fila se salía de la tarjeta por la
+          // derecha en pantallas estrechas. Ahora la etiqueta cede primero.
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: color,
+                fontWeight: FontWeight.w800,
+                fontSize: 9.5,
+                letterSpacing: 0.8,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class DeckGalleryCard extends StatelessWidget {
   final Deck deck;
+
+  /// True cuando este mazo debe pintarse con su degradado en vez de con la
+  /// cartulina teñida. Lo decide la pantalla, no la tarjeta: los mazos del
+  /// sistema no siguen el ajuste.
+  final bool gradientStyle;
   final VoidCallback onOpen;
   final VoidCallback? onDelete;
 
-  const _DeckCard({
+  const DeckGalleryCard({
+    super.key,
     required this.deck,
+    required this.gradientStyle,
     required this.onOpen,
     required this.onDelete,
   });
@@ -424,11 +813,31 @@ class _DeckCard extends StatelessWidget {
     }
   }
 
+  void _explainMastery(BuildContext context) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(
+          content: Text(
+            'El dominio se estima con tus últimas 25 respuestas en este mazo. '
+            'Responde al menos 25 preguntas para calcularlo.',
+          ),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: AppColors.textPrimary,
+          duration: Duration(seconds: 4),
+        ),
+      );
+  }
+
   @override
   Widget build(BuildContext context) {
     final style = _style;
-    final accuracyPct = (deck.accuracy * 100).round();
-    final hasData = deck.totalReviews >= 25;
+    final mastery = deck.masteryPercent;
+    // La bio del mazo (o el aviso fijo del automático de fallos) en vez de una
+    // etiqueta que salía igual en todos los mazos propios.
+    final subtitle = deck.isAutoManaged
+        ? 'Tus fallos recientes, listos para repasar.'
+        : deck.description;
 
     return Pressable(
       onTap: onOpen,
@@ -437,144 +846,170 @@ class _DeckCard extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 14),
         depth: 4,
         radius: 20,
-        background: style.bg,
-        padding: const EdgeInsets.all(16),
-        // Cartulina teñida con el estado del mazo: la trama dice de un vistazo
-        // si está en forma o si pide repaso, antes de leer la etiqueta.
-        texture: tintedPaper(style.accent, step: 24),
-        child: Row(
+        background: gradientStyle ? Colors.white : style.bg,
+        padding: const EdgeInsets.fromLTRB(15, 13, 12, 15),
+        // Predeterminado: cartulina teñida con el estado del mazo, la trama
+        // dice de un vistazo si está en forma o si pide repaso.
+        // Personalizado: el mismo degradado de su portada, congelado (ver
+        // DeckBannerGradient) — mismo aspecto, sin nada animándose por cada
+        // tarjeta de la lista.
+        texture: gradientStyle
+            ? deckGradientTexture(deck.bannerGradient)
+            : tintedPaper(style.accent, step: 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SizedBox(
-              width: 54,
-              height: 62,
-              child: Stack(
-                children: [
-                  for (var i = 2; i >= 0; i--)
-                    Positioned(
-                      left: i * 4.0,
-                      top: i * 3.0,
-                      child: Transform.rotate(
-                        angle: (i - 1) * 0.06,
-                        child: Container(
-                          width: 42,
-                          height: 54,
-                          decoration: BoxDecoration(
-                            color:
-                                i == 0 ? Colors.white : const Color(0xFFFFF7F4),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: kInk, width: 1.6),
-                          ),
-                          child: i == 0
-                              ? Icon(style.icon, color: style.accent, size: 20)
-                              : null,
-                        ),
-                      ),
+            Row(
+              children: [
+                // Expanded, no Spacer: así el hueco sobrante se lo queda la
+                // etiqueta de estado y, cuando no cabe, se recorta ella en vez
+                // de empujar al contador fuera de la tarjeta.
+                Expanded(
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: _CardPill(
+                      label: style.label,
+                      icon: style.icon,
+                      accent: style.accent,
                     ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                _CardPill(
+                  label: '${deck.totalItems}',
+                  icon: Icons.style_rounded,
+                ),
+                if (onDelete != null) ...[
+                  const SizedBox(width: 6),
+                  // Fondo blanco: en modo Personalizado esta esquina cae sobre
+                  // la banda oscura del degradado, y un icono suelto ahi se
+                  // pierde.
+                  GestureDetector(
+                    onTap: onDelete,
+                    child: Container(
+                      width: 28,
+                      height: 28,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: kInk, width: 1.6),
+                      ),
+                      child: const Icon(Icons.delete_outline_rounded,
+                          color: AppColors.error, size: 16),
+                    ),
+                  ),
                 ],
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              deck.name,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: kInk,
+                fontWeight: FontWeight.w900,
+                fontSize: 17,
+                height: 1.2,
               ),
             ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            // El hueco de la bio va SIEMPRE reservado (2 líneas), tenga o no
+            // tenga texto el mazo: si no, un mazo sin bio dejaba la barra de
+            // Dominio pegada al título mientras que uno con bio la empujaba
+            // más abajo — la misma pieza en un sitio distinto según el mazo.
+            ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 36),
+              child: Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  subtitle ?? '',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 12.5,
+                    height: 1.3,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ),
+            // El mazo de fallos no tiene Dominio: su contenido cambia solo con
+            // cada acierto o fallo, así que un % de largo plazo no significa
+            // nada ahí (mismo criterio que en su propia pantalla).
+            if (!deck.isAutoManaged) ...[
+              const SizedBox(height: 8),
+              // El % va pegado a su etiqueta, a la izquierda, y no en el
+              // extremo derecho como en la web: en una tarjeta de móvil ese
+              // borde cae justo sobre la banda oscura del degradado, y el
+              // dato se perdía en el modo Personalizado.
+              Row(
                 children: [
-                  Text(
-                    style.label,
+                  const Text(
+                    'Dominio',
                     style: TextStyle(
-                      color: style.accent,
+                      color: AppColors.textSecondary,
+                      fontSize: 11.5,
                       fontWeight: FontWeight.w800,
-                      fontSize: 9.5,
-                      letterSpacing: 1.2,
                     ),
                   ),
-                  const SizedBox(height: 3),
-                  Text(
-                    deck.name,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: kInk,
-                      fontWeight: FontWeight.w900,
-                      fontSize: 15.5,
-                      height: 1.25,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      const Icon(Icons.refresh_rounded,
-                          size: 13, color: AppColors.textLight),
-                      const SizedBox(width: 3),
-                      Text(
-                        '${deck.totalReviews} repasos',
-                        style: const TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w600,
+                  const SizedBox(width: 7),
+                  if (mastery == null)
+                    GestureDetector(
+                      onTap: () => _explainMastery(context),
+                      child: Container(
+                        width: 20,
+                        height: 20,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: kHairline, width: 1.6),
                         ),
-                      ),
-                      if (deck.systemGenerated) ...[
-                        const SizedBox(width: 10),
-                        const Icon(Icons.auto_awesome_rounded,
-                            size: 12, color: AppColors.textLight),
-                        const SizedBox(width: 3),
-                        const Text(
-                          'Automático',
+                        child: const Text(
+                          '?',
                           style: TextStyle(
                             color: AppColors.textSecondary,
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w600,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 11,
                           ),
                         ),
-                      ],
-                    ],
-                  ),
+                      ),
+                    )
+                  else
+                    Text(
+                      '$mastery%',
+                      style: const TextStyle(
+                        color: kInk,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  const Spacer(),
                 ],
               ),
-            ),
-            const SizedBox(width: 8),
-            SizedBox(
-              width: 48,
-              height: 48,
-              child: TweenAnimationBuilder<double>(
-                tween: Tween(begin: 0, end: hasData ? deck.accuracy : 0),
-                duration: const Duration(milliseconds: 900),
-                curve: Curves.easeOutCubic,
-                builder: (context, value, _) {
-                  return Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      CircularProgressIndicator(
-                        value: hasData ? value : null,
-                        strokeWidth: 4.5,
-                        strokeCap: StrokeCap.round,
-                        backgroundColor: style.accent.withValues(alpha: 0.15),
-                        valueColor: AlwaysStoppedAnimation(
-                          hasData
-                              ? style.accent
-                              : style.accent.withValues(alpha: 0.25),
-                        ),
-                      ),
-                      Text(
-                        hasData ? '$accuracyPct%' : '—',
-                        style: TextStyle(
-                          color: style.accent,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ],
-                  );
-                },
+              const SizedBox(height: 6),
+              // Sin animación de llenado a propósito: la barra se pintaba
+              // con un `TweenAnimationBuilder` de 700 ms que arrancaba cada
+              // vez que la tarjeta se construía —o sea, cada vez que asomaba
+              // al hacer scroll—, ensuciando la tarjeta entera durante 42
+              // fotogramas. El dato es fijo; no gana nada por llegar rodando.
+              ClipRRect(
+                borderRadius: BorderRadius.circular(999),
+                child: Container(
+                  height: 8,
+                  color: const Color(0xFFEFEAE7),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: FractionallySizedBox(
+                      widthFactor: ((mastery ?? 0) / 100).clamp(0.0, 1.0),
+                      child: Container(color: _domainColor(mastery ?? 0)),
+                    ),
+                  ),
+                ),
               ),
-            ),
-            if (onDelete != null)
-              IconButton(
-                onPressed: onDelete,
-                visualDensity: VisualDensity.compact,
-                icon: const Icon(Icons.more_vert_rounded,
-                    color: AppColors.textLight, size: 20),
-              ),
+            ],
           ],
         ),
       ),
