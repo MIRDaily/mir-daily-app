@@ -54,5 +54,16 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.mirdaily.app.auth</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.mirdaily.app</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>
