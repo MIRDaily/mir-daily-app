@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/models/models.dart';
+import '../../core/responsive/breakpoints.dart';
+import '../../core/responsive/master_detail_scaffold.dart';
 import '../../core/services/api_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../shared/sticker/sticker.dart';
@@ -30,6 +32,9 @@ class _SimulacroHistorialScreenState extends State<SimulacroHistorialScreen> {
   bool _loadingMore = false;
   bool _hasMore = false;
   String? _error;
+
+  /// Sesión abierta en el panel derecho, en maestro-detalle (tablet grande).
+  SimSession? _selectedSession;
 
   ApiService get _api => context.read<ApiService>();
 
@@ -98,6 +103,10 @@ class _SimulacroHistorialScreenState extends State<SimulacroHistorialScreen> {
   }
 
   Future<void> _open(SimSession session) async {
+    if (context.usesTwoPane) {
+      setState(() => _selectedSession = session);
+      return;
+    }
     await Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => _SimReviewScreen(session: session)),
     );
@@ -105,6 +114,7 @@ class _SimulacroHistorialScreenState extends State<SimulacroHistorialScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final twoPane = context.usesTwoPane;
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -114,53 +124,77 @@ class _SimulacroHistorialScreenState extends State<SimulacroHistorialScreen> {
       ),
       body: SafeArea(
         top: false,
-        child: RefreshIndicator(
-          color: AppColors.primary,
-          onRefresh: _load,
-          child: ListView(
-            physics: const BouncingScrollPhysics(
-                parent: AlwaysScrollableScrollPhysics()),
-            padding: const EdgeInsets.fromLTRB(20, 6, 20, 40),
-            children: [
-              const StickerHero(
-                badge: 'Simulacros',
-                badgeIcon: Icons.history_rounded,
-                title: 'Historial',
-                subtitle:
-                    'Repasa la corrección de los simulacros que terminaste.',
-                accent: Color(0xFF6E8E6B),
-              ),
+        child: twoPane
+            ? MasterDetailScaffold(
+                master: _list(),
+                detail: _selectedSession == null
+                    ? const MasterDetailEmpty(
+                        icon: Icons.history_rounded,
+                        title: 'Elige un simulacro',
+                        subtitle:
+                            'Selecciona uno de la lista para repasar su corrección.',
+                      )
+                    : _SimReviewScreen(
+                        key: ValueKey(_selectedSession!.id),
+                        session: _selectedSession!,
+                        onClose: () =>
+                            setState(() => _selectedSession = null),
+                      ),
+              )
+            : _list(),
+      ),
+    );
+  }
+
+  Widget _list() {
+    return RefreshIndicator(
+      color: AppColors.primary,
+      onRefresh: _load,
+      child: ListView(
+        physics:
+            const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+        padding: const EdgeInsets.fromLTRB(20, 6, 20, 40),
+        children: [
+          const StickerHero(
+            badge: 'Simulacros',
+            badgeIcon: Icons.history_rounded,
+            title: 'Historial',
+            subtitle: 'Repasa la corrección de los simulacros que terminaste.',
+            accent: Color(0xFF6E8E6B),
+          ),
+          const SizedBox(height: 24),
+          if (_loading) ...[
+            const _HistorialSkeleton(),
+          ] else if (_error != null) ...[
+            _ErrorBox(message: _error!, onRetry: _load),
+          ] else ...[
+            if (_calendar.isNotEmpty) ...[
+              const SectionLabel('Calendario'),
+              _CalendarHeatmap(days: _calendar),
               const SizedBox(height: 24),
-              if (_loading) ...[
-                const _HistorialSkeleton(),
-              ] else if (_error != null) ...[
-                _ErrorBox(message: _error!, onRetry: _load),
-              ] else ...[
-                if (_calendar.isNotEmpty) ...[
-                  const SectionLabel('Calendario'),
-                  _CalendarHeatmap(days: _calendar),
-                  const SizedBox(height: 24),
-                ],
-                SectionLabel('Simulacros guardados (${_sessions.length})'),
-                if (_sessions.isEmpty)
-                  const _EmptyHistorial()
-                else ...[
-                  for (final s in _sessions)
-                    _SessionCard(session: s, onTap: () => _open(s)),
-                  if (_hasMore) ...[
-                    const SizedBox(height: 6),
-                    GhostButton(
-                      label: _loadingMore ? 'Cargando…' : 'Ver más',
-                      icon: Icons.expand_more_rounded,
-                      expand: true,
-                      onPressed: _loadingMore ? null : _loadMore,
-                    ),
-                  ],
-                ],
+            ],
+            SectionLabel('Simulacros guardados (${_sessions.length})'),
+            if (_sessions.isEmpty)
+              const _EmptyHistorial()
+            else ...[
+              for (final s in _sessions)
+                _SessionCard(
+                  session: s,
+                  selected: s.id == _selectedSession?.id,
+                  onTap: () => _open(s),
+                ),
+              if (_hasMore) ...[
+                const SizedBox(height: 6),
+                GhostButton(
+                  label: _loadingMore ? 'Cargando…' : 'Ver más',
+                  icon: Icons.expand_more_rounded,
+                  expand: true,
+                  onPressed: _loadingMore ? null : _loadMore,
+                ),
               ],
             ],
-          ),
-        ),
+          ],
+        ],
       ),
     );
   }
@@ -171,7 +205,15 @@ class _SessionCard extends StatelessWidget {
   final SimSession session;
   final VoidCallback onTap;
 
-  const _SessionCard({required this.session, required this.onTap});
+  /// true cuando esta es la sesión abierta en el panel derecho (maestro-
+  /// detalle). Fuera de ese modo siempre llega en false.
+  final bool selected;
+
+  const _SessionCard({
+    required this.session,
+    required this.onTap,
+    this.selected = false,
+  });
 
   static const _months = [
     'ene', 'feb', 'mar', 'abr', 'may', 'jun',
@@ -210,6 +252,9 @@ class _SessionCard extends StatelessWidget {
       depth: 4,
       radius: 20,
       padding: const EdgeInsets.all(16),
+      // Resalta cuál está abierta en el panel derecho (maestro-detalle).
+      background:
+          selected ? AppColors.primary.withValues(alpha: 0.10) : Colors.white,
       onTap: onTap,
       child: Row(
         children: [
@@ -404,7 +449,13 @@ class _CalendarHeatmap extends StatelessWidget {
 class _SimReviewScreen extends StatefulWidget {
   final SimSession session;
 
-  const _SimReviewScreen({required this.session});
+  /// Cuando no es null, esta pantalla está embebida en el panel derecho de
+  /// un maestro-detalle (tablet grande): tanto el botón de atrás del AppBar
+  /// como "Volver al historial" deseleccionan en el maestro en vez de hacer
+  /// pop (aquí no hay ninguna ruta propia que cerrar).
+  final VoidCallback? onClose;
+
+  const _SimReviewScreen({super.key, required this.session, this.onClose});
 
   @override
   State<_SimReviewScreen> createState() => _SimReviewScreenState();
@@ -450,6 +501,12 @@ class _SimReviewScreenState extends State<_SimReviewScreen> {
         backgroundColor: AppColors.background,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
+        leading: widget.onClose == null
+            ? null
+            : IconButton(
+                icon: const Icon(Icons.arrow_back_rounded),
+                onPressed: widget.onClose,
+              ),
         title: const Text('Repaso'),
       ),
       body: SafeArea(
@@ -469,7 +526,8 @@ class _SimReviewScreenState extends State<_SimReviewScreen> {
                     eyebrow: 'SIMULACRO GUARDADO',
                     restartLabel: 'Volver al historial',
                     restartIcon: Icons.arrow_back_rounded,
-                    onRestart: () => Navigator.of(context).pop(),
+                    onRestart:
+                        widget.onClose ?? () => Navigator.of(context).pop(),
                   ),
       ),
     );

@@ -14,7 +14,12 @@ import 'widgets/flashcard_dialogs.dart';
 class FlashcardDeckScreen extends StatefulWidget {
   final FlashDeck deck;
 
-  const FlashcardDeckScreen({super.key, required this.deck});
+  /// Cuando no es null, la pantalla está embebida en el panel derecho de un
+  /// maestro-detalle (tablet grande): el botón de atrás deselecciona en el
+  /// maestro en vez de hacer pop (aquí no hay ninguna ruta propia que cerrar).
+  final VoidCallback? onClose;
+
+  const FlashcardDeckScreen({super.key, required this.deck, this.onClose});
 
   @override
   State<FlashcardDeckScreen> createState() => _FlashcardDeckScreenState();
@@ -148,6 +153,12 @@ class _FlashcardDeckScreenState extends State<FlashcardDeckScreen> {
         backgroundColor: AppColors.background,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
+        leading: widget.onClose == null
+            ? null
+            : IconButton(
+                icon: const Icon(Icons.arrow_back_rounded),
+                onPressed: widget.onClose,
+              ),
         title: Text(widget.deck.name, overflow: TextOverflow.ellipsis),
         actions: [
           IconButton(

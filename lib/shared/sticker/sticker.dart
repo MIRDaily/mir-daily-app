@@ -389,13 +389,21 @@ class _HeroBadge extends StatelessWidget {
             Icon(icon, size: 14, color: accent),
             const SizedBox(width: 6),
           ],
-          Text(
-            text.toUpperCase(),
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 1.6,
-              color: accent,
+          // Flexible en vez de un Text a secas: en un panel maestro estrecho
+          // (maestro-detalle en tablet) el hueco puede quedar por debajo del
+          // ancho natural del texto. Sin esto, la insignia desborda en vez de
+          // recortarse.
+          Flexible(
+            child: Text(
+              text.toUpperCase(),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1.6,
+                color: accent,
+              ),
             ),
           ),
         ],

@@ -19,7 +19,13 @@ import 'widgets/highlighted_text.dart';
 class DeckDetailScreen extends StatefulWidget {
   final Deck deck;
 
-  const DeckDetailScreen({super.key, required this.deck});
+  /// Cuando no es null, la pantalla está EMBEBIDA en el panel derecho de un
+  /// maestro-detalle (tablet grande) en vez de empujada con `Navigator.push`.
+  /// El botón de atrás llama a esto (para deseleccionar en el maestro) en vez
+  /// de hacer pop, que aquí no correspondería a ninguna ruta propia.
+  final VoidCallback? onClose;
+
+  const DeckDetailScreen({super.key, required this.deck, this.onClose});
 
   @override
   State<DeckDetailScreen> createState() => _DeckDetailScreenState();
@@ -378,6 +384,15 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
       appBar: AppBar(
         backgroundColor: AppColors.background,
         surfaceTintColor: Colors.transparent,
+        // null deja el botón de atrás automático de Flutter (pop normal).
+        // Embebido en maestro-detalle, un pop se llevaría por delante toda
+        // la pantalla de Mazos; en su lugar se deselecciona en el maestro.
+        leading: widget.onClose == null
+            ? null
+            : IconButton(
+                icon: const Icon(Icons.arrow_back_rounded),
+                onPressed: widget.onClose,
+              ),
         title: Text(_deck.name, overflow: TextOverflow.ellipsis),
         actions: [
           // El mazo automático de fallos lleva portada y bio de sistema: no

@@ -10,6 +10,7 @@ import '../../core/providers/auth_provider.dart';
 import '../../core/responsive/adaptive_grid.dart';
 import '../../core/responsive/breakpoints.dart';
 import '../../core/responsive/content_shell.dart';
+import '../../core/responsive/master_detail_scaffold.dart';
 import '../../core/services/api_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../shared/sticker/sticker.dart';
@@ -56,6 +57,11 @@ class _DecksScreenState extends State<DecksScreen>
   /// valor real. Null = no hay nada pendiente.
   String? _pendingGalleryStyle;
   bool _savingGalleryStyle = false;
+
+  /// Mazo abierto en el panel derecho, en maestro-detalle (tablet grande).
+  /// Fuera de ese modo no se usa: se navega con `Navigator.push` como
+  /// siempre.
+  Deck? _selectedDeck;
 
   @override
   void initState() {
@@ -162,8 +168,13 @@ class _DecksScreenState extends State<DecksScreen>
 
   Future<void> _deleteDeck(Deck deck) async {
     final api = context.read<ApiService>();
-    // Optimista: lo quitamos de la lista y ofrecemos deshacer.
-    setState(() => _decks?.removeWhere((d) => d.id == deck.id));
+    // Optimista: lo quitamos de la lista y ofrecemos deshacer. Si era el
+    // abierto en el panel derecho, se cierra: seguir mostrando un mazo
+    // borrado no tiene sentido.
+    setState(() {
+      _decks?.removeWhere((d) => d.id == deck.id);
+      if (_selectedDeck?.id == deck.id) _selectedDeck = null;
+    });
     try {
       await api.deleteDeck(deck.id);
       if (!mounted) return;
@@ -347,6 +358,8 @@ class _DecksScreenState extends State<DecksScreen>
     // `watch`: si el perfil llega o cambia (otro dispositivo, recarga), la
     // galería se repinta sola con la textura correcta.
     final galleryStyle = _galleryStyleOf(context.watch<AuthProvider>());
+    final twoPane = context.usesTwoPane;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -364,55 +377,76 @@ class _DecksScreenState extends State<DecksScreen>
       ),
       body: SafeArea(
         bottom: false,
-        child: BodyConstraint(
-          wide: true,
-          child: RefreshIndicator(
-          color: AppColors.primary,
-          onRefresh: _load,
-          child: CustomScrollView(
-            physics: const BouncingScrollPhysics(
-                parent: AlwaysScrollableScrollPhysics()),
-            slivers: [
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 6, 20, 22),
-                  child: StickerHero(
-                    badge: 'Dominio',
-                    badgeIcon: Icons.layers_rounded,
-                    title: 'Tus Mazos',
-                    subtitle:
-                        'Repaso con repetición espaciada para fijar lo que fallas.',
-                    aside: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        InkIconButton(
-                          icon: Icons.tune_rounded,
-                          tooltip: 'Ajustes',
-                          onTap: _openGallerySettings,
-                        ),
-                        const SizedBox(width: 10),
-                        InkIconButton(
-                          icon: Icons.delete_outline_rounded,
-                          tooltip: 'Papelera',
-                          onTap: () async {
-                            await Navigator.of(context).push(
-                              MaterialPageRoute(
-                                  builder: (_) => const DeckTrashScreen()),
-                            );
-                            _load();
-                          },
-                        ),
-                      ],
+        child: twoPane
+            ? MasterDetailScaffold(
+                master: _gallery(context, galleryStyle),
+                detail: _selectedDeck == null
+                    ? const MasterDetailEmpty(
+                        icon: Icons.style_rounded,
+                        title: 'Elige un mazo',
+                        subtitle:
+                            'Selecciónalo en la lista para ver su contenido.',
+                      )
+                    : DeckDetailScreen(
+                        key: ValueKey(_selectedDeck!.id),
+                        deck: _selectedDeck!,
+                        onClose: () => setState(() => _selectedDeck = null),
+                      ),
+              )
+            : BodyConstraint(wide: true, child: _gallery(context, galleryStyle)),
+      ),
+    );
+  }
+
+  /// Galería: hero + secciones de mazos. Es el maestro en maestro-detalle (a
+  /// ancho fijo) y el cuerpo entero fuera de ese modo (acotado por
+  /// `BodyConstraint` en el llamador) — el propio contenido no sabe en cuál
+  /// de los dos casos está.
+  Widget _gallery(BuildContext context, String galleryStyle) {
+    return RefreshIndicator(
+      color: AppColors.primary,
+      onRefresh: _load,
+      child: CustomScrollView(
+        physics:
+            const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+        slivers: [
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 6, 20, 22),
+              child: StickerHero(
+                badge: 'Dominio',
+                badgeIcon: Icons.layers_rounded,
+                title: 'Tus Mazos',
+                subtitle:
+                    'Repaso con repetición espaciada para fijar lo que fallas.',
+                aside: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    InkIconButton(
+                      icon: Icons.tune_rounded,
+                      tooltip: 'Ajustes',
+                      onTap: _openGallerySettings,
                     ),
-                  ),
+                    const SizedBox(width: 10),
+                    InkIconButton(
+                      icon: Icons.delete_outline_rounded,
+                      tooltip: 'Papelera',
+                      onTap: () async {
+                        await Navigator.of(context).push(
+                          MaterialPageRoute(
+                              builder: (_) => const DeckTrashScreen()),
+                        );
+                        _load();
+                      },
+                    ),
+                  ],
                 ),
               ),
-              ..._content(context, galleryStyle),
-              const SliverToBoxAdapter(child: SizedBox(height: 96)),
-            ],
+            ),
           ),
-        ),
-        ),
+          ..._content(context, galleryStyle),
+          const SliverToBoxAdapter(child: SizedBox(height: 96)),
+        ],
       ),
     );
   }
@@ -633,6 +667,11 @@ class _DecksScreenState extends State<DecksScreen>
   }
 
   Future<void> _openDeck(Deck deck) async {
+    // Maestro-detalle: se abre en el panel derecho, sin navegar.
+    if (context.usesTwoPane) {
+      setState(() => _selectedDeck = deck);
+      return;
+    }
     await Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => DeckDetailScreen(deck: deck)),
     );

@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/models/models.dart';
+import '../../core/responsive/breakpoints.dart';
 import '../../core/responsive/content_shell.dart';
+import '../../core/responsive/master_detail_scaffold.dart';
 import '../../core/services/api_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../shared/sticker/sticker.dart';
@@ -28,6 +30,9 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
   List<FlashDeck>? _decks;
   String? _error;
   bool _loading = true;
+
+  /// Grupo abierto en el panel derecho, en maestro-detalle (tablet grande).
+  FlashDeck? _selectedDeck;
 
   ApiService get _api => context.read<ApiService>();
 
@@ -109,6 +114,10 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
   }
 
   Future<void> _open(FlashDeck deck) async {
+    if (context.usesTwoPane) {
+      setState(() => _selectedDeck = deck);
+      return;
+    }
     await Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => FlashcardDeckScreen(deck: deck)),
     );
@@ -119,6 +128,7 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
   Widget build(BuildContext context) {
     final decks = _decks ?? const <FlashDeck>[];
     final due = decks.fold<int>(0, (a, d) => a + d.dueCards);
+    final twoPane = context.usesTwoPane;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -137,49 +147,66 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
       ),
       body: SafeArea(
         top: false,
-        child: BodyConstraint(
-        child: RefreshIndicator(
-          color: AppColors.primary,
-          onRefresh: _load,
-          child: ListView(
-            physics: const BouncingScrollPhysics(
-                parent: AlwaysScrollableScrollPhysics()),
-            padding: const EdgeInsets.fromLTRB(20, 6, 20, 100),
-            children: [
-              StickerHero(
-                badge: 'Flashcards',
-                badgeIcon: Icons.style_rounded,
-                title: 'Tus tarjetas',
-                subtitle:
-                    'Crea y repasa tus propias tarjetas, con anverso y reverso.',
-                aside: due > 0
-                    ? StatChip(value: '$due', label: 'por repasar')
-                    : null,
-              ),
-              const SizedBox(height: 24),
-              if (_loading)
-                for (var i = 0; i < 3; i++) const _FlashDeckSkeleton()
-              else if (_error != null)
-                _ErrorBox(message: _error!, onRetry: _load)
-              else if (decks.isEmpty)
-                const _EmptyFlashcards()
-              else ...[
-                const SectionLabel('Tus grupos'),
-                for (var i = 0; i < decks.length; i++)
-                  SlideFadeIn(
-                    delay: Duration(milliseconds: 70 * (i % 8)),
-                    beginOffset: const Offset(0, 0.12),
-                    child: _FlashDeckCard(
-                      deck: decks[i],
-                      onTap: () => _open(decks[i]),
-                      onRename: () => _renameDeck(decks[i]),
-                    ),
-                  ),
-              ],
-            ],
+        child: twoPane
+            ? MasterDetailScaffold(
+                master: _gallery(decks, due),
+                detail: _selectedDeck == null
+                    ? const MasterDetailEmpty(
+                        icon: Icons.style_rounded,
+                        title: 'Elige un grupo',
+                        subtitle:
+                            'Selecciónalo en la lista para ver sus tarjetas.',
+                      )
+                    : FlashcardDeckScreen(
+                        key: ValueKey(_selectedDeck!.id),
+                        deck: _selectedDeck!,
+                        onClose: () => setState(() => _selectedDeck = null),
+                      ),
+              )
+            : BodyConstraint(child: _gallery(decks, due)),
+      ),
+    );
+  }
+
+  Widget _gallery(List<FlashDeck> decks, int due) {
+    return RefreshIndicator(
+      color: AppColors.primary,
+      onRefresh: _load,
+      child: ListView(
+        physics:
+            const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+        padding: const EdgeInsets.fromLTRB(20, 6, 20, 100),
+        children: [
+          StickerHero(
+            badge: 'Flashcards',
+            badgeIcon: Icons.style_rounded,
+            title: 'Tus tarjetas',
+            subtitle:
+                'Crea y repasa tus propias tarjetas, con anverso y reverso.',
+            aside:
+                due > 0 ? StatChip(value: '$due', label: 'por repasar') : null,
           ),
-        ),
-        ),
+          const SizedBox(height: 24),
+          if (_loading)
+            for (var i = 0; i < 3; i++) const _FlashDeckSkeleton()
+          else if (_error != null)
+            _ErrorBox(message: _error!, onRetry: _load)
+          else if (decks.isEmpty)
+            const _EmptyFlashcards()
+          else ...[
+            const SectionLabel('Tus grupos'),
+            for (var i = 0; i < decks.length; i++)
+              SlideFadeIn(
+                delay: Duration(milliseconds: 70 * (i % 8)),
+                beginOffset: const Offset(0, 0.12),
+                child: _FlashDeckCard(
+                  deck: decks[i],
+                  onTap: () => _open(decks[i]),
+                  onRename: () => _renameDeck(decks[i]),
+                ),
+              ),
+          ],
+        ],
       ),
     );
   }
