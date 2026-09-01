@@ -6,10 +6,11 @@ import 'breakpoints.dart';
 /// Layout de dos paneles para tablet grande (`context.usesTwoPane`): una
 /// lista maestra a la izquierda —colapsable— y el detalle ocupando el resto.
 ///
-/// El detalle vive SIEMPRE en el mismo `Expanded`; al plegar/desplegar solo
-/// se anima el ancho de la columna maestra, así que el detalle no se
-/// reconstruye y la transición es fluida.
-class MasterDetailScaffold extends StatelessWidget {
+/// La lista se pliega con el chevron de su cabecera, con el tirador "Lista"
+/// cuando está plegada, o **deslizándola hacia la izquierda desde cualquier
+/// punto**. El detalle vive siempre en el mismo `Expanded`, así que plegar no
+/// lo reconstruye y la transición es fluida.
+class MasterDetailScaffold extends StatefulWidget {
   const MasterDetailScaffold({
     super.key,
     required this.master,
@@ -31,72 +32,151 @@ class MasterDetailScaffold extends StatelessWidget {
   final List<Widget> masterActions;
   final double masterWidth;
 
-  static const _duration = Duration(milliseconds: 170);
+  @override
+  State<MasterDetailScaffold> createState() => _MasterDetailScaffoldState();
+}
+
+class _MasterDetailScaffoldState extends State<MasterDetailScaffold>
+    with SingleTickerProviderStateMixin {
+  /// 0 = desplegada, 1 = plegada.
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 190),
+    value: widget.masterCollapsed ? 1 : 0,
+  );
+
   static const _curve = Curves.easeOutCubic;
+
+  bool _dragging = false;
+
+  @override
+  void didUpdateWidget(MasterDetailScaffold old) {
+    super.didUpdateWidget(old);
+    if (!_dragging && old.masterCollapsed != widget.masterCollapsed) {
+      _c.animateTo(widget.masterCollapsed ? 1 : 0, curve: _curve);
+    }
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  void _onDragStart(DragStartDetails _) {
+    _c.stop();
+    _dragging = true;
+  }
+
+  void _onDragUpdate(DragUpdateDetails d) {
+    // Arrastrar a la izquierda (delta negativo) pliega.
+    _c.value =
+        (_c.value - (d.primaryDelta ?? 0) / widget.masterWidth).clamp(0.0, 1.0);
+  }
+
+  void _onDragEnd(DragEndDetails d) {
+    _dragging = false;
+    final v = d.primaryVelocity ?? 0;
+    final bool collapse;
+    if (v < -320) {
+      collapse = true;
+    } else if (v > 320) {
+      collapse = false;
+    } else {
+      collapse = _c.value > 0.5;
+    }
+    // Si el resultado cambia el estado, se lo decimos al padre (que hará
+    // animar desde didUpdateWidget). Si no, animamos aquí mismo.
+    if (collapse != widget.masterCollapsed) {
+      widget.onToggleMaster();
+    } else {
+      _c.animateTo(collapse ? 1 : 0, curve: _curve);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+    final w = widget.masterWidth;
+    final topPad = MediaQuery.paddingOf(context).top;
+
+    final masterColumn = SizedBox(
+      width: w,
+      child: Column(
+        children: [
+          _MasterHeader(
+            title: widget.masterTitle,
+            actions: widget.masterActions,
+            onCollapse: () {
+              if (!widget.masterCollapsed) widget.onToggleMaster();
+            },
+          ),
+          Expanded(
+            // El arrastre horizontal compite en la arena con el scroll
+            // vertical de la lista: un gesto claramente horizontal gana aquí.
+            child: GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onHorizontalDragStart: _onDragStart,
+              onHorizontalDragUpdate: _onDragUpdate,
+              onHorizontalDragEnd: _onDragEnd,
+              child: widget.master,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (context, _) {
+        final t = _c.value;
+        return Stack(
           children: [
-            // Columna maestra: el ancho se anima entre 0 y masterWidth. El
-            // contenido se mantiene a su ancho natural (OverflowBox) y solo
-            // lo tapa el recorte, sin re-maquetar nada.
-            ClipRect(
-              child: AnimatedContainer(
-                duration: _duration,
-                curve: _curve,
-                width: masterCollapsed ? 0 : masterWidth,
-                decoration: const BoxDecoration(
-                  border: Border(
-                    right:
-                        BorderSide(color: AppColors.hairline, width: 1),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                ClipRect(
+                  child: SizedBox(
+                    width: w * (1 - t),
+                    child: OverflowBox(
+                      alignment: Alignment.centerRight,
+                      minWidth: w,
+                      maxWidth: w,
+                      child: DecoratedBox(
+                        decoration: const BoxDecoration(
+                          border: Border(
+                            right: BorderSide(
+                                color: AppColors.hairline, width: 1),
+                          ),
+                        ),
+                        child: masterColumn,
+                      ),
+                    ),
                   ),
                 ),
-                child: OverflowBox(
-                  alignment: Alignment.centerLeft,
-                  minWidth: masterWidth,
-                  maxWidth: masterWidth,
-                  child: SizedBox(
-                    width: masterWidth,
-                    child: Column(
-                      children: [
-                        _MasterHeader(
-                          title: masterTitle,
-                          actions: masterActions,
-                          onCollapse: onToggleMaster,
-                        ),
-                        Expanded(child: master),
-                      ],
+                Expanded(child: widget.detail),
+              ],
+            ),
+            Positioned(
+              top: topPad + 8,
+              left: 8,
+              child: IgnorePointer(
+                ignoring: t < 0.6,
+                child: Opacity(
+                  opacity: (t * 1.6 - 0.6).clamp(0.0, 1.0),
+                  child: FractionalTranslation(
+                    translation: Offset(-1.2 * (1 - t), 0),
+                    child: _ListHandle(
+                      onTap: () {
+                        if (widget.masterCollapsed) widget.onToggleMaster();
+                      },
                     ),
                   ),
                 ),
               ),
             ),
-            Expanded(child: detail),
           ],
-        ),
-        // Tirador para volver a sacar la lista.
-        Positioned(
-          top: MediaQuery.paddingOf(context).top + 8,
-          left: 8,
-          child: AnimatedSlide(
-            duration: _duration,
-            curve: _curve,
-            offset: masterCollapsed ? Offset.zero : const Offset(-1.4, 0),
-            child: AnimatedOpacity(
-              duration: _duration,
-              opacity: masterCollapsed ? 1 : 0,
-              child: IgnorePointer(
-                ignoring: !masterCollapsed,
-                child: _ListHandle(onTap: onToggleMaster),
-              ),
-            ),
-          ),
-        ),
-      ],
+        );
+      },
     );
   }
 }

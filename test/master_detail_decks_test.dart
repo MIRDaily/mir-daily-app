@@ -134,7 +134,7 @@ void main() {
     // "Lista" se vuelve tocable.
     final masterPane = tester.getSize(find.ancestor(
       of: find.text('Mazos'),
-      matching: find.byType(AnimatedContainer),
+      matching: find.byType(ClipRect),
     ));
     expect(masterPane.width, greaterThan(200));
 
@@ -148,7 +148,7 @@ void main() {
       tester
           .getSize(find.ancestor(
             of: find.text('Mazos'),
-            matching: find.byType(AnimatedContainer),
+            matching: find.byType(ClipRect),
           ))
           .width,
       lessThan(2),
@@ -164,7 +164,7 @@ void main() {
       tester
           .getSize(find.ancestor(
             of: find.text('Mazos'),
-            matching: find.byType(AnimatedContainer),
+            matching: find.byType(ClipRect),
           ))
           .width,
       greaterThan(200),
@@ -172,6 +172,31 @@ void main() {
     );
 
     // El detalle nunca se fue.
+    expect(find.byType(DeckDetailScreen), findsOneWidget);
+  });
+
+  testWidgets('deslizar la lista a la izquierda la pliega', (tester) async {
+    await _pump(tester, const Size(1280, 800));
+    await tester.tap(find.text('Mazo Uno'));
+    await tester.pump();
+    for (var i = 0; i < 8; i++) {
+      await tester.pump(const Duration(milliseconds: 80));
+    }
+
+    Size paneSize() => tester.getSize(find.ancestor(
+          of: find.text('Mazos'),
+          matching: find.byType(ClipRect),
+        ).first);
+    expect(paneSize().width, greaterThan(200));
+
+    // Fling horizontal hacia la izquierda sobre la propia lista.
+    await tester.fling(find.text('Mazo Dos'), const Offset(-300, 0), 1000);
+    await tester.pump();
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 60));
+    }
+
+    expect(paneSize().width, lessThan(2), reason: 'plegada tras el swipe');
     expect(find.byType(DeckDetailScreen), findsOneWidget);
   });
 
