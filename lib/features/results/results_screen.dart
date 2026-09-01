@@ -10,6 +10,7 @@ import '../../core/config/app_config.dart';
 import '../../core/models/models.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/providers/daily_provider.dart';
+import '../../core/responsive/breakpoints.dart';
 import '../../core/services/api_service.dart';
 import '../../core/services/haptics_service.dart';
 import '../../core/theme/app_theme.dart';
@@ -1424,7 +1425,17 @@ class _StoryPageState extends State<_StoryPage>
           ),
         );
       },
-      child: widget.builder(context, _intro),
+      // En tablet el contenido de cada slide se centra en una columna
+      // acotada (el fondo animado, detrás del PageView, sigue a pantalla
+      // completa).
+      child: context.isWide
+          ? Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 560),
+                child: widget.builder(context, _intro),
+              ),
+            )
+          : widget.builder(context, _intro),
     );
 
     if (widget.interactive) return page;

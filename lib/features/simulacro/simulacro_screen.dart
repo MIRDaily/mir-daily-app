@@ -1548,21 +1548,24 @@ class _SimRunnerCarouselState extends State<_SimRunnerCarousel>
       });
     }
 
-    return Column(
-      children: [
-        _progress(total),
-        Expanded(
-          child: _swapped(
-            PageView(
-              controller: _carousel,
-              onPageChanged: (p) => setState(() => _page = p),
-              children: pages,
+    return BodyConstraint(
+      maxWidth: 860,
+      child: Column(
+        children: [
+          _progress(total),
+          Expanded(
+            child: _swapped(
+              PageView(
+                controller: _carousel,
+                onPageChanged: (p) => setState(() => _page = p),
+                children: pages,
+              ),
             ),
           ),
-        ),
-        _dots(pages.length),
-        _bottomBar(selected, isLast),
-      ],
+          _dots(pages.length),
+          _bottomBar(selected, isLast),
+        ],
+      ),
     );
   }
 
@@ -2216,7 +2219,9 @@ class _SimRunnerClassicState extends State<_SimRunnerClassic>
     final revealed = locked;
     final explanation = result?.explanation?.trim() ?? '';
 
-    return Column(
+    return BodyConstraint(
+      maxWidth: 860,
+      child: Column(
       children: [
         // Progreso (compacto: barra + "n de N" en una fila)
         Padding(
@@ -2518,6 +2523,7 @@ class _SimRunnerClassicState extends State<_SimRunnerClassic>
           ),
         ),
       ],
+      ),
     );
   }
 
@@ -2635,7 +2641,9 @@ class SimResultsView extends StatelessWidget {
     final total = questions.length;
     final pct = total > 0 ? (correct / total * 100).round() : 0;
 
-    return ListView(
+    return BodyConstraint(
+      maxWidth: 820,
+      child: ListView(
       padding: const EdgeInsets.fromLTRB(18, 8, 18, 30),
       children: [
         Center(
@@ -2749,6 +2757,7 @@ class SimResultsView extends StatelessWidget {
           GhostButton(label: 'Volver', expand: true, onPressed: onClose),
         ],
       ],
+      ),
     );
   }
 
