@@ -8,8 +8,8 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
-/// Hash corto del commit actual, para sellar los builds de desarrollo. Si no
-/// hay git (o falla), devuelve "nogit" y el build sigue igual.
+/// Hash corto del commit actual, para sellar los builds. Si no hay git (o
+/// falla), devuelve "nogit" y el build sigue igual.
 fun gitShortSha(): String = try {
     providers.exec {
         commandLine("git", "rev-parse", "--short=8", "HEAD")
@@ -18,6 +18,14 @@ fun gitShortSha(): String = try {
 } catch (e: Exception) {
     "nogit"
 }
+
+/// Sufijo del versionName con el hash de git y la fecha, p. ej.
+/// "-6e70aa2e-0901.1652". La app lo lee con package_info_plus y lo muestra en
+/// una esquina (ver lib/core/build_info.dart). Se aplica a debug Y release
+/// porque hoy TODOS los builds son de prueba interna.
+/// ANTES DE PUBLICAR EN PLAY: quitarlo del buildType release (junto con el
+/// `.v5` de arriba) y pasar `--dart-define=HIDE_BUILD_TAG=true`.
+val buildStampSuffix = "-${gitShortSha()}-${SimpleDateFormat("MMdd.HHmm").format(Date())}"
 
 android {
     namespace = "com.example.mirdaily_app"
@@ -57,12 +65,11 @@ android {
 
     buildTypes {
         debug {
-            // Sello de build para desarrollo: el versionName pasa a ser
-            // "1.0.0-ab12cd34-0901.1620". La app lo lee con package_info_plus
-            // y lo muestra en una esquina (ver lib/core/build_info.dart).
-            versionNameSuffix = "-${gitShortSha()}-${SimpleDateFormat("MMdd.HHmm").format(Date())}"
+            versionNameSuffix = buildStampSuffix
         }
         release {
+            versionNameSuffix = buildStampSuffix
+
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
