@@ -379,6 +379,9 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final canEdit = !_deck.isSystemDeck;
+    // Embebido en maestro-detalle (panel derecho de tablet).
+    final embedded = widget.onClose != null;
+    final canStudy = _deck.totalItems > 0 || _itemsTotal > 0;
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -387,7 +390,7 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
         // null deja el botón de atrás automático de Flutter (pop normal).
         // Embebido en maestro-detalle, un pop se llevaría por delante toda
         // la pantalla de Mazos; en su lugar se deselecciona en el maestro.
-        leading: widget.onClose == null
+        leading: !embedded
             ? null
             : IconButton(
                 icon: const Icon(Icons.arrow_back_rounded),
@@ -395,13 +398,27 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
               ),
         title: Text(_deck.name, overflow: TextOverflow.ellipsis),
         actions: [
-          // El mazo automático de fallos lleva portada y bio de sistema: no
-          // se personaliza (y el backend responde 403 si se intenta).
           if (!_deck.isAutoManaged)
             IconButton(
               tooltip: 'Fondo del mazo',
               onPressed: _pickGradient,
               icon: const Icon(Icons.palette_outlined, color: kInk),
+            ),
+          // Embebido no hay FAB (choca con el de la lista y con la barra
+          // flotante): "Estudiar" va aquí, bien visible.
+          if (embedded && canStudy)
+            Padding(
+              padding: const EdgeInsets.only(right: 8, left: 4),
+              child: FilledButton.icon(
+                onPressed: _study,
+                icon: const Icon(Icons.play_arrow_rounded, size: 20),
+                label: const Text('Estudiar'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
             ),
         ],
       ),
@@ -494,7 +511,7 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
                     ],
                   ),
                 ),
-      floatingActionButton: (_deck.totalItems > 0 || _itemsTotal > 0)
+      floatingActionButton: (!embedded && canStudy)
           ? Padding(
               padding: const EdgeInsets.only(bottom: 4, right: 4),
               child: StickerButton(

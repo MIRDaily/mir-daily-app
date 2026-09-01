@@ -34,6 +34,9 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
   /// Grupo abierto en el panel derecho, en maestro-detalle (tablet grande).
   FlashDeck? _selectedDeck;
 
+  /// La lista de la izquierda está plegada (detalle a pantalla completa).
+  bool _masterCollapsed = false;
+
   ApiService get _api => context.read<ApiService>();
 
   @override
@@ -137,18 +140,33 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
       ),
-      floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 4, right: 4),
-        child: StickerButton(
-          label: 'Nuevo grupo',
-          icon: Icons.add_rounded,
-          onPressed: _createDeck,
-        ),
-      ),
+      floatingActionButton: twoPane
+          ? null
+          : Padding(
+              padding: const EdgeInsets.only(bottom: 4, right: 4),
+              child: StickerButton(
+                label: 'Nuevo grupo',
+                icon: Icons.add_rounded,
+                onPressed: _createDeck,
+              ),
+            ),
       body: SafeArea(
         top: false,
         child: twoPane
             ? MasterDetailScaffold(
+                masterTitle: 'Flashcards',
+                masterCollapsed: _masterCollapsed,
+                onToggleMaster: () =>
+                    setState(() => _masterCollapsed = !_masterCollapsed),
+                masterActions: [
+                  IconButton(
+                    tooltip: 'Nuevo grupo',
+                    visualDensity: VisualDensity.compact,
+                    icon: const Icon(Icons.add_rounded),
+                    color: AppColors.primaryDark,
+                    onPressed: _createDeck,
+                  ),
+                ],
                 master: _gallery(decks, due),
                 detail: _selectedDeck == null
                     ? const MasterDetailEmpty(
@@ -160,7 +178,13 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
                     : FlashcardDeckScreen(
                         key: ValueKey(_selectedDeck!.id),
                         deck: _selectedDeck!,
-                        onClose: () => setState(() => _selectedDeck = null),
+                        onClose: () => setState(() {
+                          if (_masterCollapsed) {
+                            _masterCollapsed = false;
+                          } else {
+                            _selectedDeck = null;
+                          }
+                        }),
                       ),
               )
             : BodyConstraint(child: _gallery(decks, due)),

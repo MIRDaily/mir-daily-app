@@ -146,6 +146,7 @@ class _FlashcardDeckScreenState extends State<FlashcardDeckScreen> {
   @override
   Widget build(BuildContext context) {
     final cards = _cards ?? const <Flashcard>[];
+    final embedded = widget.onClose != null;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -153,7 +154,7 @@ class _FlashcardDeckScreenState extends State<FlashcardDeckScreen> {
         backgroundColor: AppColors.background,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
-        leading: widget.onClose == null
+        leading: !embedded
             ? null
             : IconButton(
                 icon: const Icon(Icons.arrow_back_rounded),
@@ -166,9 +167,24 @@ class _FlashcardDeckScreenState extends State<FlashcardDeckScreen> {
             icon: const Icon(Icons.add_rounded),
             onPressed: _create,
           ),
+          // Embebido no hay FAB: "Estudiar" va en el AppBar.
+          if (embedded && cards.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(right: 8, left: 4),
+              child: FilledButton.icon(
+                onPressed: _study,
+                icon: const Icon(Icons.play_arrow_rounded, size: 20),
+                label: const Text('Estudiar'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+            ),
         ],
       ),
-      floatingActionButton: cards.isEmpty
+      floatingActionButton: (embedded || cards.isEmpty)
           ? null
           : Padding(
               padding: const EdgeInsets.only(bottom: 4, right: 4),

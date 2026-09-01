@@ -63,6 +63,9 @@ class _DecksScreenState extends State<DecksScreen>
   /// siempre.
   Deck? _selectedDeck;
 
+  /// La lista de la izquierda está plegada (detalle a pantalla completa).
+  bool _masterCollapsed = false;
+
   @override
   void initState() {
     super.initState();
@@ -367,18 +370,35 @@ class _DecksScreenState extends State<DecksScreen>
         surfaceTintColor: Colors.transparent,
         elevation: 0,
       ),
-      floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 4, right: 4),
-        child: StickerButton(
-          label: 'Nuevo mazo',
-          icon: Icons.add_rounded,
-          onPressed: _createDeck,
-        ),
-      ),
+      // En dos paneles, "Nuevo mazo" vive en la cabecera de la lista (el FAB
+      // chocaría con el de "Estudiar" del detalle y con la barra flotante).
+      floatingActionButton: twoPane
+          ? null
+          : Padding(
+              padding: const EdgeInsets.only(bottom: 4, right: 4),
+              child: StickerButton(
+                label: 'Nuevo mazo',
+                icon: Icons.add_rounded,
+                onPressed: _createDeck,
+              ),
+            ),
       body: SafeArea(
         bottom: false,
         child: twoPane
             ? MasterDetailScaffold(
+                masterTitle: 'Mazos',
+                masterCollapsed: _masterCollapsed,
+                onToggleMaster: () =>
+                    setState(() => _masterCollapsed = !_masterCollapsed),
+                masterActions: [
+                  IconButton(
+                    tooltip: 'Nuevo mazo',
+                    visualDensity: VisualDensity.compact,
+                    icon: const Icon(Icons.add_rounded),
+                    color: AppColors.primaryDark,
+                    onPressed: _createDeck,
+                  ),
+                ],
                 master: _gallery(context, galleryStyle),
                 detail: _selectedDeck == null
                     ? const MasterDetailEmpty(
@@ -390,7 +410,13 @@ class _DecksScreenState extends State<DecksScreen>
                     : DeckDetailScreen(
                         key: ValueKey(_selectedDeck!.id),
                         deck: _selectedDeck!,
-                        onClose: () => setState(() => _selectedDeck = null),
+                        onClose: () => setState(() {
+                          if (_masterCollapsed) {
+                            _masterCollapsed = false;
+                          } else {
+                            _selectedDeck = null;
+                          }
+                        }),
                       ),
               )
             : BodyConstraint(wide: true, child: _gallery(context, galleryStyle)),

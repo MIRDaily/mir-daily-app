@@ -118,6 +118,33 @@ void main() {
     expect(find.text('Elige un mazo'), findsNothing);
   });
 
+  testWidgets('tablet grande: el detalle embebido tiene botón Estudiar y la '
+      'lista se puede plegar', (tester) async {
+    await _pump(tester, const Size(1280, 800));
+    await tester.tap(find.text('Mazo Uno'));
+    await tester.pump();
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 80));
+    }
+
+    // "Estudiar" está en el AppBar del detalle (no un FAB perdido).
+    expect(find.widgetWithText(FilledButton, 'Estudiar'), findsOneWidget);
+
+    // Plegar la lista: aparece el tirador "Lista" y desaparece el título de
+    // la columna maestra.
+    expect(find.text('Mazos'), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.chevron_left_rounded));
+    await tester.pump();
+    for (var i = 0; i < 8; i++) {
+      await tester.pump(const Duration(milliseconds: 80));
+    }
+    expect(find.text('Mazos'), findsNothing);
+    expect(find.text('Lista'), findsOneWidget);
+
+    // El detalle sigue ahí, a pantalla completa.
+    expect(find.byType(DeckDetailScreen), findsOneWidget);
+  });
+
   testWidgets('móvil: tocar un mazo navega a pantalla completa',
       (tester) async {
     await _pump(tester, const Size(390, 844));

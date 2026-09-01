@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../responsive/orientation_lock.dart';
+
 /// Estilo de la barra de navegación inferior.
 enum NavBarStyle {
   /// La de siempre: pegada al borde, de lado a lado.
@@ -20,13 +22,20 @@ class SettingsProvider extends ChangeNotifier {
 
   static const _kNavBarStyle = 'settings.nav_bar_style';
 
-  NavBarStyle _navBarStyle = NavBarStyle.classic;
+  /// Por defecto: flotante en tablet, clásica en móvil. Solo cuenta si el
+  /// usuario no ha elegido nada todavía.
+  late NavBarStyle _navBarStyle =
+      OrientationLock.isTablet ? NavBarStyle.floating : NavBarStyle.classic;
   NavBarStyle get navBarStyle => _navBarStyle;
 
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
-    if (prefs.getString(_kNavBarStyle) == 'floating') {
-      _navBarStyle = NavBarStyle.floating;
+    final saved = prefs.getString(_kNavBarStyle);
+    if (saved == null) return; // se queda con el valor por defecto
+    final wanted =
+        saved == 'floating' ? NavBarStyle.floating : NavBarStyle.classic;
+    if (wanted != _navBarStyle) {
+      _navBarStyle = wanted;
       notifyListeners();
     }
   }

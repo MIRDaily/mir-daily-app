@@ -92,8 +92,21 @@ void main() {
   });
 
   testWidgets('clásica en tablet horizontal: sí hay raíl', (tester) async {
-    await pump(tester, SettingsProvider(), size: const Size(1280, 800));
+    final settings = SettingsProvider();
+    await settings.setNavBarStyle(NavBarStyle.classic);
+    await pump(tester, settings, size: const Size(1280, 800));
     expect(find.byType(NavRail), findsOneWidget);
+  });
+
+  testWidgets('por defecto en tablet: flotante (sin raíl)', (tester) async {
+    // SettingsProvider() sin elección previa; el tester simula pantalla de
+    // tablet, así que el valor por defecto debe ser flotante.
+    await pump(tester, SettingsProvider(), size: const Size(1280, 800));
+    expect(find.byType(NavRail), findsNothing);
+    expect(
+      tester.widget<Scaffold>(find.byType(Scaffold).first).bottomNavigationBar,
+      isNull,
+    );
   });
 
   testWidgets('cambiar el ajuste en caliente cambia la barra', (tester) async {

@@ -26,6 +26,11 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
+    // Este fichero prueba el shell clásico (raíl / barra inferior). El
+    // estilo flotante tiene su propio test.
+    final settings = SettingsProvider();
+    await settings.setNavBarStyle(NavBarStyle.classic);
+
     final auth = AuthService();
     final api = ApiService(auth);
     await tester.pumpWidget(
@@ -37,7 +42,7 @@ void main() {
           ),
           ChangeNotifierProvider(create: (_) => DailyProvider(api)),
           ChangeNotifierProvider(create: (_) => FocusProvider()),
-          ChangeNotifierProvider(create: (_) => SettingsProvider()),
+          ChangeNotifierProvider<SettingsProvider>.value(value: settings),
         ],
         child: const MaterialApp(home: MainNavigation()),
       ),

@@ -36,6 +36,9 @@ class _SimulacroHistorialScreenState extends State<SimulacroHistorialScreen> {
   /// Sesión abierta en el panel derecho, en maestro-detalle (tablet grande).
   SimSession? _selectedSession;
 
+  /// La lista de la izquierda está plegada (detalle a pantalla completa).
+  bool _masterCollapsed = false;
+
   ApiService get _api => context.read<ApiService>();
 
   @override
@@ -126,6 +129,10 @@ class _SimulacroHistorialScreenState extends State<SimulacroHistorialScreen> {
         top: false,
         child: twoPane
             ? MasterDetailScaffold(
+                masterTitle: 'Historial',
+                masterCollapsed: _masterCollapsed,
+                onToggleMaster: () =>
+                    setState(() => _masterCollapsed = !_masterCollapsed),
                 master: _list(),
                 detail: _selectedSession == null
                     ? const MasterDetailEmpty(
@@ -137,8 +144,13 @@ class _SimulacroHistorialScreenState extends State<SimulacroHistorialScreen> {
                     : _SimReviewScreen(
                         key: ValueKey(_selectedSession!.id),
                         session: _selectedSession!,
-                        onClose: () =>
-                            setState(() => _selectedSession = null),
+                        onClose: () => setState(() {
+                          if (_masterCollapsed) {
+                            _masterCollapsed = false;
+                          } else {
+                            _selectedSession = null;
+                          }
+                        }),
                       ),
               )
             : _list(),
