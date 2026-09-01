@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../core/responsive/content_shell.dart';
 import '../../core/theme/app_theme.dart';
 import '../../shared/sticker/sticker.dart';
 import '../../shared/sticker/textures.dart';
@@ -106,6 +107,8 @@ class _LibraryScreenState extends State<LibraryScreen>
       ),
       body: SafeArea(
         bottom: false,
+        child: BodyConstraint(
+        wide: true,
         child: CustomScrollView(
         physics: const BouncingScrollPhysics(),
         slivers: [
@@ -174,8 +177,10 @@ class _LibraryScreenState extends State<LibraryScreen>
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 90),
             sliver: SliverGrid(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
+              // Móvil: 2 columnas de siempre. Tablet: tantas como quepan a
+              // ~190 de ancho, sin pasar del aspecto de la tarjeta.
+              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                maxCrossAxisExtent: 210,
                 mainAxisSpacing: 12,
                 crossAxisSpacing: 12,
                 childAspectRatio: 0.82,
@@ -192,6 +197,7 @@ class _LibraryScreenState extends State<LibraryScreen>
             ),
           ),
         ],
+      ),
       ),
       ),
     );

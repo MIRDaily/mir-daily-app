@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/models/models.dart';
+import '../../core/responsive/content_shell.dart';
 import '../../core/services/api_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../decks/widgets/save_to_deck.dart';
@@ -631,7 +632,9 @@ class _SimBuilderState extends State<_SimBuilder> {
     final selectedTopics =
         _topics.where((t) => _selectedTopicIds.contains(t.id)).toList();
 
-    return ListView(
+    return BodyConstraint(
+      wide: true,
+      child: ListView(
       padding: const EdgeInsets.fromLTRB(18, 8, 18, 40),
       children: [
         const StickerHero(
@@ -881,6 +884,7 @@ class _SimBuilderState extends State<_SimBuilder> {
           ),
         ),
       ],
+      ),
     );
   }
 

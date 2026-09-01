@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/models/models.dart';
+import '../../core/responsive/content_shell.dart';
 import '../../core/services/api_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../shared/sticker/sticker.dart';
@@ -136,6 +137,7 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
       ),
       body: SafeArea(
         top: false,
+        child: BodyConstraint(
         child: RefreshIndicator(
           color: AppColors.primary,
           onRefresh: _load,
@@ -176,6 +178,7 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
               ],
             ],
           ),
+        ),
         ),
       ),
     );

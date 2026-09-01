@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/responsive/adaptive_grid.dart';
+import '../../core/responsive/content_shell.dart';
 import '../../core/theme/app_theme.dart';
 import '../../shared/widgets/misc_widgets.dart';
 import '../../shared/widgets/pressable.dart';
@@ -37,6 +39,7 @@ class ElectrosHubScreen extends StatelessWidget {
       appBar: AppBar(title: const Text('Electros')),
       body: SafeArea(
         top: false,
+        child: BodyConstraint(
         child: ListView(
           physics: const BouncingScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
@@ -64,34 +67,40 @@ class ElectrosHubScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 22),
-            SlideFadeIn(
-              delay: const Duration(milliseconds: 160),
-              beginOffset: const Offset(0, 0.12),
-              child: _ElectroCard(
-                title: 'Academia ECG',
-                subtitle:
-                    'Aprende paso a paso: de la mecánica eléctrica del corazón a los algoritmos diagnósticos, con animaciones interactivas.',
-                icon: Icons.school_rounded,
-                gradient: const [Color(0xFFE8A598), Color(0xFFD68C7F)],
-                tag: 'APRENDE',
-                onTap: () => _openAcademia(context),
-              ),
-            ),
-            const SizedBox(height: 14),
-            SlideFadeIn(
-              delay: const Duration(milliseconds: 230),
-              beginOffset: const Offset(0, 0.12),
-              child: _ElectroCard(
-                title: 'Simulador de ECG',
-                subtitle:
-                    'Monitor animado y ECG de 12 derivaciones para estudiar los principales diagnósticos, con modo examen.',
-                icon: Icons.monitor_heart_rounded,
-                gradient: const [Color(0xFF6E8E6B), Color(0xFF8BA888)],
-                tag: '12 DERIVACIONES',
-                onTap: () => _openSimulador(context),
-              ),
+            AdaptiveGrid(
+              targetItemWidth: 420,
+              maxColumns: 2,
+              children: [
+                SlideFadeIn(
+                  delay: const Duration(milliseconds: 160),
+                  beginOffset: const Offset(0, 0.12),
+                  child: _ElectroCard(
+                    title: 'Academia ECG',
+                    subtitle:
+                        'Aprende paso a paso: de la mecánica eléctrica del corazón a los algoritmos diagnósticos, con animaciones interactivas.',
+                    icon: Icons.school_rounded,
+                    gradient: const [Color(0xFFE8A598), Color(0xFFD68C7F)],
+                    tag: 'APRENDE',
+                    onTap: () => _openAcademia(context),
+                  ),
+                ),
+                SlideFadeIn(
+                  delay: const Duration(milliseconds: 230),
+                  beginOffset: const Offset(0, 0.12),
+                  child: _ElectroCard(
+                    title: 'Simulador de ECG',
+                    subtitle:
+                        'Monitor animado y ECG de 12 derivaciones para estudiar los principales diagnósticos, con modo examen.',
+                    icon: Icons.monitor_heart_rounded,
+                    gradient: const [Color(0xFF6E8E6B), Color(0xFF8BA888)],
+                    tag: '12 DERIVACIONES',
+                    onTap: () => _openSimulador(context),
+                  ),
+                ),
+              ],
             ),
           ],
+        ),
         ),
       ),
     );

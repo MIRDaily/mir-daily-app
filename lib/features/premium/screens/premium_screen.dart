@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/responsive/content_shell.dart';
 import '../../../core/theme/app_theme.dart';
 import '../widgets/panel_section.dart';
 
@@ -11,7 +12,8 @@ class PremiumScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Premium'),
       ),
-      body: SingleChildScrollView(
+      body: BodyConstraint(
+        child: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 32, 20, 40),
           child: Column(
@@ -106,6 +108,7 @@ class PremiumScreen extends StatelessWidget {
               const PanelSection(),
             ],
           ),
+        ),
         ),
       ),
     );

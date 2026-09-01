@@ -63,6 +63,35 @@ class ContentShell extends StatelessWidget {
   }
 }
 
+/// Acota y centra un cuerpo que ocupa toda la altura (un `ListView`,
+/// `CustomScrollView`, `Column` con `Expanded`…). A diferencia de
+/// [ContentShell] no toca el padding interno: el hijo conserva su gutter y
+/// solo se le limita el ancho. En `compact` es transparente.
+class BodyConstraint extends StatelessWidget {
+  const BodyConstraint({
+    super.key,
+    required this.child,
+    this.wide = false,
+    this.maxWidth,
+  });
+
+  final Widget child;
+  final bool wide;
+  final double? maxWidth;
+
+  @override
+  Widget build(BuildContext context) {
+    final limit = maxWidth ?? context.contentMaxWidth(wide: wide);
+    if (limit == double.infinity) return child;
+    return Center(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: limit),
+        child: child,
+      ),
+    );
+  }
+}
+
 /// Padding horizontal que centra un contenido de ancho `limit` dentro del
 /// ancho de ventana actual, sin bajar nunca del gutter del breakpoint. Útil
 /// para `SliverPadding` en los `CustomScrollView` que no se pueden envolver

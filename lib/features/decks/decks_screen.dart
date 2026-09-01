@@ -7,6 +7,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/models/models.dart';
 import '../../core/providers/auth_provider.dart';
+import '../../core/responsive/adaptive_grid.dart';
+import '../../core/responsive/breakpoints.dart';
+import '../../core/responsive/content_shell.dart';
 import '../../core/services/api_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../shared/sticker/sticker.dart';
@@ -361,7 +364,9 @@ class _DecksScreenState extends State<DecksScreen>
       ),
       body: SafeArea(
         bottom: false,
-        child: RefreshIndicator(
+        child: BodyConstraint(
+          wide: true,
+          child: RefreshIndicator(
           color: AppColors.primary,
           onRefresh: _load,
           child: CustomScrollView(
@@ -402,16 +407,21 @@ class _DecksScreenState extends State<DecksScreen>
                   ),
                 ),
               ),
-              ..._content(galleryStyle),
+              ..._content(context, galleryStyle),
               const SliverToBoxAdapter(child: SizedBox(height: 96)),
             ],
           ),
+        ),
         ),
       ),
     );
   }
 
-  List<Widget> _content(String galleryStyle) {
+  List<Widget> _content(BuildContext context, String galleryStyle) {
+    // En tablet las tarjetas van en rejilla; en móvil, lista perezosa como
+    // siempre (el `SliverList` no monta las que no se ven).
+    final grid = context.isWide;
+
     if (_loading) {
       return [
         SliverPadding(
@@ -493,8 +503,16 @@ class _DecksScreenState extends State<DecksScreen>
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SectionLabel('De MIRDaily'),
-                ...sistema.map(tarjeta),
-                if (reservarHueco) const ConstructionDeckCard(),
+                AdaptiveGrid(
+                  targetItemWidth: 360,
+                  maxColumns: 3,
+                  // Las tarjetas ya traen su propio margen inferior (14).
+                  runSpacing: 0,
+                  children: [
+                    ...sistema.map(tarjeta),
+                    if (reservarHueco) const ConstructionDeckCard(),
+                  ],
+                ),
               ],
             ),
           ),
@@ -546,6 +564,18 @@ class _DecksScreenState extends State<DecksScreen>
                   ),
                 ),
               ],
+            ),
+          ),
+        )
+      else if (grid)
+        SliverPadding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          sliver: SliverToBoxAdapter(
+            child: AdaptiveGrid(
+              targetItemWidth: 360,
+              maxColumns: 3,
+              runSpacing: 0,
+              children: [for (final d in propios) tarjeta(d)],
             ),
           ),
         )

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/responsive/content_shell.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/sticker/sticker.dart';
@@ -160,6 +161,7 @@ class _VersusScreenState extends State<VersusScreen> {
       backgroundColor: AppColors.background,
       body: SafeArea(
         bottom: false,
+        child: BodyConstraint(
         child: ListView(
           physics: const BouncingScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
@@ -210,6 +212,7 @@ class _VersusScreenState extends State<VersusScreen> {
               ),
             ),
           ],
+        ),
         ),
       ),
     );

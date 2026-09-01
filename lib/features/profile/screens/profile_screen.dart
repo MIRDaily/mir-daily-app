@@ -5,6 +5,7 @@ import '../../../core/models/models.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/daily_provider.dart';
 import '../../../core/services/api_service.dart';
+import '../../../core/responsive/content_shell.dart';
 import '../../../core/services/notification_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/sticker/sticker.dart';
@@ -80,6 +81,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
           return SafeArea(
             bottom: false,
+            child: BodyConstraint(
             child: RefreshIndicator(
               color: AppColors.primary,
               onRefresh: _load,
@@ -175,6 +177,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   _buildLogoutButton(),
                 ],
               ),
+            ),
             ),
           );
         },

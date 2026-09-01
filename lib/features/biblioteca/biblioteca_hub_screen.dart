@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/responsive/adaptive_grid.dart';
+import '../../core/responsive/content_shell.dart';
 import '../../core/theme/app_theme.dart';
 import '../../shared/sticker/sticker.dart';
 import '../../shared/sticker/textures.dart';
@@ -33,7 +35,8 @@ class BibliotecaHubScreen extends StatelessWidget {
         bottom: false,
         child: ListView(
           physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
+          padding: centeringGutter(context, wide: true)
+              .add(const EdgeInsets.fromLTRB(0, 20, 0, 100)),
           children: [
             const StickerHero(
               badge: 'Studio',
@@ -43,82 +46,86 @@ class BibliotecaHubScreen extends StatelessWidget {
             ),
             const SizedBox(height: 26),
             const SectionLabel('Herramientas'),
-            SlideFadeIn(
-              delay: const Duration(milliseconds: 120),
-              beginOffset: const Offset(0, 0.12),
-              child: _ToolCard(
-                title: 'Mazos',
-                subtitle:
-                    'Repaso espaciado de tus preguntas guardadas para retenerlas a largo plazo.',
-                tag: 'Dominio',
-                icon: Icons.layers_rounded,
-                accent: const Color(0xFFE8A598),
-                art: const DeckCardArt(),
-                texture: ruledPaper(step: 22),
-                onTap: () => _open(context, const DecksScreen()),
-              ),
-            ),
             const SizedBox(height: 14),
-            SlideFadeIn(
-              delay: const Duration(milliseconds: 155),
-              beginOffset: const Offset(0, 0.12),
-              child: _ToolCard(
-                title: 'Flashcards',
-                subtitle:
-                    'Crea y repasa tus propias tarjetas, con anverso y reverso.',
-                tag: 'Tarjetas',
-                icon: Icons.style_rounded,
-                accent: const Color(0xFFD68C7F),
-                art: const FlashcardFlipArt(),
-                texture: ruledPaper(step: 20),
-                onTap: () => _open(context, const FlashcardsScreen()),
-              ),
-            ),
-            const SizedBox(height: 14),
-            SlideFadeIn(
-              delay: const Duration(milliseconds: 220),
-              beginOffset: const Offset(0, 0.12),
-              child: _ToolCard(
-                title: 'Simulacros',
-                subtitle:
-                    'Crea exámenes a medida por asignatura y tema, con corrección e historial.',
-                tag: 'Exámenes',
-                icon: Icons.quiz_rounded,
-                accent: const Color(0xFF6E8E6B),
-                art: const ExamSheetArt(),
-                texture: ruledPaper(step: 26),
-                onTap: () => _open(context, const SimulacroScreen()),
-              ),
-            ),
-            const SizedBox(height: 14),
-            SlideFadeIn(
-              delay: const Duration(milliseconds: 290),
-              beginOffset: const Offset(0, 0.12),
-              child: _ToolCard(
-                title: 'Electros',
-                subtitle:
-                    'Aprende a leer el ECG en la Academia y practica con un simulador de 12 derivaciones.',
-                tag: 'ECG',
-                icon: Icons.monitor_heart_rounded,
-                accent: const Color(0xFFC45B4B),
-                art: const EcgMonitorArt(),
-                texture: graphPaper(tint: const Color(0xFFC45B4B), step: 9),
-                onTap: () => _open(context, const ElectrosHubScreen()),
-              ),
-            ),
-            const SizedBox(height: 14),
-            SlideFadeIn(
-              delay: const Duration(milliseconds: 360),
-              beginOffset: const Offset(0, 0.12),
-              child: _ToolCard(
-                title: 'Apuntes',
-                subtitle: 'Temario por asignaturas, actualizado con IA predictiva.',
-                tag: 'Temario',
-                icon: Icons.menu_book_rounded,
-                accent: const Color(0xFF7D8A96),
-                texture: ruledPaper(step: 18),
-                onTap: () => _open(context, const LibraryScreen()),
-              ),
+            AdaptiveGrid(
+              targetItemWidth: 380,
+              maxColumns: 3,
+              children: [
+                SlideFadeIn(
+                  delay: const Duration(milliseconds: 120),
+                  beginOffset: const Offset(0, 0.12),
+                  child: _ToolCard(
+                    title: 'Mazos',
+                    subtitle:
+                        'Repaso espaciado de tus preguntas guardadas para retenerlas a largo plazo.',
+                    tag: 'Dominio',
+                    icon: Icons.layers_rounded,
+                    accent: const Color(0xFFE8A598),
+                    art: const DeckCardArt(),
+                    texture: ruledPaper(step: 22),
+                    onTap: () => _open(context, const DecksScreen()),
+                  ),
+                ),
+                SlideFadeIn(
+                  delay: const Duration(milliseconds: 155),
+                  beginOffset: const Offset(0, 0.12),
+                  child: _ToolCard(
+                    title: 'Flashcards',
+                    subtitle:
+                        'Crea y repasa tus propias tarjetas, con anverso y reverso.',
+                    tag: 'Tarjetas',
+                    icon: Icons.style_rounded,
+                    accent: const Color(0xFFD68C7F),
+                    art: const FlashcardFlipArt(),
+                    texture: ruledPaper(step: 20),
+                    onTap: () => _open(context, const FlashcardsScreen()),
+                  ),
+                ),
+                SlideFadeIn(
+                  delay: const Duration(milliseconds: 220),
+                  beginOffset: const Offset(0, 0.12),
+                  child: _ToolCard(
+                    title: 'Simulacros',
+                    subtitle:
+                        'Crea exámenes a medida por asignatura y tema, con corrección e historial.',
+                    tag: 'Exámenes',
+                    icon: Icons.quiz_rounded,
+                    accent: const Color(0xFF6E8E6B),
+                    art: const ExamSheetArt(),
+                    texture: ruledPaper(step: 26),
+                    onTap: () => _open(context, const SimulacroScreen()),
+                  ),
+                ),
+                SlideFadeIn(
+                  delay: const Duration(milliseconds: 290),
+                  beginOffset: const Offset(0, 0.12),
+                  child: _ToolCard(
+                    title: 'Electros',
+                    subtitle:
+                        'Aprende a leer el ECG en la Academia y practica con un simulador de 12 derivaciones.',
+                    tag: 'ECG',
+                    icon: Icons.monitor_heart_rounded,
+                    accent: const Color(0xFFC45B4B),
+                    art: const EcgMonitorArt(),
+                    texture: graphPaper(tint: const Color(0xFFC45B4B), step: 9),
+                    onTap: () => _open(context, const ElectrosHubScreen()),
+                  ),
+                ),
+                SlideFadeIn(
+                  delay: const Duration(milliseconds: 360),
+                  beginOffset: const Offset(0, 0.12),
+                  child: _ToolCard(
+                    title: 'Apuntes',
+                    subtitle:
+                        'Temario por asignaturas, actualizado con IA predictiva.',
+                    tag: 'Temario',
+                    icon: Icons.menu_book_rounded,
+                    accent: const Color(0xFF7D8A96),
+                    texture: ruledPaper(step: 18),
+                    onTap: () => _open(context, const LibraryScreen()),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
