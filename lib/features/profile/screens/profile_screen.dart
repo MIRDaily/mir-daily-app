@@ -682,8 +682,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               const SizedBox(height: 4),
               const Text(
-                'Cómo se ve la barra inferior. No afecta al raíl lateral de '
-                'tablet en horizontal.',
+                'La clásica usa el raíl lateral en tablet horizontal. La '
+                'flotante es un bocadillo despegado del borde, siempre.',
                 style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
               ),
               const SizedBox(height: 10),
@@ -801,8 +801,9 @@ class _NavStyleOption extends StatelessWidget {
       ),
       subtitle: Text(
         floating
-            ? 'Un bocadillo despegado del borde, estilo Apple Music.'
-            : 'Pegada al borde, de lado a lado.',
+            ? 'Bocadillo despegado del borde, estilo Apple Music. También en '
+                'tablet horizontal.'
+            : 'Pegada al borde. Raíl lateral en tablet horizontal.',
         style: const TextStyle(
             color: AppColors.textSecondary, fontSize: 12.5),
       ),

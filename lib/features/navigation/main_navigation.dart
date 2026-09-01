@@ -309,15 +309,20 @@ class _MainNavigationState extends State<MainNavigation>
     // Detectar si está en modo focus activo
     final isInFocusMode = context.watch<FocusProvider>().isInFocusMode;
 
-    // Raíl lateral cuando la tablet está en horizontal (y fuera del focus). Al
-    // girar a vertical se cae a la barra inferior, con los mismos iconos.
-    final useRail = !isInFocusMode && context.usesNavRail;
+    // Estilo de navegación elegido por el usuario (Perfil > Preferencias).
+    // - clásica: raíl lateral en tablet horizontal, barra inferior en el resto.
+    // - flotante: siempre el bocadillo flotante, también en tablet horizontal
+    //   (el raíl se desactiva).
+    final navStyle = context.watch<SettingsProvider>().navBarStyle;
+    final wantsFloating = navStyle == NavBarStyle.floating;
+
+    // Raíl lateral cuando la tablet está en horizontal, fuera del focus y con
+    // el estilo clásico. Al girar a vertical se cae a la barra inferior.
+    final useRail =
+        !isInFocusMode && !wantsFloating && context.usesNavRail;
     final railWidth = useRail ? kNavRailWidth : 0.0;
 
-    // Estilo de la barra inferior (ajuste del usuario). No aplica al raíl.
-    final navStyle = context.watch<SettingsProvider>().navBarStyle;
-    final floatingBar =
-        !isInFocusMode && !useRail && navStyle == NavBarStyle.floating;
+    final floatingBar = !isInFocusMode && wantsFloating;
 
     final pageAreaWidth = screenSize.width - railWidth;
     _keepPageOnResize(pageAreaWidth);

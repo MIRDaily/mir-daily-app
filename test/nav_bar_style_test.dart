@@ -12,11 +12,13 @@ import 'package:mirdaily_app/core/services/api_service.dart';
 import 'package:mirdaily_app/core/services/auth_service.dart';
 import 'package:mirdaily_app/features/focus/providers/focus_provider.dart';
 import 'package:mirdaily_app/features/navigation/main_navigation.dart';
+import 'package:mirdaily_app/features/navigation/widgets/nav_rail.dart';
 
-Future<void> pump(WidgetTester tester, SettingsProvider settings) async {
+Future<void> pump(WidgetTester tester, SettingsProvider settings,
+    {Size size = const Size(390, 844)}) async {
   SharedPreferences.setMockInitialValues({'daily_reminder_prompted': true});
   tester.view.devicePixelRatio = 1.0;
-  tester.view.physicalSize = const Size(390, 844);
+  tester.view.physicalSize = size;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
 
@@ -71,6 +73,27 @@ void main() {
     // margen por debajo).
     final barBottom = tester.getRect(find.text('Perfil').first).bottom;
     expect(barBottom, lessThan(838));
+  });
+
+  testWidgets('flotante en tablet horizontal: desactiva el raíl', (tester) async {
+    final settings = SettingsProvider();
+    await settings.setNavBarStyle(NavBarStyle.floating);
+    await pump(tester, settings, size: const Size(1280, 800));
+
+    // Sin raíl aunque sea tablet apaisada: gana el estilo flotante.
+    expect(find.byType(NavRail), findsNothing);
+    expect(
+      tester.widget<Scaffold>(find.byType(Scaffold).first).bottomNavigationBar,
+      isNull,
+    );
+    for (final l in ['Studio', 'Versus', 'Quiz', 'Premium', 'Perfil']) {
+      expect(find.text(l), findsWidgets, reason: l);
+    }
+  });
+
+  testWidgets('clásica en tablet horizontal: sí hay raíl', (tester) async {
+    await pump(tester, SettingsProvider(), size: const Size(1280, 800));
+    expect(find.byType(NavRail), findsOneWidget);
   });
 
   testWidgets('cambiar el ajuste en caliente cambia la barra', (tester) async {
