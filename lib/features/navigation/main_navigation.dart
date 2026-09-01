@@ -236,19 +236,26 @@ class _MainNavigationState extends State<MainNavigation>
   }
 
   /// Al rotar (o al aparecer/desaparecer el raíl) cambia el ancho del área de
-  /// páginas. El `PageView` no reajusta bien su viewport y se queda en blanco
-  /// hasta que se vuelve a tocar: se fuerza un salto a la página actual una
-  /// vez asentado el nuevo tamaño.
+  /// páginas y el `PageView` no reajusta su offset: se queda en blanco (entre
+  /// dos páginas) hasta que se vuelve a tocar. `jumpToPage` no bastaba.
+  ///
+  /// Se recrea el `PageController` sembrado con la página actual: un
+  /// controller nuevo calcula su offset contra el viewport nuevo y pinta la
+  /// página correcta de inmediato. El viejo se tira tras el frame, cuando el
+  /// PageView ya se ha desenganchado de él.
   void _keepPageOnResize(double pageAreaWidth) {
-    if (_lastPageAreaWidth != null && _lastPageAreaWidth != pageAreaWidth) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted || !_pageController.hasClients) return;
-        _pageController.jumpToPage(
-          _pageController.page?.round() ?? _selectedIndex,
-        );
-      });
-    }
+    final prev = _lastPageAreaWidth;
     _lastPageAreaWidth = pageAreaWidth;
+    if (prev == null || (prev - pageAreaWidth).abs() < 1) return;
+
+    final target = _pageController.hasClients
+        ? (_pageController.page?.round() ?? _selectedIndex)
+        : _selectedIndex;
+    final old = _pageController;
+    old.removeListener(_onPageScroll);
+    _pageController = PageController(initialPage: target)
+      ..addListener(_onPageScroll);
+    WidgetsBinding.instance.addPostFrameCallback((_) => old.dispose());
   }
 
   void _onNavItemTapped(int index) {
@@ -304,9 +311,7 @@ class _MainNavigationState extends State<MainNavigation>
     // Raíl lateral cuando la tablet está en horizontal (y fuera del focus). Al
     // girar a vertical se cae a la barra inferior, con los mismos iconos.
     final useRail = !isInFocusMode && context.usesNavRail;
-    final railWidth = useRail
-        ? (context.usesExtendedNavRail ? kNavRailExtendedWidth : kNavRailWidth)
-        : 0.0;
+    final railWidth = useRail ? kNavRailWidth : 0.0;
 
     final pageAreaWidth = screenSize.width - railWidth;
     _keepPageOnResize(pageAreaWidth);
@@ -329,6 +334,10 @@ class _MainNavigationState extends State<MainNavigation>
     return Scaffold(
       body: useRail
           ? Row(
+              // stretch: el raíl se estira a todo el alto y su borde derecho
+              // recorre el lateral entero (si no, quedaba un rectángulo
+              // flotante centrado a media altura).
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 AnimatedBuilder(
                   animation: Listenable.merge([_pillCtrl, _barEntry]),
@@ -337,7 +346,6 @@ class _MainNavigationState extends State<MainNavigation>
                     selectedIndex: _selectedIndex,
                     pillPos: _pillPos,
                     wave: _wave,
-                    extended: context.usesExtendedNavRail,
                     entry: _barEntry.value,
                     onTap: _onNavItemTapped,
                   ),

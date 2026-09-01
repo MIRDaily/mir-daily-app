@@ -3,24 +3,21 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../main_navigation.dart' show NavItem;
 
-/// Ancho del raíl compacto (solo icono + etiqueta pequeña debajo).
-const double kNavRailWidth = 76;
+/// Ancho del raíl. Estrecho a propósito: icono + etiqueta pequeña debajo,
+/// como los ítems de la barra inferior pero en vertical.
+const double kNavRailWidth = 74;
 
-/// Ancho del raíl extendido (icono + etiqueta al lado).
-const double kNavRailExtendedWidth = 184;
+/// Compatibilidad: el raíl ya no tiene variante "extendida".
+const double kNavRailExtendedWidth = kNavRailWidth;
 
-/// Alto de cada destino del raíl. Fijo: los destinos van agrupados arriba,
-/// no repartidos por todo el alto (eso los hacía enormes en una tablet).
-const double _kItemHeight = 60;
+/// Alto de cada destino. Fijo: van agrupados arriba, no repartidos por todo
+/// el alto (eso los hacía enormes).
+const double _kItemHeight = 58;
+const double _kTopGap = 8;
 
-/// Separación entre el borde superior y el primer destino.
-const double _kTopGap = 10;
-
-/// Raíl de navegación lateral para tablet en horizontal. Es el equivalente
-/// vertical de la barra inferior animada: mismos items, misma "pastilla"
-/// deslizante (aquí en el eje Y), mismo `onTap`.
-///
-/// No tiene estado propio: el padre lo reconstruye dentro de un
+/// Raíl de navegación lateral para tablet en horizontal. Equivalente vertical
+/// de la barra inferior: mismos destinos, misma "pastilla" deslizante (aquí en
+/// Y), mismo `onTap`. Sin estado propio — el padre lo reconstruye dentro de un
 /// `AnimatedBuilder` con la posición de la pastilla ya calculada.
 class NavRail extends StatelessWidget {
   const NavRail({
@@ -29,93 +26,75 @@ class NavRail extends StatelessWidget {
     required this.selectedIndex,
     required this.pillPos,
     required this.wave,
-    required this.extended,
     required this.entry,
     required this.onTap,
   });
 
   final List<NavItem> items;
   final int selectedIndex;
-
-  /// Posición de la pastilla en índices (p. ej. 1.7), con rebote.
   final double pillPos;
-
-  /// Envolvente "ola" 0..1 mientras la pastilla viaja.
   final double wave;
-
-  /// `true` = icono + etiqueta al lado; `false` = icono + etiqueta debajo.
-  final bool extended;
-
-  /// Progreso de la animación de entrada (0..1), compartida con la barra.
   final double entry;
-
   final ValueChanged<int> onTap;
 
   @override
   Widget build(BuildContext context) {
     final n = items.length;
-    final width = extended ? kNavRailExtendedWidth : kNavRailWidth;
     final t = entry.clamp(0.0, 1.0);
     final topPad = MediaQuery.paddingOf(context).top;
 
+    // El Container se estira a todo el alto (el Row padre usa
+    // CrossAxisAlignment.stretch): el raíl "toca" arriba y abajo y su borde
+    // derecho recorre todo el lateral, no es un rectángulo flotante.
     return FractionalTranslation(
-      translation: Offset(-0.14 * (1 - t), 0),
+      translation: Offset(-0.16 * (1 - t), 0),
       child: Opacity(
         opacity: t,
         child: Container(
-          width: width,
+          width: kNavRailWidth,
           decoration: const BoxDecoration(
             color: AppColors.surface,
             border: Border(
               right: BorderSide(color: AppColors.hairline, width: 2),
             ),
           ),
-          child: Padding(
-            padding: EdgeInsets.only(
-              top: topPad + _kTopGap,
-              left: 8,
-              right: 8,
-              bottom: 12,
-            ),
-            child: SizedBox(
-              height: n * _kItemHeight,
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  // Pastilla: alto fijo, se desliza entre las ranuras.
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    top: pillPos * _kItemHeight + 4,
-                    height: _kItemHeight - 8,
-                    child: Transform.scale(
-                      scale: 1 + 0.04 * wave,
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: AppColors.primary
-                              .withValues(alpha: 0.12 + 0.06 * wave),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
+          padding: EdgeInsets.only(top: topPad + _kTopGap, bottom: 12),
+          child: SizedBox(
+            height: n * _kItemHeight,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Positioned(
+                  left: 6,
+                  right: 6,
+                  top: pillPos * _kItemHeight + 3,
+                  height: _kItemHeight - 6,
+                  child: Transform.scale(
+                    scale: 1 + 0.04 * wave,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: AppColors.primary
+                            .withValues(alpha: 0.12 + 0.06 * wave),
+                        borderRadius: BorderRadius.circular(15),
                       ),
                     ),
                   ),
-                  Column(
-                    children: List.generate(n, (i) {
-                      final sel = (1 - (pillPos - i).abs()).clamp(0.0, 1.0);
-                      return SizedBox(
-                        height: _kItemHeight,
-                        child: _RailPip(
-                          item: items[i],
-                          selectedness: sel,
-                          wave: wave * sel,
-                          extended: extended,
-                          onTap: () => onTap(i),
-                        ),
-                      );
-                    }),
-                  ),
-                ],
-              ),
+                ),
+                Column(
+                  children: List.generate(n, (i) {
+                    final sel = (1 - (pillPos - i).abs()).clamp(0.0, 1.0);
+                    return SizedBox(
+                      height: _kItemHeight,
+                      child: _RailPip(
+                        item: items[i],
+                        selectedness: sel,
+                        wave: wave * sel,
+                        onTap: () => onTap(i),
+                      ),
+                    );
+                  }),
+                ),
+              ],
             ),
           ),
         ),
@@ -129,14 +108,12 @@ class _RailPip extends StatelessWidget {
     required this.item,
     required this.selectedness,
     required this.wave,
-    required this.extended,
     required this.onTap,
   });
 
   final NavItem item;
   final double selectedness;
   final double wave;
-  final bool extended;
   final VoidCallback onTap;
 
   @override
@@ -147,49 +124,35 @@ class _RailPip extends StatelessWidget {
       selectedness,
     )!;
 
-    final icon = Transform.scale(
-      scale: 1.0 + (0.10 * selectedness) + (0.16 * wave),
-      child: Icon(
-        selectedness > 0.5 ? item.activeIcon : item.icon,
-        color: color,
-        size: 22,
-      ),
-    );
-
-    final label = Text(
-      item.label,
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      style: TextStyle(
-        fontSize: extended ? 12.5 : 10,
-        fontWeight: selectedness > 0.5 ? FontWeight.w700 : FontWeight.w500,
-        color: color,
-      ),
-    );
-
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Center(
-        child: extended
-            ? Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: Row(
-                  children: [
-                    icon,
-                    const SizedBox(width: 12),
-                    Flexible(child: label),
-                  ],
-                ),
-              )
-            : Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  icon,
-                  const SizedBox(height: 3),
-                  label,
-                ],
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Transform.scale(
+              scale: 1.0 + (0.10 * selectedness) + (0.16 * wave),
+              child: Icon(
+                selectedness > 0.5 ? item.activeIcon : item.icon,
+                color: color,
+                size: 22,
               ),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              item.label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 9.5,
+                fontWeight:
+                    selectedness > 0.5 ? FontWeight.w700 : FontWeight.w500,
+                color: color,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

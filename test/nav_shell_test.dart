@@ -79,5 +79,31 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
     // No explota y el raíl sigue ahí.
     expect(find.byType(NavRail), findsOneWidget);
+    // La pestaña visible es Perfil, no el Quiz.
+    expect(find.byKey(const ValueKey('profile')), findsOneWidget);
+    expect(find.byKey(const ValueKey('quiz')), findsNothing);
+  });
+
+  testWidgets('al rotar, la pestaña abierta sigue visible (no se queda '
+      'en blanco)', (tester) async {
+    await pump(tester, const Size(1280, 800));
+    await tester.pump(const Duration(milliseconds: 900));
+    await tester.tap(find.descendant(
+      of: find.byType(NavRail),
+      matching: find.text('Perfil'),
+    ));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.byKey(const ValueKey('profile')), findsOneWidget);
+
+    // Rotar a vertical: cambia el ancho del área de páginas.
+    tester.view.physicalSize = const Size(800, 1280);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    // Vuelve la barra inferior y Perfil SIGUE siendo la pestaña visible.
+    expect(find.byType(NavRail), findsNothing);
+    expect(find.byKey(const ValueKey('profile')), findsOneWidget);
+    expect(find.byKey(const ValueKey('quiz')), findsNothing);
   });
 }

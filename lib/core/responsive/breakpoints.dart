@@ -66,9 +66,11 @@ extension BreakpointX on BuildContext {
       case WindowSize.compact:
         return double.infinity;
       case WindowSize.medium:
-        return wide ? 900 : kReadableMaxWidth;
+        return wide ? 900 : 820;
       case WindowSize.expanded:
-        return wide ? kWideContentMaxWidth : kReadableMaxWidth;
+        // Con el raíl a la izquierda, un ancho de lectura corto deja el
+        // contenido descolgado hacia la derecha; se da algo más de aire.
+        return wide ? kWideContentMaxWidth : 880;
     }
   }
 
