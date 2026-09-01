@@ -404,22 +404,6 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
               onPressed: _pickGradient,
               icon: const Icon(Icons.palette_outlined, color: kInk),
             ),
-          // Embebido no hay FAB (choca con el de la lista y con la barra
-          // flotante): "Estudiar" va aquí, bien visible.
-          if (embedded && canStudy)
-            Padding(
-              padding: const EdgeInsets.only(right: 8, left: 4),
-              child: FilledButton.icon(
-                onPressed: _study,
-                icon: const Icon(Icons.play_arrow_rounded, size: 20),
-                label: const Text('Estudiar'),
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  visualDensity: VisualDensity.compact,
-                ),
-              ),
-            ),
         ],
       ),
       body: _loading
@@ -511,9 +495,12 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
                     ],
                   ),
                 ),
-      floatingActionButton: (!embedded && canStudy)
+      // El mismo botón que en móvil. En maestro-detalle ya no choca con
+      // nada: "Nuevo mazo" vive en la cabecera de la lista y la barra
+      // flotante va centrada.
+      floatingActionButton: canStudy
           ? Padding(
-              padding: const EdgeInsets.only(bottom: 4, right: 4),
+              padding: EdgeInsets.only(bottom: embedded ? 12 : 4, right: 4),
               child: StickerButton(
                 label: 'Estudiar',
                 icon: Icons.play_arrow_rounded,

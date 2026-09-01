@@ -127,8 +127,8 @@ void main() {
       await tester.pump(const Duration(milliseconds: 80));
     }
 
-    // "Estudiar" está en el AppBar del detalle (no un FAB perdido).
-    expect(find.widgetWithText(FilledButton, 'Estudiar'), findsOneWidget);
+    // El botón "Estudiar" del detalle está presente (mismo que en móvil).
+    expect(find.text('Estudiar'), findsOneWidget);
 
     // Plegar la lista: la columna maestra se anima a ancho 0 y el tirador
     // "Lista" se vuelve tocable.

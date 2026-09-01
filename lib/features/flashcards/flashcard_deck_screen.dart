@@ -167,27 +167,12 @@ class _FlashcardDeckScreenState extends State<FlashcardDeckScreen> {
             icon: const Icon(Icons.add_rounded),
             onPressed: _create,
           ),
-          // Embebido no hay FAB: "Estudiar" va en el AppBar.
-          if (embedded && cards.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(right: 8, left: 4),
-              child: FilledButton.icon(
-                onPressed: _study,
-                icon: const Icon(Icons.play_arrow_rounded, size: 20),
-                label: const Text('Estudiar'),
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  visualDensity: VisualDensity.compact,
-                ),
-              ),
-            ),
         ],
       ),
-      floatingActionButton: (embedded || cards.isEmpty)
+      floatingActionButton: cards.isEmpty
           ? null
           : Padding(
-              padding: const EdgeInsets.only(bottom: 4, right: 4),
+              padding: EdgeInsets.only(bottom: embedded ? 12 : 4, right: 4),
               child: StickerButton(
                 label: 'Estudiar',
                 icon: Icons.play_arrow_rounded,
