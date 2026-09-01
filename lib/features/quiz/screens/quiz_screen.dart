@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flame/game.dart';
 import 'package:provider/provider.dart';
+import '../../../core/responsive/breakpoints.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/providers/daily_provider.dart';
 import '../../daily/daily_quiz_screen.dart';
@@ -360,13 +361,25 @@ class _QuizScreenState extends State<QuizScreen>
   Widget _buildPackOpeningScreen() {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: Stack(
-        children: [
-          // El fondo lo pone el propio juego (PackOpeningGame.backgroundColor),
-          // que es lo único que se pinta mientras carga.
-          GameWidget(game: _game!),
-          _buildOverlay(),
-        ],
+      body: Center(
+        // La animación del sobre está calibrada para una pantalla de móvil
+        // (vertical, estrecha). En tablet se centra en una columna de ese
+        // ancho y el resto queda de fondo, en vez de estirar el sobre y las
+        // cartas por todo el ancho.
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: context.isWide ? 460 : double.infinity,
+          ),
+          child: Stack(
+            children: [
+              // El fondo lo pone el propio juego
+              // (PackOpeningGame.backgroundColor), que es lo único que se
+              // pinta mientras carga.
+              GameWidget(game: _game!),
+              _buildOverlay(),
+            ],
+          ),
+        ),
       ),
     );
   }

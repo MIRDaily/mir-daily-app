@@ -543,17 +543,27 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 // campo de texto (no hay riesgo de teclado), y necesita alto
                 // ACOTADO para poder repartir el espacio con Spacer entre sus
                 // bloques — un Padding normal (sin scroll) se lo da.
-                child: _step == 0
-                    ? Padding(
-                        key: const ValueKey(0),
-                        padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
-                        child: _stepWelcome(),
-                      )
-                    : SingleChildScrollView(
-                        key: ValueKey(_step),
-                        padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
-                        child: _buildStep(),
-                      ),
+                // En tablet el asistente se centra en una columna acotada en
+                // vez de ocupar todo el ancho. La `key` va aquí (es lo que ve
+                // el AnimatedSwitcher para detectar el cambio de paso).
+                child: Align(
+                  key: ValueKey(_step),
+                  alignment: Alignment.topCenter,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 620),
+                    child: _step == 0
+                        ? Padding(
+                            padding:
+                                const EdgeInsets.fromLTRB(24, 12, 24, 24),
+                            child: _stepWelcome(),
+                          )
+                        : SingleChildScrollView(
+                            padding:
+                                const EdgeInsets.fromLTRB(24, 12, 24, 24),
+                            child: _buildStep(),
+                          ),
+                  ),
+                ),
                   ),
                 ),
               ),

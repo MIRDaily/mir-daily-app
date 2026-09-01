@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/models/models.dart';
 import '../../core/providers/daily_provider.dart';
+import '../../core/responsive/content_shell.dart';
 import '../../core/theme/app_theme.dart';
 import '../decks/widgets/save_to_deck.dart';
 import '../../shared/widgets/goo_fission_loader.dart';
@@ -172,7 +173,9 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
       child: Scaffold(
         backgroundColor: AppColors.background,
         body: SafeArea(
-          child: Column(
+          child: BodyConstraint(
+            maxWidth: 760,
+            child: Column(
             children: [
               _topBar(index, total),
               Expanded(
@@ -207,6 +210,7 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> {
               ),
               _bottomPanel(isLast),
             ],
+          ),
           ),
         ),
       ),
