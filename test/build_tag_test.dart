@@ -30,4 +30,11 @@ void main() {
   test('BuildInfo.visible es true en debug', () {
     expect(BuildInfo.visible, isTrue);
   });
+
+  test('el patron del sha extrae solo el hash del versionName', () {
+    final pattern = RegExp(r'-([0-9a-f]{8})-');
+    expect(pattern.firstMatch('1.0.0-63c98b7c-0901.1730')?.group(1),
+        '63c98b7c');
+    expect(pattern.firstMatch('1.0.0')?.group(1), isNull);
+  });
 }

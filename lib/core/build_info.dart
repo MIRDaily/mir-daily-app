@@ -3,8 +3,10 @@ import 'package:package_info_plus/package_info_plus.dart';
 /// Identifica el build que se está ejecutando, para pruebas.
 ///
 /// El `versionName` de Android lleva un sufijo con el hash de git y la fecha
-/// (ver `android/app/build.gradle.kts`, se aplica a debug y release), así que
-/// [label] queda p. ej. `1.0.0-ab12cd34-0901.1620 (1)`. Se puede además pasar
+/// (ver `android/app/build.gradle.kts`, se aplica a debug y release). De ahí
+/// [label] se queda solo con el hash (8 caracteres) — es lo único que
+/// distingue un build de otro mientras no publiquemos: la versión y el build
+/// number no cambian en desarrollo. Se puede además pasar
 /// `--dart-define=BUILD_LABEL=F3` y [label] lo antepone.
 class BuildInfo {
   BuildInfo._();
@@ -14,6 +16,9 @@ class BuildInfo {
 
   /// Los builds de Play se compilan con `--dart-define=HIDE_BUILD_TAG=true`.
   static const bool _hidden = bool.fromEnvironment('HIDE_BUILD_TAG');
+
+  /// El sufijo de versionName tiene forma "-<sha 8 hex>-<fecha>".
+  static final RegExp _shaPattern = RegExp(r'-([0-9a-f]{8})-');
 
   static String _label = _override.isEmpty ? '…' : _override;
 
@@ -27,8 +32,8 @@ class BuildInfo {
   static Future<void> load() async {
     try {
       final info = await PackageInfo.fromPlatform();
-      final base = '${info.version} (${info.buildNumber})';
-      _label = _override.isEmpty ? base : '$_override · $base';
+      final sha = _shaPattern.firstMatch(info.version)?.group(1) ?? info.version;
+      _label = _override.isEmpty ? sha : '$_override · $sha';
     } catch (_) {
       _label = _override.isEmpty ? 'v?' : _override;
     }
