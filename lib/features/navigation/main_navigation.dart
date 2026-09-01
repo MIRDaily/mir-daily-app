@@ -25,7 +25,8 @@ class MainNavigation extends StatefulWidget {
   State<MainNavigation> createState() => _MainNavigationState();
 }
 
-class _MainNavigationState extends State<MainNavigation> with TickerProviderStateMixin {
+class _MainNavigationState extends State<MainNavigation>
+    with TickerProviderStateMixin {
   /// Posición del daily dentro de la barra. Versus se metió a su izquierda, así
   /// que ya no es la 1; tenerlo en una constante evita que se descuadren el
   /// PageView, la pastilla y los booleanos de visibilidad del sobre.
@@ -105,6 +106,10 @@ class _MainNavigationState extends State<MainNavigation> with TickerProviderStat
     NavItem(icon: Icons.workspace_premium_outlined, activeIcon: Icons.workspace_premium, label: 'Premium'),
     NavItem(icon: Icons.person_outline, activeIcon: Icons.person, label: 'Perfil'),
   ];
+
+  /// Último ancho del área de páginas, para detectar rotaciones / cambios de
+  /// layout (aparece/desaparece el raíl) y recolocar el PageView.
+  double? _lastPageAreaWidth;
 
   @override
   void initState() {
@@ -230,6 +235,22 @@ class _MainNavigationState extends State<MainNavigation> with TickerProviderStat
     super.dispose();
   }
 
+  /// Al rotar (o al aparecer/desaparecer el raíl) cambia el ancho del área de
+  /// páginas. El `PageView` no reajusta bien su viewport y se queda en blanco
+  /// hasta que se vuelve a tocar: se fuerza un salto a la página actual una
+  /// vez asentado el nuevo tamaño.
+  void _keepPageOnResize(double pageAreaWidth) {
+    if (_lastPageAreaWidth != null && _lastPageAreaWidth != pageAreaWidth) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_pageController.hasClients) return;
+        _pageController.jumpToPage(
+          _pageController.page?.round() ?? _selectedIndex,
+        );
+      });
+    }
+    _lastPageAreaWidth = pageAreaWidth;
+  }
+
   void _onNavItemTapped(int index) {
     if (index != _selectedIndex) {
       // La pastilla arranca YA hacia el destino (deslizamiento directo + ola).
@@ -287,11 +308,14 @@ class _MainNavigationState extends State<MainNavigation> with TickerProviderStat
         ? (context.usesExtendedNavRail ? kNavRailExtendedWidth : kNavRailWidth)
         : 0.0;
 
+    final pageAreaWidth = screenSize.width - railWidth;
+    _keepPageOnResize(pageAreaWidth);
+
     final showPackZoneBlocker = _isOnQuizPage && _isPackOpening;
     // La zona del sobre se centra en el ÁREA DE CONTENIDO (a la derecha del
     // raíl), no en la pantalla entera.
     final packZone = _getPackZone(
-      Size(screenSize.width - railWidth, screenSize.height),
+      Size(pageAreaWidth, screenSize.height),
     ).shift(Offset(railWidth, 0));
 
     final pageArea = _ZonedPageView(
