@@ -156,6 +156,21 @@ class _MasterDetailScaffoldState extends State<MasterDetailScaffold>
                 Expanded(child: widget.detail),
               ],
             ),
+            // Borde izquierdo del detalle: arrastrar a la derecha desde aquí
+            // vuelve a sacar la lista (gesto simétrico al de plegarla).
+            if (t > 0.02)
+              Positioned(
+                left: w * (1 - t),
+                top: 0,
+                bottom: 0,
+                width: 28,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.translucent,
+                  onHorizontalDragStart: _onDragStart,
+                  onHorizontalDragUpdate: _onDragUpdate,
+                  onHorizontalDragEnd: _onDragEnd,
+                ),
+              ),
             Positioned(
               top: topPad + 8,
               left: 8,

@@ -198,6 +198,15 @@ void main() {
 
     expect(paneSize().width, lessThan(2), reason: 'plegada tras el swipe');
     expect(find.byType(DeckDetailScreen), findsOneWidget);
+
+    // Y ahora deslizar a la DERECHA desde el borde izquierdo la vuelve a sacar.
+    await tester.flingFrom(
+        const Offset(6, 400), const Offset(320, 0), 1000);
+    await tester.pump();
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 60));
+    }
+    expect(paneSize().width, greaterThan(200), reason: 'desplegada tras el swipe derecha');
   });
 
   testWidgets('móvil: tocar un mazo navega a pantalla completa',
