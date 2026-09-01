@@ -60,11 +60,30 @@ void main() {
     for (final label in ['Studio', 'Versus', 'Quiz', 'Premium', 'Perfil']) {
       expect(find.text(label), findsWidgets, reason: label);
     }
+    // El raíl ocupa TODO el alto (no un cuadrado a media altura) y es
+    // estrecho.
+    final size = tester.getSize(find.byType(NavRail));
+    expect(size.height, 800);
+    expect(size.width, lessThan(90));
   });
 
   testWidgets('tablet vertical: barra inferior, sin raíl', (tester) async {
     await pump(tester, const Size(834, 1194));
     expect(find.byType(NavRail), findsNothing);
+  });
+
+  testWidgets('rotar de vertical a horizontal: el raíl aparece a todo el alto',
+      (tester) async {
+    await pump(tester, const Size(834, 1194));
+    expect(find.byType(NavRail), findsNothing);
+
+    tester.view.physicalSize = const Size(1194, 834);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.byType(NavRail), findsOneWidget);
+    expect(tester.getSize(find.byType(NavRail)).height, 834,
+        reason: 'raíl a todo el alto, no un cuadrado');
   });
 
   testWidgets('tocar un destino del raíl cambia de pestaña', (tester) async {
