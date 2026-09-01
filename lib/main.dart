@@ -10,6 +10,7 @@ import 'core/responsive/orientation_lock.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/system_ui.dart';
 import 'core/providers/quiz_provider.dart';
+import 'core/providers/settings_provider.dart';
 import 'core/providers/user_provider.dart';
 import 'core/providers/auth_provider.dart';
 import 'core/providers/daily_provider.dart';
@@ -96,6 +97,7 @@ class MIRDailyApp extends StatelessWidget {
           ),
         ),
         ChangeNotifierProvider(create: (_) => DailyProvider(apiService)),
+        ChangeNotifierProvider(create: (_) => SettingsProvider()),
         // Providers locales heredados de v10.6 (Studio, Premium, Perfil, Focus)
         ChangeNotifierProvider(create: (_) => QuizProvider()),
         ChangeNotifierProvider(create: (_) => UserProvider()),

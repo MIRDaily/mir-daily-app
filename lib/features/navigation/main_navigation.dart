@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:provider/provider.dart';
+import '../../core/providers/settings_provider.dart';
 import '../../core/responsive/breakpoints.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/services/notification_service.dart';
@@ -313,6 +314,11 @@ class _MainNavigationState extends State<MainNavigation>
     final useRail = !isInFocusMode && context.usesNavRail;
     final railWidth = useRail ? kNavRailWidth : 0.0;
 
+    // Estilo de la barra inferior (ajuste del usuario). No aplica al raíl.
+    final navStyle = context.watch<SettingsProvider>().navBarStyle;
+    final floatingBar =
+        !isInFocusMode && !useRail && navStyle == NavBarStyle.floating;
+
     final pageAreaWidth = screenSize.width - railWidth;
     _keepPageOnResize(pageAreaWidth);
 
@@ -331,149 +337,164 @@ class _MainNavigationState extends State<MainNavigation>
       children: _buildScreens(),
     );
 
-    return Scaffold(
-      body: useRail
-          ? Row(
-              // stretch: el raíl se estira a todo el alto y su borde derecho
-              // recorre el lateral entero (si no, quedaba un rectángulo
-              // flotante centrado a media altura).
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                AnimatedBuilder(
-                  animation: Listenable.merge([_pillCtrl, _barEntry]),
-                  builder: (context, _) => NavRail(
-                    items: _navItems,
-                    selectedIndex: _selectedIndex,
-                    pillPos: _pillPos,
-                    wave: _wave,
-                    entry: _barEntry.value,
-                    onTap: _onNavItemTapped,
-                  ),
+    final Widget body = useRail
+        ? Row(
+            // stretch: el raíl se estira a todo el alto y su borde derecho
+            // recorre el lateral entero (si no, quedaba un rectángulo
+            // flotante centrado a media altura).
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              AnimatedBuilder(
+                animation: Listenable.merge([_pillCtrl, _barEntry]),
+                builder: (context, _) => NavRail(
+                  items: _navItems,
+                  selectedIndex: _selectedIndex,
+                  pillPos: _pillPos,
+                  wave: _wave,
+                  entry: _barEntry.value,
+                  onTap: _onNavItemTapped,
                 ),
-                Expanded(child: pageArea),
+              ),
+              Expanded(child: pageArea),
+            ],
+          )
+        : pageArea;
+
+    return Scaffold(
+      body: floatingBar
+          // La barra flotante va SOBRE el contenido (Stack), no en el slot
+          // bottomNavigationBar: así el contenido pasa por detrás como en
+          // Apple Music. Las pantallas ya reservan hueco abajo (~90-100).
+          ? Stack(
+              children: [
+                Positioned.fill(child: body),
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: _buildFloatingBar(context),
+                ),
               ],
             )
-          : pageArea,
-      bottomNavigationBar:
-          (isInFocusMode || useRail) ? null : _buildBottomBar(context),
+          : body,
+      bottomNavigationBar: (isInFocusMode || useRail || floatingBar)
+          ? null
+          : _buildBottomBar(context),
     );
   }
 
-  Widget _buildBottomBar(BuildContext context) {
-    final Widget bar = SlideTransition(
-          position: Tween<Offset>(
-                  begin: Offset(0, widget.justOnboarded ? 1.6 : 1),
-                  end: Offset.zero)
-              .animate(CurvedAnimation(
-                  parent: _barEntry,
-                  curve: widget.justOnboarded
-                      ? Curves.easeOutBack
-                      : Curves.easeOutCubic)),
-          child: ScaleTransition(
-          scale: Tween<double>(
-                  begin: widget.justOnboarded ? 0.8 : 1.0, end: 1.0)
-              .animate(CurvedAnimation(
-                  parent: _barEntry,
-                  curve: widget.justOnboarded
-                      ? Curves.easeOutBack
-                      : Curves.easeOutCubic)),
-          child: FadeTransition(
-          opacity: _barEntry,
-          child: Container(
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.secondary.withOpacity(0.1),
-                  blurRadius: 10,
-                  offset: const Offset(0, -2),
-                ),
-              ],
-            ),
-            child: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-                child: AnimatedBuilder(
-                  animation: _pillCtrl,
-                  builder: (context, _) {
-                    final n = _navItems.length;
-                    final pos = _pillPos; // posición (en índices), con rebote
-                    // Envolvente "ola": 0 en reposo, sube a 1 a mitad de viaje
-                    // y vuelve a 0 al llegar. Hace crecer icono + pastilla +
-                    // barra a la vez, como una cresta que avanza.
-                    final bool moving = _pillFrom != _pillTo;
-                    final double wave = moving
-                        ? math.sin(_pillCtrl.value * math.pi).clamp(0.0, 1.0)
-                        : 0.0;
+  /// La "tira" de navegación: pastilla deslizante + iconos. Es idéntica en la
+  /// barra clásica y en la flotante; solo cambia el contenedor.
+  Widget _navStrip() {
+    return AnimatedBuilder(
+      animation: _pillCtrl,
+      builder: (context, _) {
+        final n = _navItems.length;
+        final pos = _pillPos; // posición (en índices), con rebote
+        // Envolvente "ola": 0 en reposo, sube a 1 a mitad de viaje y vuelve a
+        // 0 al llegar. Hace crecer icono + pastilla + barra a la vez.
+        final bool moving = _pillFrom != _pillTo;
+        final double wave = moving
+            ? math.sin(_pillCtrl.value * math.pi).clamp(0.0, 1.0)
+            : 0.0;
 
-                    // La barra crece con la ola (altura base 58 para que el
-                    // destacador respire alrededor del icono + texto).
-                    final double barHeight = 58 + 8 * wave;
-                    // Pastilla: posición + escala con la ola.
-                    final double alignX =
-                        n == 1 ? 0 : (2 * pos / (n - 1) - 1);
-                    final double pillScale = 1 + 0.16 * wave;
+        final double barHeight = 58 + 8 * wave;
+        final double alignX = n == 1 ? 0 : (2 * pos / (n - 1) - 1);
+        final double pillScale = 1 + 0.16 * wave;
 
-                    return SizedBox(
-                      height: barHeight,
-                      child: Stack(
-                        fit: StackFit.expand,
-                        clipBehavior: Clip.none,
-                        children: [
-                          // Pastilla deslizante: ancho = 1/nº (equitativo).
-                          Align(
-                            alignment: Alignment(alignX, 0),
-                            child: FractionallySizedBox(
-                              widthFactor: 1 / n,
-                              heightFactor: 1,
-                              child: Transform.scale(
-                                scale: pillScale,
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 6, vertical: 3),
-                                  child: DecoratedBox(
-                                    decoration: BoxDecoration(
-                                      color: AppColors.primary
-                                          .withOpacity(0.12 + 0.06 * wave),
-                                      borderRadius: BorderRadius.circular(14),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                          // Iconos + etiquetas por encima de la pastilla.
-                          Row(
-                            children: List.generate(n, (index) {
-                              // Cercanía de la cresta a este item (0..1).
-                              final double sel =
-                                  (1 - (pos - index).abs()).clamp(0.0, 1.0);
-                              return Expanded(
-                                child: _NavItem(
-                                  item: _navItems[index],
-                                  selectedness: sel,
-                                  wave: wave * sel, // la ola solo afecta al que cruza
-                                  onTap: () => _onNavItemTapped(index),
-                                ),
-                              );
-                            }),
-                          ),
-                        ],
+        return SizedBox(
+          height: barHeight,
+          child: Stack(
+            fit: StackFit.expand,
+            clipBehavior: Clip.none,
+            children: [
+              Align(
+                alignment: Alignment(alignX, 0),
+                child: FractionallySizedBox(
+                  widthFactor: 1 / n,
+                  heightFactor: 1,
+                  child: Transform.scale(
+                    scale: pillScale,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 3),
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: AppColors.primary
+                              .withOpacity(0.12 + 0.06 * wave),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
                       ),
-                    );
-                  },
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ),
-          ),
+              Row(
+                children: List.generate(n, (index) {
+                  final double sel =
+                      (1 - (pos - index).abs()).clamp(0.0, 1.0);
+                  return Expanded(
+                    child: _NavItem(
+                      item: _navItems[index],
+                      selectedness: sel,
+                      wave: wave * sel,
+                      onTap: () => _onNavItemTapped(index),
+                    ),
+                  );
+                }),
+              ),
+            ],
           ),
         );
+      },
+    );
+  }
 
-    // En tablet vertical la barra no se estira de borde a borde: se acota y
-    // se centra, como una barra flotante.
+  /// Envuelve un hijo con la animación de entrada de la barra (slide + scale
+  /// + fade), más marcada tras el onboarding.
+  Widget _barEntrance({required Widget child}) {
+    final curve = widget.justOnboarded
+        ? Curves.easeOutBack
+        : Curves.easeOutCubic;
+    return SlideTransition(
+      position: Tween<Offset>(
+        begin: Offset(0, widget.justOnboarded ? 1.6 : 1),
+        end: Offset.zero,
+      ).animate(CurvedAnimation(parent: _barEntry, curve: curve)),
+      child: ScaleTransition(
+        scale: Tween<double>(begin: widget.justOnboarded ? 0.8 : 1.0, end: 1.0)
+            .animate(CurvedAnimation(parent: _barEntry, curve: curve)),
+        child: FadeTransition(opacity: _barEntry, child: child),
+      ),
+    );
+  }
+
+  /// Barra clásica: pegada al borde, de lado a lado, sombra arriba. En tablet
+  /// vertical se acota y centra.
+  Widget _buildBottomBar(BuildContext context) {
+    Widget bar = _barEntrance(
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.secondary.withOpacity(0.1),
+              blurRadius: 10,
+              offset: const Offset(0, -2),
+            ),
+          ],
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+            child: _navStrip(),
+          ),
+        ),
+      ),
+    );
+
     if (context.isWide) {
-      return Align(
+      bar = Align(
         alignment: Alignment.bottomCenter,
         heightFactor: 1,
         child: ConstrainedBox(
@@ -483,6 +504,46 @@ class _MainNavigationState extends State<MainNavigation>
       );
     }
     return bar;
+  }
+
+  /// Barra flotante estilo Apple Music: un bocadillo despegado del borde, con
+  /// esquinas redondeadas y sombra a todo alrededor. El contenido pasa por
+  /// detrás (va en un `Stack`, no en el slot `bottomNavigationBar`).
+  Widget _buildFloatingBar(BuildContext context) {
+    return _barEntrance(
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: context.isWide ? 520 : double.infinity,
+              ),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(30),
+                  border: Border.all(color: AppColors.border, width: 1),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.secondary.withOpacity(0.18),
+                      blurRadius: 22,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+                  child: _navStrip(),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 

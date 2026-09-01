@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:mirdaily_app/core/providers/auth_provider.dart';
 import 'package:mirdaily_app/core/providers/daily_provider.dart';
+import 'package:mirdaily_app/core/providers/settings_provider.dart';
 import 'package:mirdaily_app/core/services/api_service.dart';
 import 'package:mirdaily_app/core/services/auth_service.dart';
 import 'package:mirdaily_app/features/focus/providers/focus_provider.dart';
@@ -36,6 +37,7 @@ void main() {
           ),
           ChangeNotifierProvider(create: (_) => DailyProvider(api)),
           ChangeNotifierProvider(create: (_) => FocusProvider()),
+          ChangeNotifierProvider(create: (_) => SettingsProvider()),
         ],
         child: const MaterialApp(home: MainNavigation()),
       ),

@@ -6,6 +6,8 @@ import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/daily_provider.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/build_info.dart';
+import '../../../core/providers/settings_provider.dart';
+import '../../../core/responsive/adaptive_modal.dart';
 import '../../../core/responsive/content_shell.dart';
 import '../../../core/services/notification_service.dart';
 import '../../../core/theme/app_theme.dart';
@@ -154,6 +156,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       color: Colors.indigo,
                       title: 'Privacidad',
                       onTap: () {},
+                    ),
+                    _MenuItemData(
+                      icon: Icons.dashboard_customize_outlined,
+                      color: AppColors.primaryDark,
+                      title: 'Barra de navegación',
+                      subtitle: context.watch<SettingsProvider>().navBarStyle ==
+                              NavBarStyle.floating
+                          ? 'Flotante'
+                          : 'Clásica',
+                      onTap: _openNavBarStyleSettings,
                     ),
                     _MenuItemData(
                       icon: Icons.dark_mode_outlined,
@@ -652,6 +664,46 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  void _openNavBarStyleSettings() {
+    final settings = context.read<SettingsProvider>();
+    showAdaptiveModal<void>(
+      context: context,
+      builder: (sheetCtx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Barra de navegación',
+                style: TextStyle(
+                    fontWeight: FontWeight.w900, fontSize: 19, color: kInk),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'Cómo se ve la barra inferior. No afecta al raíl lateral de '
+                'tablet en horizontal.',
+                style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 10),
+              for (final style in NavBarStyle.values)
+                _NavStyleOption(
+                  style: style,
+                  selected: settings.navBarStyle == style,
+                  onTap: () {
+                    settings.setNavBarStyle(style);
+                    Navigator.of(sheetCtx).pop();
+                  },
+                ),
+              const SizedBox(height: 6),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   void _handleLogout(BuildContext context) {
     showDialog(
         context: context,
@@ -697,6 +749,69 @@ class _MenuItemData {
     this.trailing,
     required this.onTap,
   });
+}
+
+/// Una opción del selector de estilo de barra de navegación, con una
+/// miniatura de cómo queda.
+class _NavStyleOption extends StatelessWidget {
+  const _NavStyleOption({
+    required this.style,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final NavBarStyle style;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final floating = style == NavBarStyle.floating;
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      onTap: onTap,
+      leading: SizedBox(
+        width: 46,
+        height: 34,
+        child: Padding(
+          padding: floating
+              ? const EdgeInsets.fromLTRB(3, 3, 3, 5)
+              : const EdgeInsets.only(top: 3),
+          child: Align(
+            alignment: Alignment.bottomCenter,
+            child: Container(
+              height: floating ? 12 : 14,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius:
+                    BorderRadius.circular(floating ? 999 : 3),
+                border: Border.all(color: kHairline, width: 1.4),
+              ),
+            ),
+          ),
+        ),
+      ),
+      title: Text(
+        floating ? 'Flotante' : 'Clásica',
+        style: TextStyle(
+          fontWeight: selected ? FontWeight.w900 : FontWeight.w700,
+          color: kInk,
+          fontSize: 15,
+        ),
+      ),
+      subtitle: Text(
+        floating
+            ? 'Un bocadillo despegado del borde, estilo Apple Music.'
+            : 'Pegada al borde, de lado a lado.',
+        style: const TextStyle(
+            color: AppColors.textSecondary, fontSize: 12.5),
+      ),
+      trailing: selected
+          ? const Icon(Icons.check_circle_rounded,
+              color: AppColors.primaryDark)
+          : null,
+    );
+  }
 }
 
 /// Tarjeta de estadística de la cabecera del perfil.
