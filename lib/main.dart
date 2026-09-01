@@ -5,6 +5,7 @@ import 'package:flutter_displaymode/flutter_displaymode.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'core/responsive/orientation_lock.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/system_ui.dart';
 import 'core/providers/quiz_provider.dart';
@@ -24,6 +25,11 @@ import 'features/splash/loading_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Orientación: el móvil va bloqueado a vertical (la app es de una columna);
+  // la tablet permite las 4, con el horizontal como uso principal. Sin await:
+  // no debe retrasar el primer frame.
+  unawaited(OrientationLock.apply());
 
   // Refresco alto: en Android muchos móviles capan las apps a 60 Hz por
   // defecto; pedimos el modo de mayor refresco disponible (90/120/144 Hz).

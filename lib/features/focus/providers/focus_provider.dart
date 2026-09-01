@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../../core/responsive/orientation_lock.dart';
 import '../../../core/theme/system_ui.dart';
 import '../models/focus_room.dart';
 
@@ -225,13 +226,9 @@ class FocusProvider extends ChangeNotifier with WidgetsBindingObserver {
       // partir del primer focus.
       await SystemUi.apply();
 
-      // Restaurar orientaciones permitidas
-      await SystemChrome.setPreferredOrientations([
-        DeviceOrientation.portraitUp,
-        DeviceOrientation.portraitDown,
-        DeviceOrientation.landscapeLeft,
-        DeviceOrientation.landscapeRight,
-      ]);
+      // Restaurar la política de orientación del dispositivo: móvil vertical,
+      // tablet las 4 (no reabrir landscape en un móvil al salir del focus).
+      await OrientationLock.apply();
 
       SystemUi.applyStyle();
       
