@@ -6,7 +6,6 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../../core/services/haptics_service.dart';
 
-import '../../../core/responsive/content_shell.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/sticker/sticker.dart';
@@ -177,9 +176,7 @@ class _VersusRoomScreenState extends State<VersusRoomScreen> {
             body: SafeArea(
               child: Stack(
                 children: [
-                  // El lobby y la partida se calibran para móvil (vertical):
-                  // en tablet se centran en una columna de ese ancho.
-                  BodyConstraint(maxWidth: 720, child: _buildBody(c)),
+                  _buildBody(c),
                   if (_playing(c))
                     Positioned(
                       top: 2,
