@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../core/responsive/breakpoints.dart';
 import '../../../core/services/haptics_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/sticker/sticker.dart';
@@ -442,7 +443,12 @@ class _VersusRunnerState extends State<VersusRunner> {
     // La corrección vive en una página a la DERECHA de la pregunta, igual que
     // en el simulacro: se desliza para ir y volver, y las opciones siguen ahí
     // detrás para comprobar cuál era la buena.
-    return Column(
+    //
+    // En tablet SOLO se acota esta vista (enunciado + opciones + corrección):
+    // el combate, la intro VS, el marcador y los golpes siguen a pantalla
+    // completa porque su efecto es de borde a borde.
+    return _TabletCap(
+      child: Column(
       children: [
         header,
         Expanded(
@@ -461,6 +467,7 @@ class _VersusRunnerState extends State<VersusRunner> {
           ),
         ),
       ],
+      ),
     );
   }
 
@@ -1715,5 +1722,26 @@ class _ScoreRow extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// Acota a un ancho de móvil (centrado) SOLO en tablet. En móvil es
+/// transparente. Se usa para las vistas de Versus con texto (enunciado,
+/// opciones, corrección); las de efecto a pantalla completa no lo llevan.
+class _TabletCap extends StatelessWidget {
+  const _TabletCap({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return context.isWide
+        ? Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 720),
+              child: child,
+            ),
+          )
+        : child;
   }
 }
