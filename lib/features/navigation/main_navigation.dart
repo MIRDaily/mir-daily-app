@@ -526,6 +526,10 @@ class _MainNavigationState extends State<MainNavigation>
                 maxWidth: context.isWide ? 520 : double.infinity,
               ),
               child: Container(
+                // Recorta el contenido contra las esquinas redondeadas: si no,
+                // el destacador (pastilla semirrectangular) asoma por las
+                // esquinas cuando está en un extremo o crece con la "ola".
+                clipBehavior: Clip.antiAlias,
                 decoration: BoxDecoration(
                   color: AppColors.surface,
                   borderRadius: BorderRadius.circular(30),
@@ -539,8 +543,10 @@ class _MainNavigationState extends State<MainNavigation>
                   ],
                 ),
                 child: Padding(
+                  // Un pelín más de aire lateral que la clásica: así la
+                  // pastilla de los extremos no llega al arco de la esquina.
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                   child: _navStrip(),
                 ),
               ),
