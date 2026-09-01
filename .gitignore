@@ -53,3 +53,6 @@ android/.kotlin/
 
 # Capturas que deja un golden al fallar; no son fuente.
 /test/failures/
+
+# Volcado de consulta que me hago sobre la marcha; no lo lee ningun script.
+/tools/questions.json
