@@ -1,7 +1,35 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 import 'breakpoints.dart';
+
+/// Arrastre horizontal que SOLO reacciona hacia la derecha. Si el gesto va a
+/// la izquierda cede el turno, para que un `PageView` de repaso o unos chips
+/// horizontales del detalle sigan funcionando con la lista plegada.
+class _RightDragRecognizer extends HorizontalDragGestureRecognizer {
+  _RightDragRecognizer({super.debugOwner});
+
+  bool _bailed = false;
+
+  @override
+  void addAllowedPointer(PointerDownEvent event) {
+    _bailed = false;
+    super.addAllowedPointer(event);
+  }
+
+  @override
+  void handleEvent(PointerEvent event) {
+    if (!_bailed && event is PointerMoveEvent && event.delta.dx < -2) {
+      _bailed = true;
+      resolve(GestureDisposition.rejected);
+      stopTrackingPointer(event.pointer);
+      return;
+    }
+    if (_bailed) return;
+    super.handleEvent(event);
+  }
+}
 
 /// Layout de dos paneles para tablet grande (`context.usesTwoPane`): una
 /// lista maestra a la izquierda —colapsable— y el detalle ocupando el resto.
@@ -153,24 +181,33 @@ class _MasterDetailScaffoldState extends State<MasterDetailScaffold>
                     ),
                   ),
                 ),
-                Expanded(child: widget.detail),
+                // Con la lista plegada, un arrastre a la DERECHA en cualquier
+                // punto del detalle la vuelve a sacar (no se usa el borde, que
+                // se lo queda el gesto de "atrás" del sistema). Solo hacia la
+                // derecha: los gestos a la izquierda del detalle (PageView de
+                // repaso, chips) se conservan. Desplegada, `gestures` va vacío
+                // y el detalle no pierde ningún gesto.
+                Expanded(
+                  child: RawGestureDetector(
+                    behavior: HitTestBehavior.translucent,
+                    gestures: widget.masterCollapsed
+                        ? <Type, GestureRecognizerFactory>{
+                            _RightDragRecognizer:
+                                GestureRecognizerFactoryWithHandlers<
+                                    _RightDragRecognizer>(
+                              () => _RightDragRecognizer(debugOwner: this),
+                              (r) => r
+                                ..onStart = _onDragStart
+                                ..onUpdate = _onDragUpdate
+                                ..onEnd = _onDragEnd,
+                            ),
+                          }
+                        : const <Type, GestureRecognizerFactory>{},
+                    child: widget.detail,
+                  ),
+                ),
               ],
             ),
-            // Borde izquierdo del detalle: arrastrar a la derecha desde aquí
-            // vuelve a sacar la lista (gesto simétrico al de plegarla).
-            if (t > 0.02)
-              Positioned(
-                left: w * (1 - t),
-                top: 0,
-                bottom: 0,
-                width: 28,
-                child: GestureDetector(
-                  behavior: HitTestBehavior.translucent,
-                  onHorizontalDragStart: _onDragStart,
-                  onHorizontalDragUpdate: _onDragUpdate,
-                  onHorizontalDragEnd: _onDragEnd,
-                ),
-              ),
             Positioned(
               top: topPad + 8,
               left: 8,
