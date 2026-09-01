@@ -6,9 +6,9 @@ import 'breakpoints.dart';
 /// Layout de dos paneles para tablet grande (`context.usesTwoPane`): una
 /// lista maestra a la izquierda —colapsable— y el detalle ocupando el resto.
 ///
-/// No decide POR SÍ SOLO cuándo usarse — cada pantalla comprueba
-/// `context.usesTwoPane` y elige entre esto y su navegación habitual por
-/// `Navigator.push`. Ver `decks_screen.dart` para el patrón completo.
+/// El detalle vive SIEMPRE en el mismo `Expanded`; al plegar/desplegar solo
+/// se anima el ancho de la columna maestra, así que el detalle no se
+/// reconstruye y la transición es fluida.
 class MasterDetailScaffold extends StatelessWidget {
   const MasterDetailScaffold({
     super.key,
@@ -24,52 +24,78 @@ class MasterDetailScaffold extends StatelessWidget {
   final Widget master;
   final Widget detail;
 
-  /// La lista de la izquierda está plegada: el detalle va a pantalla completa
-  /// y aparece un tirador para volver a sacarla.
   final bool masterCollapsed;
   final VoidCallback onToggleMaster;
 
-  /// Título de la columna maestra (p. ej. "Mazos"). Opcional.
   final String? masterTitle;
-
-  /// Acciones a la derecha del título de la columna maestra (p. ej. "nuevo").
   final List<Widget> masterActions;
-
   final double masterWidth;
+
+  static const _duration = Duration(milliseconds: 170);
+  static const _curve = Curves.easeOutCubic;
 
   @override
   Widget build(BuildContext context) {
-    if (masterCollapsed) {
-      return Stack(
-        children: [
-          Positioned.fill(child: detail),
-          Positioned(
-            top: MediaQuery.paddingOf(context).top + 8,
-            left: 8,
-            child: _ListHandle(onTap: onToggleMaster),
-          ),
-        ],
-      );
-    }
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return Stack(
       children: [
-        SizedBox(
-          width: masterWidth,
-          child: Column(
-            children: [
-              _MasterHeader(
-                title: masterTitle,
-                actions: masterActions,
-                onCollapse: onToggleMaster,
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Columna maestra: el ancho se anima entre 0 y masterWidth. El
+            // contenido se mantiene a su ancho natural (OverflowBox) y solo
+            // lo tapa el recorte, sin re-maquetar nada.
+            ClipRect(
+              child: AnimatedContainer(
+                duration: _duration,
+                curve: _curve,
+                width: masterCollapsed ? 0 : masterWidth,
+                decoration: const BoxDecoration(
+                  border: Border(
+                    right:
+                        BorderSide(color: AppColors.hairline, width: 1),
+                  ),
+                ),
+                child: OverflowBox(
+                  alignment: Alignment.centerLeft,
+                  minWidth: masterWidth,
+                  maxWidth: masterWidth,
+                  child: SizedBox(
+                    width: masterWidth,
+                    child: Column(
+                      children: [
+                        _MasterHeader(
+                          title: masterTitle,
+                          actions: masterActions,
+                          onCollapse: onToggleMaster,
+                        ),
+                        Expanded(child: master),
+                      ],
+                    ),
+                  ),
+                ),
               ),
-              Expanded(child: master),
-            ],
+            ),
+            Expanded(child: detail),
+          ],
+        ),
+        // Tirador para volver a sacar la lista.
+        Positioned(
+          top: MediaQuery.paddingOf(context).top + 8,
+          left: 8,
+          child: AnimatedSlide(
+            duration: _duration,
+            curve: _curve,
+            offset: masterCollapsed ? Offset.zero : const Offset(-1.4, 0),
+            child: AnimatedOpacity(
+              duration: _duration,
+              opacity: masterCollapsed ? 1 : 0,
+              child: IgnorePointer(
+                ignoring: !masterCollapsed,
+                child: _ListHandle(onTap: onToggleMaster),
+              ),
+            ),
           ),
         ),
-        const VerticalDivider(width: 1, thickness: 1, color: AppColors.hairline),
-        Expanded(child: detail),
       ],
     );
   }
@@ -92,7 +118,7 @@ class _MasterHeader extends StatelessWidget {
       padding: EdgeInsets.only(
         top: MediaQuery.paddingOf(context).top + 6,
         left: 14,
-        right: 6,
+        right: 4,
         bottom: 6,
       ),
       decoration: const BoxDecoration(
@@ -147,11 +173,11 @@ class _ListHandle extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(999),
         onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           child: Row(
             mainAxisSize: MainAxisSize.min,
-            children: const [
+            children: [
               Icon(Icons.menu_rounded, size: 18, color: AppColors.textSecondary),
               SizedBox(width: 6),
               Text(

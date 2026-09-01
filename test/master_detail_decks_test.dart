@@ -130,18 +130,48 @@ void main() {
     // "Estudiar" está en el AppBar del detalle (no un FAB perdido).
     expect(find.widgetWithText(FilledButton, 'Estudiar'), findsOneWidget);
 
-    // Plegar la lista: aparece el tirador "Lista" y desaparece el título de
-    // la columna maestra.
-    expect(find.text('Mazos'), findsOneWidget);
+    // Plegar la lista: la columna maestra se anima a ancho 0 y el tirador
+    // "Lista" se vuelve tocable.
+    final masterPane = tester.getSize(find.ancestor(
+      of: find.text('Mazos'),
+      matching: find.byType(AnimatedContainer),
+    ));
+    expect(masterPane.width, greaterThan(200));
+
     await tester.tap(find.byIcon(Icons.chevron_left_rounded));
     await tester.pump();
     for (var i = 0; i < 8; i++) {
-      await tester.pump(const Duration(milliseconds: 80));
+      await tester.pump(const Duration(milliseconds: 60));
     }
-    expect(find.text('Mazos'), findsNothing);
-    expect(find.text('Lista'), findsOneWidget);
 
-    // El detalle sigue ahí, a pantalla completa.
+    expect(
+      tester
+          .getSize(find.ancestor(
+            of: find.text('Mazos'),
+            matching: find.byType(AnimatedContainer),
+          ))
+          .width,
+      lessThan(2),
+      reason: 'la columna maestra está plegada',
+    );
+    // El tirador "Lista" ahora recibe toques.
+    await tester.tap(find.text('Lista'));
+    await tester.pump();
+    for (var i = 0; i < 8; i++) {
+      await tester.pump(const Duration(milliseconds: 60));
+    }
+    expect(
+      tester
+          .getSize(find.ancestor(
+            of: find.text('Mazos'),
+            matching: find.byType(AnimatedContainer),
+          ))
+          .width,
+      greaterThan(200),
+      reason: 'el tirador vuelve a sacar la lista',
+    );
+
+    // El detalle nunca se fue.
     expect(find.byType(DeckDetailScreen), findsOneWidget);
   });
 
