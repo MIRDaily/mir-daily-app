@@ -3,8 +3,10 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:provider/provider.dart';
+import '../../core/responsive/breakpoints.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/services/notification_service.dart';
+import 'widgets/nav_rail.dart';
 import '../biblioteca/biblioteca_hub_screen.dart';
 import '../quiz/screens/quiz_screen.dart';
 import '../focus/providers/focus_provider.dart';
@@ -264,26 +266,69 @@ class _MainNavigationState extends State<MainNavigation> with TickerProviderStat
     );
   }
 
+  /// Envolvente "ola" (0..1) mientras la pastilla viaja. Compartida por la
+  /// barra inferior y el raíl lateral.
+  double get _wave {
+    if (_pillFrom == _pillTo) return 0.0;
+    return math.sin(_pillCtrl.value * math.pi).clamp(0.0, 1.0);
+  }
+
   @override
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.of(context).size;
-    final showPackZoneBlocker = _isOnQuizPage && _isPackOpening;
-    final packZone = _getPackZone(screenSize);
-    
+
     // Detectar si está en modo focus activo
     final isInFocusMode = context.watch<FocusProvider>().isInFocusMode;
-    
+
+    // Raíl lateral cuando la tablet está en horizontal (y fuera del focus). Al
+    // girar a vertical se cae a la barra inferior, con los mismos iconos.
+    final useRail = !isInFocusMode && context.usesNavRail;
+    final railWidth = useRail
+        ? (context.usesExtendedNavRail ? kNavRailExtendedWidth : kNavRailWidth)
+        : 0.0;
+
+    final showPackZoneBlocker = _isOnQuizPage && _isPackOpening;
+    // La zona del sobre se centra en el ÁREA DE CONTENIDO (a la derecha del
+    // raíl), no en la pantalla entera.
+    final packZone = _getPackZone(
+      Size(screenSize.width - railWidth, screenSize.height),
+    ).shift(Offset(railWidth, 0));
+
+    final pageArea = _ZonedPageView(
+      controller: _pageController,
+      blockZone: showPackZoneBlocker ? packZone : null,
+      allowImplicitScrolling: true,
+      onPageChanged: _onPageSettled,
+      children: _buildScreens(),
+    );
+
     return Scaffold(
-      body: _ZonedPageView(
-        controller: _pageController,
-        blockZone: showPackZoneBlocker ? packZone : null,
-        allowImplicitScrolling: true,
-        onPageChanged: _onPageSettled,
-        children: _buildScreens(),
-      ),
-      bottomNavigationBar: isInFocusMode
-        ? null // Ocultar completamente en modo focus
-        : SlideTransition(
+      body: useRail
+          ? Row(
+              children: [
+                AnimatedBuilder(
+                  animation: Listenable.merge([_pillCtrl, _barEntry]),
+                  builder: (context, _) => NavRail(
+                    items: _navItems,
+                    selectedIndex: _selectedIndex,
+                    pillPos: _pillPos,
+                    wave: _wave,
+                    extended: context.usesExtendedNavRail,
+                    entry: _barEntry.value,
+                    onTap: _onNavItemTapped,
+                  ),
+                ),
+                Expanded(child: pageArea),
+              ],
+            )
+          : pageArea,
+      bottomNavigationBar:
+          (isInFocusMode || useRail) ? null : _buildBottomBar(context),
+    );
+  }
+
+  Widget _buildBottomBar(BuildContext context) {
+    final Widget bar = SlideTransition(
           position: Tween<Offset>(
                   begin: Offset(0, widget.justOnboarded ? 1.6 : 1),
                   end: Offset.zero)
@@ -391,8 +436,21 @@ class _MainNavigationState extends State<MainNavigation> with TickerProviderStat
           ),
           ),
           ),
+        );
+
+    // En tablet vertical la barra no se estira de borde a borde: se acota y
+    // se centra, como una barra flotante.
+    if (context.isWide) {
+      return Align(
+        alignment: Alignment.bottomCenter,
+        heightFactor: 1,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 600),
+          child: bar,
         ),
-    );
+      );
+    }
+    return bar;
   }
 }
 

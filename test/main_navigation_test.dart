@@ -28,6 +28,13 @@ void main() {
   // error: nos deja el PageView montado y navegable sin tocar la red. Las
   // pestañas vecinas que el PageView monta también fallan sin ruido.
   Future<void> pumpNavigation(WidgetTester tester) async {
+    // Viewport de móvil: es donde vive la barra inferior con su PageView. En
+    // tablet horizontal MainNavigation usa el raíl lateral (otro test).
+    tester.view.devicePixelRatio = 1.0;
+    tester.view.physicalSize = const Size(390, 844);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
     final auth = AuthService();
     final api = ApiService(auth);
     await tester.pumpWidget(
