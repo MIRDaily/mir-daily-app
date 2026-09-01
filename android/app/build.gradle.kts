@@ -1,8 +1,22 @@
+import java.text.SimpleDateFormat
+import java.util.Date
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+}
+
+/// Hash corto del commit actual, para sellar los builds de desarrollo. Si no
+/// hay git (o falla), devuelve "nogit" y el build sigue igual.
+fun gitShortSha(): String = try {
+    providers.exec {
+        commandLine("git", "rev-parse", "--short=8", "HEAD")
+        workingDir(rootProject.projectDir.parentFile)
+    }.standardOutput.asText.get().trim().ifEmpty { "nogit" }
+} catch (e: Exception) {
+    "nogit"
 }
 
 android {
@@ -42,6 +56,12 @@ android {
     }
 
     buildTypes {
+        debug {
+            // Sello de build para desarrollo: el versionName pasa a ser
+            // "1.0.0-ab12cd34-0901.1620". La app lo lee con package_info_plus
+            // y lo muestra en una esquina (ver lib/core/build_info.dart).
+            versionNameSuffix = "-${gitShortSha()}-${SimpleDateFormat("MMdd.HHmm").format(Date())}"
+        }
         release {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.

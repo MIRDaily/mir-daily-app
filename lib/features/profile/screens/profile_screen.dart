@@ -5,6 +5,7 @@ import '../../../core/models/models.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/daily_provider.dart';
 import '../../../core/services/api_service.dart';
+import '../../../core/build_info.dart';
 import '../../../core/responsive/content_shell.dart';
 import '../../../core/services/notification_service.dart';
 import '../../../core/theme/app_theme.dart';
@@ -169,7 +170,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       icon: Icons.new_releases_outlined,
                       color: AppColors.secondary,
                       title: 'Novedades',
-                      subtitle: 'Versión 1.0.2',
+                      subtitle: 'Versión ${BuildInfo.label}',
                       onTap: () {},
                     ),
                   ]),

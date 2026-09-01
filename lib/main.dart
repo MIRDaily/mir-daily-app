@@ -5,6 +5,7 @@ import 'package:flutter_displaymode/flutter_displaymode.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'core/build_info.dart';
 import 'core/responsive/orientation_lock.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/system_ui.dart';
@@ -30,6 +31,9 @@ void main() async {
   // la tablet permite las 4, con el horizontal como uso principal. Sin await:
   // no debe retrasar el primer frame.
   unawaited(OrientationLock.apply());
+
+  // Sello del build (debug / builds de prueba). Rápido, un canal de plataforma.
+  await BuildInfo.load();
 
   // Refresco alto: en Android muchos móviles capan las apps a 60 Hz por
   // defecto; pedimos el modo de mayor refresco disponible (90/120/144 Hz).
@@ -102,7 +106,56 @@ class MIRDailyApp extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
         home: const StartupGate(),
+        builder: (context, child) => BuildTag(child: child ?? const SizedBox()),
       ),
+    );
+  }
+}
+
+/// Sello del build en la esquina inferior izquierda, para saber qué versión
+/// estás probando. Solo en debug (o si se pasó `--dart-define=BUILD_LABEL`).
+class BuildTag extends StatelessWidget {
+  const BuildTag({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!BuildInfo.visible) return child;
+    final pad = MediaQuery.paddingOf(context);
+    return Stack(
+      textDirection: TextDirection.ltr,
+      children: [
+        child,
+        Positioned(
+          left: 6,
+          bottom: pad.bottom + 4,
+          child: IgnorePointer(
+            child: Opacity(
+              opacity: 0.55,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.black,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  BuildInfo.label,
+                  textDirection: TextDirection.ltr,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 9.5,
+                    fontFamily: 'monospace',
+                    fontFamilyFallback: ['Lexend'],
+                    height: 1.1,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
