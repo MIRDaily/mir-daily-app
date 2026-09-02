@@ -9,6 +9,8 @@ import 'package:provider/provider.dart';
 import '../../../core/config/app_config.dart';
 import '../../../core/models/models.dart';
 import '../../../core/providers/auth_provider.dart';
+import '../../../core/responsive/adaptive_modal.dart';
+import '../../../core/responsive/breakpoints.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/services/haptics_service.dart';
 import '../../../core/theme/app_theme.dart';
@@ -1211,13 +1213,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     required VoidCallback onClear,
     _PickerExtra? extraAction,
   }) {
-    showModalBottomSheet(
+    showAdaptiveModal<void>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
+      dialogScrollable: false,
       builder: (_) => _PickerSheet<T>(
         title: title,
         items: items,
@@ -2256,23 +2254,45 @@ class _PickerSheetState<T> extends State<_PickerSheet<T>> {
     final filtered = widget.items
         .where((e) => widget.labelOf(e).toLowerCase().contains(_q.toLowerCase()))
         .toList();
+
+    if (context.isWide) {
+      // En diálogo (tablet) no hay hoja arrastrable: columna acotada por el
+      // propio `Dialog` (maxHeight ~86% de la pantalla).
+      return Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+        child: _body(filtered, null, showGrab: false),
+      );
+    }
+
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: DraggableScrollableSheet(
         expand: false,
         initialChildSize: 0.7,
         maxChildSize: 0.9,
-        builder: (context, scrollController) {
-          return Column(
-            children: [
+        builder: (context, scrollController) =>
+            _body(filtered, scrollController, showGrab: true),
+      ),
+    );
+  }
+
+  Widget _body(
+    List<T> filtered,
+    ScrollController? scrollController, {
+    required bool showGrab,
+  }) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
               const SizedBox(height: 12),
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                    color: const Color(0xFFE0E0E0),
-                    borderRadius: BorderRadius.circular(2)),
-              ),
+              if (showGrab)
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                      color: const Color(0xFFE0E0E0),
+                      borderRadius: BorderRadius.circular(2)),
+                ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 10),
                 child: Row(
@@ -2312,9 +2332,10 @@ class _PickerSheetState<T> extends State<_PickerSheet<T>> {
                 ),
               ),
               const SizedBox(height: 8),
-              Expanded(
+              Flexible(
                 child: ListView(
                   controller: scrollController,
+                  shrinkWrap: scrollController == null,
                   children: [
                     if (widget.extraAction != null)
                       ListTile(
@@ -2341,9 +2362,6 @@ class _PickerSheetState<T> extends State<_PickerSheet<T>> {
                 ),
               ),
             ],
-          );
-        },
-      ),
     );
   }
 }

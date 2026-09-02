@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/models/models.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/responsive/adaptive_grid.dart';
+import '../../core/responsive/adaptive_modal.dart';
 import '../../core/responsive/breakpoints.dart';
 import '../../core/responsive/content_shell.dart';
 import '../../core/responsive/master_detail_scaffold.dart';
@@ -220,13 +221,8 @@ class _DecksScreenState extends State<DecksScreen>
 
     // El panel devuelve UNA elección: o un orden nuevo o una textura nueva.
     // Se cierra al tocar, que es lo que se espera de una lista de opciones.
-    final chosen = await showModalBottomSheet<Object>(
+    final chosen = await showAdaptiveModal<Object>(
       context: context,
-      backgroundColor: Colors.white,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
       builder: (ctx) => SafeArea(
         child: SingleChildScrollView(
           child: Column(
@@ -706,12 +702,8 @@ class _DecksScreenState extends State<DecksScreen>
 
   Future<void> _confirmDelete(Deck deck) async {
     HapticFeedback.lightImpact();
-    final ok = await showModalBottomSheet<bool>(
+    final ok = await showAdaptiveModal<bool>(
       context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
       builder: (ctx) => SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(20),

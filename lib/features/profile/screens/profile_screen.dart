@@ -548,12 +548,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final auth = context.read<AuthProvider>();
     final currentId = auth.profile?.avatarId ?? 1;
 
-    showModalBottomSheet(
+    showAdaptiveModal<void>(
       context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
+      dialogMaxWidth: 480,
       builder: (BuildContext sheetContext) {
         return Container(
           padding: const EdgeInsets.all(24),
@@ -653,13 +650,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _openNotificationSettings() {
-    showModalBottomSheet(
+    showAdaptiveModal<void>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
       builder: (_) => const _NotificationSettingsSheet(),
     );
   }

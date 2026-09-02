@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/models/models.dart';
+import '../../../core/responsive/adaptive_modal.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/sticker/sticker.dart';
@@ -18,10 +19,11 @@ import '../../../shared/sticker/textures.dart';
 ///
 /// Devuelve true si algo se guardó, para que quien lo abre refresque.
 Future<bool> showProfileEditor(BuildContext context, UserProfile profile) async {
-  final saved = await showModalBottomSheet<bool>(
+  final saved = await showAdaptiveModal<bool>(
     context: context,
-    isScrollControlled: true,
     backgroundColor: Colors.transparent,
+    dialogScrollable: false,
+    dialogMaxWidth: 520,
     builder: (_) => _ProfileEditorSheet(profile: profile),
   );
   return saved ?? false;

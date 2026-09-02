@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/models/models.dart';
+import '../../core/responsive/adaptive_modal.dart';
 import '../../core/services/api_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../shared/sticker/sticker.dart';
@@ -185,12 +186,8 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
   Future<void> _pickGradient() async {
     final current = normalizeDeckGradient(_deck.bannerGradient);
 
-    final chosen = await showModalBottomSheet<String>(
+    final chosen = await showAdaptiveModal<String>(
       context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
       builder: (ctx) => SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),

@@ -19,6 +19,11 @@ Future<T?> showAdaptiveModal<T>({
   bool useRootNavigator = false,
   Color? backgroundColor,
   double dialogMaxWidth = 460,
+
+  /// El contenido no hace scroll por sí mismo: en el diálogo se envuelve en
+  /// un `SingleChildScrollView`. Pásalo a `false` si el `builder` ya tiene su
+  /// propio scroll o gestiona su altura (p. ej. un editor con `viewInsets`).
+  bool dialogScrollable = true,
 }) {
   final bg = backgroundColor ?? Colors.white;
 
@@ -49,12 +54,11 @@ Future<T?> showAdaptiveModal<T>({
         child: ConstrainedBox(
           constraints: BoxConstraints(
             maxWidth: dialogMaxWidth,
-            maxHeight: MediaQuery.sizeOf(context).height * 0.82,
+            maxHeight: MediaQuery.sizeOf(context).height * 0.86,
           ),
-          // Las hojas suelen construirse contando con que hacen scroll ellas
-          // mismas; si no, este SingleChildScrollView evita overflow en el
-          // diálogo.
-          child: SingleChildScrollView(child: builder(context)),
+          child: dialogScrollable
+              ? SingleChildScrollView(child: builder(context))
+              : builder(context),
         ),
       );
     },

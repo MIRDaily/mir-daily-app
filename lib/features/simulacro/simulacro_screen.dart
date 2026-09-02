@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/models/models.dart';
+import '../../core/responsive/adaptive_modal.dart';
 import '../../core/responsive/content_shell.dart';
 import '../../core/services/api_service.dart';
 import '../../core/theme/app_theme.dart';
@@ -582,13 +583,9 @@ class _SimBuilderState extends State<_SimBuilder> {
   }
 
   Future<void> _openTopicPicker() async {
-    final result = await showModalBottomSheet<Set<int>>(
+    final result = await showAdaptiveModal<Set<int>>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
+      dialogMaxWidth: 520,
       builder: (ctx) => _TopicPickerSheet(
         subjects: _subjects,
         selectedSubjectIds: _selectedSubjectIds,

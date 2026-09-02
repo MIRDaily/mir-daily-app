@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../core/responsive/adaptive_modal.dart';
 import '../../../shared/sticker/sticker.dart';
 
 /// Qué se enseña en el carné.
@@ -63,10 +64,11 @@ Future<Set<CardField>?> showCardFieldPicker(
   BuildContext context,
   Set<CardField> actuales,
 ) {
-  return showModalBottomSheet<Set<CardField>>(
+  return showAdaptiveModal<Set<CardField>>(
     context: context,
     backgroundColor: Colors.transparent,
-    isScrollControlled: true,
+    dialogScrollable: false,
+    dialogMaxWidth: 460,
     builder: (_) => _CardFieldSheet(iniciales: actuales),
   );
 }

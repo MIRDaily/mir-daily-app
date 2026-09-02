@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/models/models.dart';
+import '../../../core/responsive/adaptive_modal.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../features/simulacro/widgets/count_slider.dart';
 import '../../../shared/sticker/sticker.dart';
@@ -53,13 +54,9 @@ Future<DeckStudyOptions?> showDeckStudySheet({
   required List<DeckSubject> subjects,
   required DeckSummary? summary,
 }) {
-  return showModalBottomSheet<DeckStudyOptions>(
+  return showAdaptiveModal<DeckStudyOptions>(
     context: context,
-    backgroundColor: Colors.white,
-    isScrollControlled: true,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
-    ),
+    dialogMaxWidth: 520,
     builder: (ctx) => _StudySheet(
       totalItems: totalItems,
       subjects: subjects,
