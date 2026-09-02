@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/responsive/adaptive_grid.dart';
+import '../../core/responsive/breakpoints.dart';
 import '../../core/responsive/content_shell.dart';
 import '../../core/theme/app_theme.dart';
 import '../../shared/sticker/sticker.dart';
@@ -36,7 +37,7 @@ class BibliotecaHubScreen extends StatelessWidget {
         child: ListView(
           physics: const BouncingScrollPhysics(),
           padding: centeringGutter(context, wide: true)
-              .add(const EdgeInsets.fromLTRB(0, 20, 0, 100)),
+              .add(EdgeInsets.fromLTRB(0, context.isWide ? 32 : 20, 0, 100)),
           children: [
             const StickerHero(
               badge: 'Studio',

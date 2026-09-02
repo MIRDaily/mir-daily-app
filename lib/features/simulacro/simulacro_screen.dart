@@ -758,30 +758,35 @@ class _SimBuilderState extends State<_SimBuilder> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  _stepperBtn(
-                      Icons.remove_rounded,
-                      () => setState(
-                          () => _count = (_count - 1).clamp(1, _maxCount))),
-                  Expanded(
-                    child: Center(
-                      child: Text(
-                        '$_count',
-                        style: const TextStyle(
-                          color: kInk,
-                          fontSize: 30,
-                          fontWeight: FontWeight.w900,
-                          height: 1,
+              // Acotado: en tablet, sin límite el `Expanded` deja los botones
+              // a un palmo cada uno con el "10" perdido en medio.
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 260),
+                child: Row(
+                  children: [
+                    _stepperBtn(
+                        Icons.remove_rounded,
+                        () => setState(
+                            () => _count = (_count - 1).clamp(1, _maxCount))),
+                    Expanded(
+                      child: Center(
+                        child: Text(
+                          '$_count',
+                          style: const TextStyle(
+                            color: kInk,
+                            fontSize: 30,
+                            fontWeight: FontWeight.w900,
+                            height: 1,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  _stepperBtn(
-                      Icons.add_rounded,
-                      () => setState(
-                          () => _count = (_count + 1).clamp(1, _maxCount))),
-                ],
+                    _stepperBtn(
+                        Icons.add_rounded,
+                        () => setState(
+                            () => _count = (_count + 1).clamp(1, _maxCount))),
+                  ],
+                ),
               ),
               const SizedBox(height: 6),
               // Deslizador con muelle, como en la web: con 210 posiciones,

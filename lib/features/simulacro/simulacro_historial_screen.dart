@@ -120,16 +120,19 @@ class _SimulacroHistorialScreenState extends State<SimulacroHistorialScreen> {
     final twoPane = context.usesTwoPane;
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.background,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-      ),
+      appBar: twoPane
+          ? null
+          : AppBar(
+              backgroundColor: AppColors.background,
+              surfaceTintColor: Colors.transparent,
+              elevation: 0,
+            ),
       body: SafeArea(
         top: false,
         child: twoPane
             ? MasterDetailScaffold(
                 masterTitle: 'Historial',
+                onBack: () => Navigator.of(context).maybePop(),
                 masterCollapsed: _masterCollapsed,
                 onToggleMaster: () =>
                     setState(() => _masterCollapsed = !_masterCollapsed),

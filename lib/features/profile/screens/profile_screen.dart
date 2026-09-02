@@ -8,6 +8,7 @@ import '../../../core/services/api_service.dart';
 import '../../../core/build_info.dart';
 import '../../../core/providers/settings_provider.dart';
 import '../../../core/responsive/adaptive_modal.dart';
+import '../../../core/responsive/breakpoints.dart';
 import '../../../core/responsive/content_shell.dart';
 import '../../../core/services/notification_service.dart';
 import '../../../core/theme/app_theme.dart';
@@ -91,7 +92,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(
                     parent: BouncingScrollPhysics()),
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 120),
+                padding: EdgeInsets.fromLTRB(
+                    20, context.isWide ? 28 : 8, 20, 120),
                 children: [
                   _buildTopBar(),
                   const SizedBox(height: 8),
@@ -762,25 +764,39 @@ class _NavStyleOption extends StatelessWidget {
     return ListTile(
       contentPadding: EdgeInsets.zero,
       onTap: onTap,
-      leading: SizedBox(
-        width: 46,
+      // Miniatura: una "pantalla" con la barra dentro. La clásica va pegada
+      // al borde inferior a todo el ancho; la flotante es un bocadillo con
+      // hueco por debajo.
+      leading: Container(
+        width: 44,
         height: 34,
-        child: Padding(
-          padding: floating
-              ? const EdgeInsets.fromLTRB(3, 3, 3, 5)
-              : const EdgeInsets.only(top: 3),
-          child: Align(
-            alignment: Alignment.bottomCenter,
-            child: Container(
-              height: floating ? 12 : 14,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius:
-                    BorderRadius.circular(floating ? 999 : 3),
-                border: Border.all(color: kHairline, width: 1.4),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceVariant,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: kHairline, width: 1.2),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Spacer(),
+            Padding(
+              padding: floating
+                  ? const EdgeInsets.fromLTRB(5, 0, 5, 4)
+                  : EdgeInsets.zero,
+              child: Container(
+                height: 9,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.vertical(
+                    top: const Radius.circular(3),
+                    bottom: Radius.circular(floating ? 3 : 0),
+                  ),
+                  border: Border.all(color: kHairline, width: 1),
+                ),
               ),
             ),
-          ),
+          ],
         ),
       ),
       title: Text(

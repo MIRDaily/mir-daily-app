@@ -361,11 +361,15 @@ class _DecksScreenState extends State<DecksScreen>
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.background,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-      ),
+      // En dos paneles no hay `AppBar`: la flecha "atrás" va en la cabecera
+      // de la lista y así se recupera todo ese alto para el contenido.
+      appBar: twoPane
+          ? null
+          : AppBar(
+              backgroundColor: AppColors.background,
+              surfaceTintColor: Colors.transparent,
+              elevation: 0,
+            ),
       // En dos paneles, "Nuevo mazo" vive en la cabecera de la lista (el FAB
       // chocaría con el de "Estudiar" del detalle y con la barra flotante).
       floatingActionButton: twoPane
@@ -379,10 +383,14 @@ class _DecksScreenState extends State<DecksScreen>
               ),
             ),
       body: SafeArea(
+        // En dos paneles el inset de arriba lo gestiona la cabecera de la
+        // lista (y la AppBar del detalle); dejarlo aquí también lo duplica.
+        top: !twoPane,
         bottom: false,
         child: twoPane
             ? MasterDetailScaffold(
                 masterTitle: 'Mazos',
+                onBack: () => Navigator.of(context).maybePop(),
                 masterCollapsed: _masterCollapsed,
                 onToggleMaster: () =>
                     setState(() => _masterCollapsed = !_masterCollapsed),

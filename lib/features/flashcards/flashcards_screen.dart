@@ -135,11 +135,13 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.background,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-      ),
+      appBar: twoPane
+          ? null
+          : AppBar(
+              backgroundColor: AppColors.background,
+              surfaceTintColor: Colors.transparent,
+              elevation: 0,
+            ),
       floatingActionButton: twoPane
           ? null
           : Padding(
@@ -155,6 +157,7 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
         child: twoPane
             ? MasterDetailScaffold(
                 masterTitle: 'Flashcards',
+                onBack: () => Navigator.of(context).maybePop(),
                 masterCollapsed: _masterCollapsed,
                 onToggleMaster: () =>
                     setState(() => _masterCollapsed = !_masterCollapsed),

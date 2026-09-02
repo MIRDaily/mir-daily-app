@@ -237,9 +237,15 @@ class _LoadingScreenState extends State<LoadingScreen>
                             Padding(
                               padding:
                                   const EdgeInsets.symmetric(horizontal: 50),
-                              child: _showButton
-                                  ? _buildContinueButton()
-                                  : _buildProgressBar(),
+                              // En tablet el botón/​barra no se estira a lo
+                              // ancho: se queda a medida de móvil y centrado.
+                              child: ConstrainedBox(
+                                constraints:
+                                    const BoxConstraints(maxWidth: 360),
+                                child: _showButton
+                                    ? _buildContinueButton()
+                                    : _buildProgressBar(),
+                              ),
                             ),
                           ],
                         ),

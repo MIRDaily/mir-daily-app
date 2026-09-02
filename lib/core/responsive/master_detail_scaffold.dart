@@ -48,6 +48,7 @@ class MasterDetailScaffold extends StatefulWidget {
     this.masterTitle,
     this.masterActions = const [],
     this.masterWidth = kMasterPaneWidth,
+    this.onBack,
   });
 
   final Widget master;
@@ -59,6 +60,11 @@ class MasterDetailScaffold extends StatefulWidget {
   final String? masterTitle;
   final List<Widget> masterActions;
   final double masterWidth;
+
+  /// Si se pasa, la cabecera de la lista lleva una flecha "atrás" a su
+  /// izquierda. Sirve para salir de la pantalla sin gastar una `AppBar`
+  /// entera encima (en tablet ese hueco vacío se nota).
+  final VoidCallback? onBack;
 
   @override
   State<MasterDetailScaffold> createState() => _MasterDetailScaffoldState();
@@ -134,6 +140,7 @@ class _MasterDetailScaffoldState extends State<MasterDetailScaffold>
           _MasterHeader(
             title: widget.masterTitle,
             actions: widget.masterActions,
+            onBack: widget.onBack,
             onCollapse: () {
               if (!widget.masterCollapsed) widget.onToggleMaster();
             },
@@ -238,18 +245,20 @@ class _MasterHeader extends StatelessWidget {
     required this.title,
     required this.actions,
     required this.onCollapse,
+    this.onBack,
   });
 
   final String? title;
   final List<Widget> actions;
   final VoidCallback onCollapse;
+  final VoidCallback? onBack;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: EdgeInsets.only(
         top: MediaQuery.paddingOf(context).top + 6,
-        left: 14,
+        left: onBack != null ? 4 : 14,
         right: 4,
         bottom: 6,
       ),
@@ -261,6 +270,14 @@ class _MasterHeader extends StatelessWidget {
       ),
       child: Row(
         children: [
+          if (onBack != null)
+            IconButton(
+              tooltip: 'Volver',
+              visualDensity: VisualDensity.compact,
+              icon: const Icon(Icons.arrow_back_rounded),
+              color: AppColors.textSecondary,
+              onPressed: onBack,
+            ),
           if (title != null)
             Expanded(
               child: Text(

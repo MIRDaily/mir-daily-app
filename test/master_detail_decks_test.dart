@@ -100,6 +100,11 @@ void main() {
     expect(find.text('Elige un mazo'), findsOneWidget);
     expect(find.byType(DeckDetailScreen), findsNothing);
 
+    // En dos paneles no hay AppBar propia: la flecha "atrás" para salir de
+    // Mazos vive en la cabecera de la lista, y así se recupera ese alto.
+    expect(find.byType(AppBar), findsNothing);
+    expect(find.byIcon(Icons.arrow_back_rounded), findsOneWidget);
+
     await tester.tap(find.text('Mazo Uno'));
     await tester.pump();
     for (var i = 0; i < 10; i++) {
@@ -200,9 +205,13 @@ void main() {
     expect(find.byType(DeckDetailScreen), findsOneWidget);
 
     // Y ahora deslizar a la DERECHA en medio del detalle la vuelve a sacar
-    // (no desde el borde: eso se lo queda el gesto "atrás" del sistema).
+    // (no desde el borde: eso se lo queda el gesto "atrás" del sistema). Se
+    // arranca sobre la portada del mazo: ahí no hay ningún scroll horizontal
+    // que se lleve el gesto antes que el reconocedor de la lista.
     await tester.flingFrom(
-        const Offset(700, 400), const Offset(360, 0), 1200);
+        tester.getCenter(find.byType(DeckCover)),
+        const Offset(360, 0),
+        1200);
     await tester.pump();
     for (var i = 0; i < 10; i++) {
       await tester.pump(const Duration(milliseconds: 60));
