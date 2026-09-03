@@ -1743,6 +1743,11 @@ class _SimRunnerCarouselState extends State<_SimRunnerCarousel>
             onToggle: (i) => setState(() {
               if (!_highlighted.remove(i)) _highlighted.add(i);
             }),
+            onPaint: (nuevo) => setState(() {
+              _highlighted
+                ..clear()
+                ..addAll(nuevo);
+            }),
           ),
           // Pistas solo en la PRIMERA pregunta del simulacro.
           if (_index == 0) ...[
@@ -2330,6 +2335,11 @@ class _SimRunnerClassicState extends State<_SimRunnerClassic>
                   highlighted: _highlighted,
                   onToggle: (i) => setState(() {
                     if (!_highlighted.remove(i)) _highlighted.add(i);
+                  }),
+                  onPaint: (nuevo) => setState(() {
+                    _highlighted
+                      ..clear()
+                      ..addAll(nuevo);
                   }),
                   fontSize: 20,
                   fontWeight: FontWeight.w700,
