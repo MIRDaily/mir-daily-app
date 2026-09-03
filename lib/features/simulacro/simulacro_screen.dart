@@ -23,6 +23,20 @@ import 'simulacro_historial_screen.dart';
 import '../../shared/widgets/pressable.dart';
 import '../../shared/widgets/zoomable_image.dart';
 
+/// Texto de la explicación de una pregunta corregida.
+///
+/// Uno solo para los tres sitios que la pintan —runner clásico, runner
+/// Deslizar y `SimResultsView`, que es también la del historial—, que estaban
+/// copiados a mano y se habrían separado a la primera.
+///
+/// A 13,5 se leía mal en cuanto la explicación era larga, que es justo cuando
+/// más se lee. El enunciado va a 19, así que sigue mandando él.
+const TextStyle kExplanationStyle = TextStyle(
+  color: AppColors.textPrimary,
+  fontSize: 15.5,
+  height: 1.5,
+);
+
 /// Creador de simulacros — réplica de la web (/studio/simulacro). Orquesta las
 /// fases builder → running → results contra el backend (/api/simulacro/*): las
 /// preguntas llegan SIN la respuesta correcta y la corrección la valida el
@@ -2029,8 +2043,7 @@ class _SimRunnerCarouselState extends State<_SimRunnerCarousel>
             exp.isNotEmpty
                 ? exp
                 : 'No hay explicación disponible para esta pregunta.',
-            style: const TextStyle(
-                color: AppColors.textPrimary, fontSize: 13.5, height: 1.5),
+            style: kExplanationStyle,
           ),
         ],
       ),
@@ -2443,10 +2456,7 @@ class _SimRunnerClassicState extends State<_SimRunnerClassic>
                           explanation.isNotEmpty
                               ? explanation
                               : 'No hay explicación disponible para esta pregunta.',
-                          style: const TextStyle(
-                              color: AppColors.textPrimary,
-                              fontSize: 13.5,
-                              height: 1.5),
+                          style: kExplanationStyle,
                         ),
                       ],
                     ),
@@ -3050,10 +3060,7 @@ class _SimDetailDialogState extends State<_SimDetailDialog> {
                             (result?.explanation?.trim().isNotEmpty ?? false)
                                 ? result!.explanation!.trim()
                                 : 'No hay explicación disponible para esta pregunta.',
-                            style: const TextStyle(
-                                color: AppColors.textPrimary,
-                                fontSize: 13.5,
-                                height: 1.5),
+                            style: kExplanationStyle,
                           ),
                         ],
                       ),
