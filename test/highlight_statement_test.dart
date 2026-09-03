@@ -48,21 +48,23 @@ class _HostState extends State<_Host> {
 Set<int> _estado(WidgetTester tester) =>
     tester.state<_HostState>(find.byType(_Host)).marcadas;
 
-/// Los tramos de texto que van pintados de amarillo.
+/// Los trozos de texto que se pintan de amarillo, uno por bloque continuo.
 ///
-/// Solo los marcados llevan `background`, así que basta con mirar si lo hay.
-/// Comparar el Color no vale: `Paint.color` pasa por el engine y vuelve con
-/// componentes en coma flotante que no son `==` al literal de origen.
+/// El amarillo lo dibuja un `CustomPainter` por debajo del texto (para que las
+/// esquinas salgan redondeadas), así que lo que se comprueba son los tramos de
+/// caracteres que le llegan: un tramo = un bloque.
 List<String> _tramosMarcados(WidgetTester tester) {
-  final render = tester.renderObject<RenderParagraph>(find.byType(RichText));
-  final marcados = <String>[];
-  render.text.visitChildren((span) {
-    if (span is TextSpan && span.style?.background != null) {
-      marcados.add(span.text ?? '');
-    }
-    return true;
-  });
-  return marcados;
+  final pintado = tester
+      .widgetList<CustomPaint>(find.descendant(
+        of: find.byType(HighlightableStatement),
+        matching: find.byType(CustomPaint),
+      ))
+      .firstWhere((c) =>
+          c.painter != null &&
+          c.painter.runtimeType.toString().contains('HighlightPainter'));
+
+  final runs = ((pintado.painter as dynamic).runs as List).cast<(int, int)>();
+  return [for (final (a, b) in runs) _enunciado.substring(a, b)];
 }
 
 /// Centro de la palabra n-esima, para tocar o arrastrar encima.
@@ -105,6 +107,22 @@ void main() {
     // Un unico tramo pintado, con los espacios dentro: antes eran tres
     // manchas sueltas separadas por un hueco.
     expect(_tramosMarcados(tester), ['disnea de esfuerzo']);
+  });
+
+  testWidgets('el amarillo va con las esquinas redondeadas', (tester) async {
+    await tester.pumpWidget(const _Host(inicial: {5, 6, 7}));
+    await tester.pump();
+
+    final render = tester.renderObject(find
+        .descendant(
+          of: find.byType(HighlightableStatement),
+          matching: find.byType(CustomPaint),
+        )
+        .first);
+
+    // rrect y no rect: con `TextStyle.background` el engine solo sabe pintar
+    // rectangulos a escuadra, y eso parecia un fallo de pintado.
+    expect(render, paints..rrect());
   });
 
   testWidgets('palabras sueltas no se unen entre si', (tester) async {
