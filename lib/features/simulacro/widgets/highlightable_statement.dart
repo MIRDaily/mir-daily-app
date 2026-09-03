@@ -73,14 +73,36 @@ class HighlightableStatement extends StatelessWidget {
   }
 }
 
-/// Botón de "Limpiar" para el subrayado. Solo aparece si hay algo marcado.
+/// Botón de "Limpiar" para el subrayado.
+///
+/// Cuando no hay nada marcado NO se quita del árbol: se queda transparente
+/// ocupando su hueco. Si desaparece, al subrayar la primera palabra de cada
+/// pregunta el enunciado pega un salto para hacerle sitio.
 class ClearHighlightButton extends StatelessWidget {
   final VoidCallback onTap;
 
-  const ClearHighlightButton({super.key, required this.onTap});
+  /// A `false` sigue midiendo igual, pero ni se ve ni recibe toques.
+  final bool visible;
+
+  const ClearHighlightButton({
+    super.key,
+    required this.onTap,
+    this.visible = true,
+  });
 
   @override
   Widget build(BuildContext context) {
+    return IgnorePointer(
+      ignoring: !visible,
+      child: AnimatedOpacity(
+        opacity: visible ? 1 : 0,
+        duration: const Duration(milliseconds: 160),
+        child: _button(),
+      ),
+    );
+  }
+
+  Widget _button() {
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,

@@ -1697,9 +1697,12 @@ class _SimRunnerCarouselState extends State<_SimRunnerCarousel>
     return _pageShell(
       label: 'ENUNCIADO',
       icon: Icons.article_rounded,
-      trailing: _highlighted.isEmpty
-          ? null
-          : ClearHighlightButton(onTap: () => setState(_highlighted.clear)),
+      // Siempre presente (invisible mientras no haya nada marcado): si entra y
+      // sale del árbol, la cabecera cambia de alto y el enunciado da un salto.
+      trailing: ClearHighlightButton(
+        visible: _highlighted.isNotEmpty,
+        onTap: () => setState(_highlighted.clear),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -2301,10 +2304,12 @@ class _SimRunnerClassicState extends State<_SimRunnerClassic>
                 Row(
                   children: [
                     const Spacer(),
-                    if (_highlighted.isNotEmpty)
-                      ClearHighlightButton(
-                        onTap: () => setState(_highlighted.clear),
-                      ),
+                    // Aquí el salto era el peor: sin el botón esta fila medía
+                    // cero y todo el enunciado bajaba de golpe al subrayar.
+                    ClearHighlightButton(
+                      visible: _highlighted.isNotEmpty,
+                      onTap: () => setState(_highlighted.clear),
+                    ),
                   ],
                 ),
                 HighlightableStatement(
