@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/models/models.dart';
 import '../../core/responsive/adaptive_modal.dart';
+import '../../core/responsive/breakpoints.dart';
 import '../../core/responsive/content_shell.dart';
 import '../../core/services/api_service.dart';
 import '../../core/theme/app_theme.dart';
@@ -586,6 +587,10 @@ class _SimBuilderState extends State<_SimBuilder> {
     final result = await showAdaptiveModal<Set<int>>(
       context: context,
       dialogMaxWidth: 520,
+      // La hoja gestiona su propio alto y su propio scroll en los dos casos:
+      // envolverla en el `SingleChildScrollView` del diálogo le daría altura
+      // infinita.
+      dialogScrollable: false,
       builder: (ctx) => _TopicPickerSheet(
         subjects: _subjects,
         selectedSubjectIds: _selectedSubjectIds,
@@ -1237,69 +1242,80 @@ class _TopicPickerSheetState extends State<_TopicPickerSheet> {
 
   @override
   Widget build(BuildContext context) {
+    // En tablet esto sale como `Dialog`, no como hoja: una hoja arrastrable
+    // ahí recibe altura infinita y no llega a pintarse (el selector salía en
+    // blanco). El diálogo ya acota la altura, así que basta una columna que
+    // crece con el contenido. Mismo criterio que el picker del onboarding.
+    if (context.isWide) return _body(null, showGrab: false);
+
     return DraggableScrollableSheet(
       expand: false,
       initialChildSize: 0.7,
       maxChildSize: 0.92,
-      builder: (context, scroll) {
-        return Column(
-          children: [
-            const SizedBox(height: 10),
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.border,
-                borderRadius: BorderRadius.circular(2),
-              ),
+      builder: (context, scroll) => _body(scroll, showGrab: true),
+    );
+  }
+
+  Widget _body(ScrollController? scroll, {required bool showGrab}) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const SizedBox(height: 10),
+        if (showGrab)
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: AppColors.border,
+              borderRadius: BorderRadius.circular(2),
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 14, 12, 8),
-              child: Row(
-                children: [
-                  const Expanded(
-                    child: Text('Elegir temas',
-                        style: TextStyle(
-                            fontWeight: FontWeight.w800, fontSize: 18)),
-                  ),
-                  TextButton(
-                    onPressed: () => setState(_sel.clear),
-                    child: const Text('Quitar todos'),
-                  ),
-                ],
+          ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 14, 12, 8),
+          child: Row(
+            children: [
+              const Expanded(
+                child: Text('Elegir temas',
+                    style:
+                        TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
               ),
-            ),
-            Expanded(
-              child: ListView(
-                controller: scroll,
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                children: [
-                  for (final subjectId in widget.selectedSubjectIds)
-                    _group(subjectId),
-                ],
+              TextButton(
+                onPressed: () => setState(_sel.clear),
+                child: const Text('Quitar todos'),
               ),
-            ),
-            SafeArea(
-              top: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                    ),
-                    onPressed: () => Navigator.pop(context, _sel),
-                    child: Text('Aplicar (${_sel.length})'),
-                  ),
+            ],
+          ),
+        ),
+        Flexible(
+          child: ListView(
+            controller: scroll,
+            shrinkWrap: scroll == null,
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            children: [
+              for (final subjectId in widget.selectedSubjectIds)
+                _group(subjectId),
+            ],
+          ),
+        ),
+        SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+            child: SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
+                onPressed: () => Navigator.pop(context, _sel),
+                child: Text('Aplicar (${_sel.length})'),
               ),
             ),
-          ],
-        );
-      },
+          ),
+        ),
+      ],
     );
   }
 
