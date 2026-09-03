@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
 import 'package:mirdaily_app/core/models/models.dart';
+import 'package:mirdaily_app/core/providers/saved_questions_provider.dart';
 import 'package:mirdaily_app/core/providers/daily_provider.dart';
 import 'package:mirdaily_app/core/services/api_service.dart';
 import 'package:mirdaily_app/core/services/auth_service.dart';
@@ -50,14 +51,13 @@ class _FakeApi extends ApiService {
         ),
       ];
 
-  // Sin red: la comprobación de en qué mazos está la pregunta se responde en
-  // seco, que aquí lo que se prueba es que el botón se pueda alcanzar.
+  // Sin red: aquí lo que se prueba es que el botón se pueda alcanzar, así que
+  // la pregunta no está guardada en ningún mazo y punto.
   @override
-  Future<Map<String, String>> findQuestionInDecks(
-    List<String> deckIds,
+  Future<({List<Deck> decks, Map<String, String> membership})> getDecksWithSaved(
     String questionId,
   ) async =>
-      const {};
+      (decks: await getDecks(), membership: const <String, String>{});
 }
 
 /// En partida, con una pregunta servida.
@@ -90,6 +90,7 @@ void main() {
       MultiProvider(
         providers: [
           Provider<ApiService>.value(value: api),
+          ChangeNotifierProvider(create: (_) => SavedQuestionsProvider()),
           ChangeNotifierProvider<DailyProvider>(create: (_) => _FakeDaily(api)),
         ],
         child: MaterialApp(

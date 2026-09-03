@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
 import 'package:mirdaily_app/core/models/models.dart';
+import 'package:mirdaily_app/core/providers/saved_questions_provider.dart';
 import 'package:mirdaily_app/core/providers/auth_provider.dart';
 import 'package:mirdaily_app/core/providers/daily_provider.dart';
 import 'package:mirdaily_app/core/services/api_service.dart';
@@ -96,6 +97,7 @@ void main() {
     return MultiProvider(
       providers: [
         Provider<ApiService>.value(value: api),
+        ChangeNotifierProvider(create: (_) => SavedQuestionsProvider()),
         ChangeNotifierProvider<DailyProvider>(create: (_) => DailyProvider(api)),
         ChangeNotifierProvider<AuthProvider>(
           create: (_) =>

@@ -278,6 +278,35 @@ class ApiService {
         .toList();
   }
 
+  /// Los mazos MÁS en cuáles está ya guardada [questionId], de una petición.
+  ///
+  /// `membership` va deckId -> itemId (el id de la fila dentro del mazo, que
+  /// es lo que hace falta para poder quitarla). Si un mazo no aparece, la
+  /// pregunta no está en él.
+  ///
+  /// Antes esto eran dos pasos en serie, y el segundo recorría paginando los
+  /// items de TODOS los mazos hasta dar con la pregunta: decenas de
+  /// peticiones cada vez que se abría la hoja de "guardar en un mazo", más
+  /// cuantos más mazos tuvieras. El backend lo resuelve con una consulta
+  /// indexada y anota cada mazo con `saved_item_id`.
+  Future<({List<Deck> decks, Map<String, String> membership})> getDecksWithSaved(
+    String questionId,
+  ) async {
+    final json = await _request(
+      'GET',
+      '/api/studio/decks?questionId=${Uri.encodeQueryComponent(questionId)}',
+    );
+    final raw = ((json['decks'] ?? []) as List).cast<Map<String, dynamic>>();
+    return (
+      decks: raw.map(Deck.fromJson).toList(),
+      membership: {
+        for (final d in raw)
+          if (d['saved_item_id'] != null)
+            d['id'].toString(): d['saved_item_id'].toString(),
+      },
+    );
+  }
+
   Future<StatsSummary> getStatsSummary() async {
     final json = await _request('GET', '/api/stats/summary');
     return StatsSummary.fromJson(json);
@@ -460,52 +489,23 @@ class ApiService {
   /// hace falta comprobar antes si ya estaba.
   ///
   /// El mazo automático de fallos responde 403: se rellena solo.
-  Future<void> addDeckItems(String deckId, List<String> questionIds) async {
-    if (questionIds.isEmpty) return;
-    await _request(
+  /// Añade preguntas a un mazo. Devuelve questionId -> itemId (el id de la
+  /// fila dentro del mazo), que es lo que hace falta para poder quitarlas
+  /// después sin volver a leer el mazo entero.
+  Future<Map<String, String>> addDeckItems(
+    String deckId,
+    List<String> questionIds,
+  ) async {
+    if (questionIds.isEmpty) return const {};
+    final json = await _request(
       'POST',
       '/api/studio/decks/$deckId/items',
       body: {'questionIds': questionIds},
     );
-  }
-
-  /// En qué mazos está ya una pregunta. Devuelve deckId -> itemId (el id de
-  /// la fila del mazo, que es lo que hace falta para poder quitarla).
-  ///
-  /// Va mazo por mazo porque el backend no tiene un endpoint de "¿dónde está
-  /// esta pregunta?": las peticiones salen en paralelo y cada mazo para en
-  /// cuanto la encuentra. La web hace lo mismo pero solo mira la PRIMERA
-  /// página de cada mazo (20 preguntas), así que se le escapan las que están
-  /// más abajo y las marca como no guardadas; aquí se recorren las páginas.
-  Future<Map<String, String>> findQuestionInDecks(
-    List<String> deckIds,
-    String questionId,
-  ) async {
-    final entries = await Future.wait(
-      deckIds.map((deckId) async {
-        try {
-          var page = 1;
-          while (true) {
-            final result = await getDeckItems(deckId, page: page);
-            for (final item in result.items) {
-              if (item.questionId == questionId) {
-                return MapEntry(deckId, item.itemId);
-              }
-            }
-            if (page >= result.totalPages) return null;
-            page++;
-          }
-        } catch (_) {
-          // Un mazo que falle no puede tumbar la comprobación entera: se da
-          // por "no guardada" y se sigue.
-          return null;
-        }
-      }),
-    );
-
+    final items = (json['items'] ?? const {}) as Map<String, dynamic>;
     return {
-      for (final e in entries)
-        if (e != null) e.key: e.value,
+      for (final e in items.entries)
+        if (e.value != null) e.key: e.value.toString(),
     };
   }
 

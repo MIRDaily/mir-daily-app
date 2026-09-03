@@ -15,6 +15,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/models/models.dart';
+import '../../../core/providers/saved_questions_provider.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/sticker/sticker.dart';
@@ -69,6 +70,15 @@ class _SaveToDeckDialogState extends State<_SaveToDeckDialog> {
 
   bool get _savedAnywhere => _membership.isNotEmpty;
 
+  /// Cuenta al resto de la app si la pregunta está guardada, para que el
+  /// icono siga en verde aunque su widget se reconstruya (al pulsar
+  /// "Comprobar", al pasar a la revisión final...).
+  void _publishSaved() {
+    context
+        .read<SavedQuestionsProvider>()
+        .setSaved(widget.questionId, _savedAnywhere);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -92,27 +102,21 @@ class _SaveToDeckDialogState extends State<_SaveToDeckDialog> {
 
   Future<void> _load() async {
     try {
-      final decks = await _api.getDecks();
+      // Una sola petición: los mazos Y en cuáles está ya la pregunta. Antes
+      // eran dos pasos en serie, y el segundo recorría paginando los items de
+      // todos los mazos: de ahí salían las dos esperas al abrir esto.
+      final res = await _api.getDecksWithSaved(widget.questionId);
       if (!mounted) return;
       // El mazo automático de fallos no admite preguntas a mano (403 en el
       // backend), así que no se ofrece.
-      final propios = decks.where((d) => !d.isAutoManaged).toList();
+      final propios = res.decks.where((d) => !d.isAutoManaged).toList();
       setState(() {
         _decks = propios;
+        _membership = {...res.membership};
         _error = null;
-      });
-
-      // Un mazo vacío no puede tener la pregunta: se ahorra una petición por
-      // cada mazo recién creado, que es justo el caso más común aquí.
-      final membership = await _api.findQuestionInDecks(
-        propios.where((d) => d.totalItems > 0).map((d) => d.id).toList(),
-        widget.questionId,
-      );
-      if (!mounted) return;
-      setState(() {
-        _membership = membership;
         _checking = false;
       });
+      _publishSaved();
     } catch (_) {
       if (!mounted) return;
       setState(() {
@@ -132,20 +136,19 @@ class _SaveToDeckDialogState extends State<_SaveToDeckDialog> {
         await _api.removeDeckItem(deck.id, itemId);
         if (!mounted) return;
         setState(() => _membership.remove(deck.id));
+        _publishSaved();
         _say(true, 'Quitada de "${deck.name}"');
       } else {
-        await _api.addDeckItems(deck.id, [widget.questionId]);
-        // Hay que releer el mazo para saber el id de la fila recién creada:
-        // sin él no se podría deshacer sin cerrar y volver a abrir.
-        final found = await _api.findQuestionInDecks(
-          [deck.id],
-          widget.questionId,
-        );
+        // La propia respuesta trae el id de la fila creada: sin él no se
+        // podría deshacer sin cerrar y volver a abrir, y antes costaba releer
+        // el mazo entero para averiguarlo.
+        final creados = await _api.addDeckItems(deck.id, [widget.questionId]);
         if (!mounted) return;
         setState(() {
-          final nuevo = found[deck.id];
+          final nuevo = creados[widget.questionId];
           if (nuevo != null) _membership[deck.id] = nuevo;
         });
+        _publishSaved();
         _say(true, 'Guardada en "${deck.name}"');
       }
     } catch (e) {
@@ -165,9 +168,9 @@ class _SaveToDeckDialogState extends State<_SaveToDeckDialog> {
     setState(() => _creating = true);
     try {
       await _api.createDeck(name);
-      final decks = await _api.getDecks();
+      final res = await _api.getDecksWithSaved(widget.questionId);
       if (!mounted) return;
-      final propios = decks.where((d) => !d.isAutoManaged).toList();
+      final propios = res.decks.where((d) => !d.isAutoManaged).toList();
       final creado = propios.where((d) => d.name == name).firstOrNull;
       setState(() {
         _decks = propios;
@@ -551,7 +554,12 @@ class _DeckRow extends StatelessWidget {
 }
 
 /// Botón de "guardar en mazo" para la cabecera de una pregunta.
-class SaveToDeckButton extends StatefulWidget {
+///
+/// No guarda estado propio: si la pregunta está en algún mazo lo dice
+/// [SavedQuestionsProvider]. Cuando lo guardaba aquí dentro, la marca verde
+/// se perdía en cuanto Flutter reconstruía el widget — al pulsar "Comprobar"
+/// o al pasar a la revisión final del simulacro.
+class SaveToDeckButton extends StatelessWidget {
   final String? questionId;
 
   /// Color del icono, para que encaje con la cabecera donde se coloque.
@@ -566,38 +574,23 @@ class SaveToDeckButton extends StatefulWidget {
   });
 
   @override
-  State<SaveToDeckButton> createState() => _SaveToDeckButtonState();
-}
-
-class _SaveToDeckButtonState extends State<SaveToDeckButton> {
-  bool _saved = false;
-
-  @override
-  void didUpdateWidget(covariant SaveToDeckButton old) {
-    super.didUpdateWidget(old);
-    // Otra pregunta, otro estado: si no, la marca de "guardada" se arrastraría
-    // a la siguiente pregunta del daily o del simulacro.
-    if (old.questionId != widget.questionId) _saved = false;
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final id = widget.questionId;
+    final id = questionId;
     if (id == null || id.isEmpty) return const SizedBox.shrink();
 
+    // Por pregunta, así que tampoco se arrastra a la siguiente.
+    final saved = context.watch<SavedQuestionsProvider>().isSaved(id);
+
     return IconButton(
-      onPressed: () async {
-        final saved = await showSaveToDeckSheet(context, questionId: id);
-        if (mounted) setState(() => _saved = saved);
-      },
+      onPressed: () => showSaveToDeckSheet(context, questionId: id),
       visualDensity: VisualDensity.compact,
       padding: EdgeInsets.zero,
       constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
       tooltip: 'Guardar en un mazo',
       icon: Icon(
-        _saved ? Icons.bookmark_added_rounded : Icons.bookmark_add_outlined,
-        size: widget.size,
-        color: _saved ? AppColors.successDark : widget.color,
+        saved ? Icons.bookmark_added_rounded : Icons.bookmark_add_outlined,
+        size: size,
+        color: saved ? AppColors.successDark : color,
       ),
     );
   }
