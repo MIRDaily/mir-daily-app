@@ -4,11 +4,24 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import 'breakpoints.dart';
 
-/// Arrastre horizontal que SOLO reacciona hacia la derecha. Si el gesto va a
-/// la izquierda cede el turno, para que un `PageView` de repaso o unos chips
-/// horizontales del detalle sigan funcionando con la lista plegada.
-class _RightDragRecognizer extends HorizontalDragGestureRecognizer {
-  _RightDragRecognizer({super.debugOwner});
+/// Arrastre horizontal que SOLO reacciona hacia un lado. En cuanto el gesto
+/// tira hacia el contrario cede el turno, para que un `PageView` de repaso o
+/// unos chips horizontales del detalle sigan funcionando.
+///
+/// El detalle lo usa en las dos direcciones, nunca a la vez: con la lista
+/// plegada escucha hacia la derecha (sacarla) y con la lista fuera escucha
+/// hacia la izquierda (plegarla). Así en cada momento solo se le reserva el
+/// sentido que ahí significa algo.
+class _OneWayDragRecognizer extends HorizontalDragGestureRecognizer {
+  _OneWayDragRecognizer({super.debugOwner});
+
+  /// `1` para escuchar solo hacia la derecha, `-1` solo hacia la izquierda.
+  ///
+  /// No va en el constructor a propósito: `RawGestureDetector` crea el
+  /// reconocedor UNA vez por tipo y luego solo vuelve a pasar por el
+  /// inicializador, así que un campo de constructor se quedaría con el valor
+  /// del primer build y el sentido no cambiaría nunca al plegar o desplegar.
+  int sign = 1;
 
   bool _bailed = false;
 
@@ -20,7 +33,7 @@ class _RightDragRecognizer extends HorizontalDragGestureRecognizer {
 
   @override
   void handleEvent(PointerEvent event) {
-    if (!_bailed && event is PointerMoveEvent && event.delta.dx < -2) {
+    if (!_bailed && event is PointerMoveEvent && event.delta.dx * sign < -2) {
       _bailed = true;
       resolve(GestureDisposition.rejected);
       stopTrackingPointer(event.pointer);
@@ -35,9 +48,11 @@ class _RightDragRecognizer extends HorizontalDragGestureRecognizer {
 /// lista maestra a la izquierda —colapsable— y el detalle ocupando el resto.
 ///
 /// La lista se pliega con el chevron de su cabecera, con el tirador "Lista"
-/// cuando está plegada, o **deslizándola hacia la izquierda desde cualquier
-/// punto**. El detalle vive siempre en el mismo `Expanded`, así que plegar no
-/// lo reconstruye y la transición es fluida.
+/// cuando está plegada, o **deslizando a la izquierda desde cualquier punto de
+/// la pantalla** — encima de la lista o del detalle, da igual. Sacarla es el
+/// gesto simétrico: deslizar a la derecha desde donde sea. El detalle vive
+/// siempre en el mismo `Expanded`, así que plegar no lo reconstruye y la
+/// transición es fluida.
 class MasterDetailScaffold extends StatefulWidget {
   const MasterDetailScaffold({
     super.key,
@@ -188,28 +203,31 @@ class _MasterDetailScaffoldState extends State<MasterDetailScaffold>
                     ),
                   ),
                 ),
-                // Con la lista plegada, un arrastre a la DERECHA en cualquier
-                // punto del detalle la vuelve a sacar (no se usa el borde, que
-                // se lo queda el gesto de "atrás" del sistema). Solo hacia la
-                // derecha: los gestos a la izquierda del detalle (PageView de
-                // repaso, chips) se conservan. Desplegada, `gestures` va vacío
-                // y el detalle no pierde ningún gesto.
+                // El gesto va en los dos sentidos y desde cualquier punto del
+                // detalle: plegada, un arrastre a la DERECHA la saca;
+                // desplegada, uno a la IZQUIERDA la pliega. Antes solo existía
+                // el primero, y para esconderla había que arrastrar encima de
+                // la propia lista.
+                //
+                // No se usa el borde de la pantalla, que se lo queda el gesto
+                // de "atrás" del sistema. Y en cada estado solo se escucha un
+                // sentido, así que al detalle le queda libre el contrario para
+                // lo suyo (PageView de repaso, chips horizontales).
                 Expanded(
                   child: RawGestureDetector(
                     behavior: HitTestBehavior.translucent,
-                    gestures: widget.masterCollapsed
-                        ? <Type, GestureRecognizerFactory>{
-                            _RightDragRecognizer:
-                                GestureRecognizerFactoryWithHandlers<
-                                    _RightDragRecognizer>(
-                              () => _RightDragRecognizer(debugOwner: this),
-                              (r) => r
-                                ..onStart = _onDragStart
-                                ..onUpdate = _onDragUpdate
-                                ..onEnd = _onDragEnd,
-                            ),
-                          }
-                        : const <Type, GestureRecognizerFactory>{},
+                    gestures: <Type, GestureRecognizerFactory>{
+                      _OneWayDragRecognizer:
+                          GestureRecognizerFactoryWithHandlers<
+                              _OneWayDragRecognizer>(
+                        () => _OneWayDragRecognizer(debugOwner: this),
+                        (r) => r
+                          ..sign = widget.masterCollapsed ? 1 : -1
+                          ..onStart = _onDragStart
+                          ..onUpdate = _onDragUpdate
+                          ..onEnd = _onDragEnd,
+                      ),
+                    },
                     child: widget.detail,
                   ),
                 ),

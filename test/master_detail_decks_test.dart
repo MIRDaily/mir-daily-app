@@ -220,6 +220,41 @@ void main() {
         reason: 'desplegada tras el swipe a la derecha');
   });
 
+  // El gesto es simétrico: si sacarla vale desde cualquier punto, esconderla
+  // también. Antes solo se podía arrastrando encima de la propia lista.
+  testWidgets('deslizar a la izquierda EN EL DETALLE también pliega',
+      (tester) async {
+    await _pump(tester, const Size(1280, 800));
+    await tester.tap(find.text('Mazo Uno'));
+    await tester.pump();
+    for (var i = 0; i < 8; i++) {
+      await tester.pump(const Duration(milliseconds: 80));
+    }
+
+    Size paneSize() => tester.getSize(find.ancestor(
+          of: find.text('Mazos'),
+          matching: find.byType(ClipRect),
+        ).first);
+    expect(paneSize().width, greaterThan(200), reason: 'empieza desplegada');
+
+    // Mismo punto de partida que el swipe a la derecha de arriba: la portada
+    // del mazo, ya dentro del detalle y sin scrolls horizontales que se
+    // lleven el gesto antes.
+    await tester.flingFrom(
+      tester.getCenter(find.byType(DeckCover)),
+      const Offset(-360, 0),
+      1200,
+    );
+    await tester.pump();
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 60));
+    }
+
+    expect(paneSize().width, lessThan(2),
+        reason: 'plegada tras el swipe a la izquierda desde el detalle');
+    expect(find.byType(DeckDetailScreen), findsOneWidget);
+  });
+
   testWidgets('móvil: tocar un mazo navega a pantalla completa',
       (tester) async {
     await _pump(tester, const Size(390, 844));
