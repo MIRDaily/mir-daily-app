@@ -9,6 +9,7 @@ environment:
   sdk: ^3.10.3
 
 dependencies:
+  audioplayers: ^6.8.1
   flutter:
     sdk: flutter
 
@@ -84,6 +85,7 @@ flutter:
     - assets/images/
     - assets/electros/simulador/
     - assets/electros/academia/
+    - assets/audio/
 
   # Lexend: la tipografia de la web (mismos ficheros que public/fonts/lexend).
   # El peso 900 apunta a Bold.ttf igual que en layout.tsx, para que el

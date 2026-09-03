@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../../core/services/app_warmup.dart';
 import '../../core/theme/app_theme.dart';
+import 'intro_music.dart';
 
 /// Pantalla de carga recuperada de v10.5: frases con humor médico, barra de
 /// progreso y botón "Continuar" que es el que da paso a la app (hasta que no
@@ -67,9 +68,14 @@ class _LoadingScreenState extends State<LoadingScreen>
   /// célula en pantalla que animar.
   bool _frozen = false;
 
+  /// MOCKUP de intro con música. Ver `intro_music.dart` para quitarlo.
+  final IntroMusic _music = IntroMusic();
+
   @override
   void initState() {
     super.initState();
+
+    _music.start();
 
     _phraseIndex = Random().nextInt(_phrases.length);
     _currentPhrase = _phrases[_phraseIndex];
@@ -150,6 +156,10 @@ class _LoadingScreenState extends State<LoadingScreen>
     setState(() => _leaving = true);
     _phraseTimer?.cancel();
 
+    // Se apaga con un fundido en paralelo a la animación de salida; no se
+    // espera a que termine, que la app no tiene por qué esperar a la música.
+    _music.fadeOutAndStop();
+
     // La app entra sola al acabar (ver el listener de _exitController).
     _exitController.forward();
   }
@@ -177,6 +187,9 @@ class _LoadingScreenState extends State<LoadingScreen>
     _buttonController.dispose();
     _exitController.dispose();
     _phraseTimer?.cancel();
+    // Si se sale sin pulsar "Continuar" (p. ej. matando la pantalla), que no
+    // se quede sonando.
+    _music.dispose();
     super.dispose();
   }
 
@@ -203,6 +216,18 @@ class _LoadingScreenState extends State<LoadingScreen>
                 // ir con easeIn las células se dejan caer y luego se precipitan,
                 // en vez de arrancar de golpe.
                 fallBoost: 6 * Curves.easeIn.transform(t),
+              ),
+              // MOCKUP de intro con música: poder callarla sin salir de aquí.
+              // Se estudia en bibliotecas y de madrugada; una app que suena
+              // sola y no se puede callar en el sitio es una app que se
+              // desinstala. Se va con el resto de la interfaz al salir.
+              Positioned(
+                top: 4,
+                right: 4,
+                child: Opacity(
+                  opacity: 1 - uiGone,
+                  child: SafeArea(child: _buildMuteButton()),
+                ),
               ),
               SafeArea(
                 child: Center(
@@ -326,6 +351,24 @@ class _LoadingScreenState extends State<LoadingScreen>
           ),
         ),
       ),
+    );
+  }
+
+  /// MOCKUP de intro con música. Ver `intro_music.dart` para quitarlo.
+  Widget _buildMuteButton() {
+    return ValueListenableBuilder<bool>(
+      valueListenable: _music.silenciada,
+      builder: (context, silenciada, _) {
+        return IconButton(
+          onPressed: _music.toggleSilencio,
+          tooltip: silenciada ? 'Activar la música' : 'Silenciar la música',
+          iconSize: 20,
+          color: AppColors.textSecondary.withOpacity(0.55),
+          icon: Icon(
+            silenciada ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+          ),
+        );
+      },
     );
   }
 
