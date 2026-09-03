@@ -132,4 +132,29 @@ void main() {
     await swipe(tester, 500);
     expect(quizWidget(tester).isVisible, isTrue);
   });
+
+  // `isVisible` no bastaba: bajaba una bandera y `update()` salía temprano,
+  // pero el bucle de Flame seguía vivo y `render()` repintaba el sobre en cada
+  // fotograma. Medido en una Tab S8: ~127 fotogramas por segundo estando en
+  // otra pestaña, que era lo único que impedía a la app descansar. Y el
+  // `TickerMode` de MainNavigation no lo arregla, porque Flame usa un `Ticker`
+  // crudo. Lo que se comprueba aquí es que el MOTOR se para, no la bandera.
+  test('salir del sobre para el motor de Flame, no solo la bandera', () {
+    final game = PackOpeningGame(specialties: const [], onComplete: (_) {});
+    expect(game.paused, isFalse, reason: 'arranca corriendo');
+
+    game.setVisible(false);
+    expect(game.paused, isTrue, reason: 'fuera de vista, motor parado');
+
+    game.setVisible(true);
+    expect(game.paused, isFalse, reason: 'al volver, motor en marcha');
+
+    // Idempotente: QuizScreen lo llama desde initState y desde
+    // didUpdateWidget, así que puede repetirse con el mismo valor.
+    game.setVisible(true);
+    expect(game.paused, isFalse);
+    game.setVisible(false);
+    game.setVisible(false);
+    expect(game.paused, isTrue);
+  });
 }

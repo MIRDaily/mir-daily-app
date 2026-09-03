@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:mirdaily_app/core/responsive/breakpoints.dart';
-import 'package:mirdaily_app/core/responsive/content_shell.dart';
 import 'package:mirdaily_app/core/theme/app_theme.dart';
 import 'package:mirdaily_app/features/biblioteca/biblioteca_hub_screen.dart';
 import 'package:mirdaily_app/features/electros/electros_hub_screen.dart';
 import 'package:mirdaily_app/features/premium/screens/premium_screen.dart';
+import 'package:mirdaily_app/features/premium/widgets/premium_showcase.dart';
 
 /// Las pantallas clave se montan sin overflow ni excepciones en móvil,
 /// tablet vertical y tablet horizontal, y las rejillas usan el nº de
@@ -75,19 +74,39 @@ void main() {
       }
     });
 
-    testWidgets('BodyConstraint acota el ancho del scroll en tablet',
-        (tester) async {
+    // Premium ya no se acota con `BodyConstraint` sino con el gutter centrado
+    // de `centeringGutter(wide: true)`, como el hub de Studio: el scroll ocupa
+    // todo el ancho y lo que se acota es el CONTENIDO.
+    testWidgets('el contenido se acota y se centra en tablet', (tester) async {
       await pumpAt(tester, const Size(1280, 800), const PremiumScreen());
-      final scrollW = tester
-          .getSize(find.byType(SingleChildScrollView).first)
-          .width;
-      expect(scrollW, lessThan(1000), reason: 'el cuerpo no ocupa los 1280');
+      final heroTablet = tester.getRect(find.byType(PremiumHeroCard));
+      expect(heroTablet.width, lessThan(1200),
+          reason: 'el contenido no ocupa los 1280');
+      expect(heroTablet.left, greaterThan(40),
+          reason: 'centrado, no pegado al borde');
 
       await pumpAt(tester, const Size(390, 844), const PremiumScreen());
-      final scrollWMobile = tester
-          .getSize(find.byType(SingleChildScrollView).first)
-          .width;
-      expect(scrollWMobile, 390, reason: 'en móvil ocupa todo el ancho');
+      final heroMovil = tester.getRect(find.byType(PremiumHeroCard));
+      expect(heroMovil.left, 20, reason: 'en móvil, el gutter de siempre');
+      expect(heroMovil.width, 350, reason: '390 menos los dos gutters');
+    });
+
+    testWidgets('las ventajas pasan a rejilla en tablet', (tester) async {
+      // Móvil: una debajo de otra.
+      await pumpAt(tester, const Size(390, 844), const PremiumScreen());
+      final ilimitadasM = tester.getTopLeft(find.text('Preguntas ilimitadas'));
+      final statsM = tester.getTopLeft(find.text('Estadísticas avanzadas'));
+      expect(statsM.dx, moreOrLessEquals(ilimitadasM.dx, epsilon: 1));
+      expect(statsM.dy, greaterThan(ilimitadasM.dy + 40));
+
+      // Tablet horizontal: en la misma fila.
+      await pumpAt(tester, const Size(1280, 800), const PremiumScreen());
+      final ilimitadasT = tester.getTopLeft(find.text('Preguntas ilimitadas'));
+      final statsT = tester.getTopLeft(find.text('Estadísticas avanzadas'));
+      expect(statsT.dy, moreOrLessEquals(ilimitadasT.dy, epsilon: 1),
+          reason: 'misma fila');
+      expect(statsT.dx, greaterThan(ilimitadasT.dx + 100),
+          reason: 'otra columna');
     });
   });
 }

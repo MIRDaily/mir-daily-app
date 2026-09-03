@@ -7,6 +7,12 @@ import '../../../core/services/api_service.dart';
 import 'panel_charts.dart';
 import 'panel_subsections.dart';
 
+/// A partir de este ancho el esfuerzo y los puntos débiles caben uno al lado
+/// del otro sin que la cabecera de ninguno (título + selector de ventana) se
+/// quede sin sitio. Se mide el ancho REAL que recibe el panel, no el de la
+/// pantalla: en tablet el cuerpo va acotado y centrado.
+const double _kTwoColumnMinWidth = 900;
+
 /// Réplica móvil del Panel de la web (/panel): progreso global, esfuerzo,
 /// mapa de calor por asignaturas (con drill-down por tema) y puntos débiles.
 ///
@@ -73,14 +79,45 @@ class _PanelSectionState extends State<PanelSection> {
           onRetry: _load,
         ),
         const SizedBox(height: 32),
-        // ===== TU ESFUERZO =====
-        const EffortSubsection(),
-        const SizedBox(height: 32),
-        // ===== MAPA DE CALOR POR ASIGNATURAS =====
-        const SubjectHeatmapSubsection(),
-        const SizedBox(height: 32),
-        // ===== PUNTOS DÉBILES =====
-        const WeakPointsSubsection(),
+        // En tablet apaisada el esfuerzo y los puntos débiles se leen mejor
+        // en paralelo: son dos bloques cortos que, en columna, dejaban media
+        // pantalla vacía y obligaban a bajar para comparar.
+        LayoutBuilder(
+          builder: (context, c) {
+            if (c.maxWidth < _kTwoColumnMinWidth) {
+              return const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ===== TU ESFUERZO =====
+                  EffortSubsection(),
+                  SizedBox(height: 32),
+                  // ===== MAPA DE CALOR POR ASIGNATURAS =====
+                  SubjectHeatmapSubsection(),
+                  SizedBox(height: 32),
+                  // ===== PUNTOS DÉBILES =====
+                  WeakPointsSubsection(),
+                ],
+              );
+            }
+            return const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: EffortSubsection()),
+                    SizedBox(width: 24),
+                    Expanded(child: WeakPointsSubsection()),
+                  ],
+                ),
+                SizedBox(height: 32),
+                // El mapa de calor se queda a todo lo ancho: es el que más
+                // agradece el sitio, con su rejilla de asignaturas.
+                SubjectHeatmapSubsection(),
+              ],
+            );
+          },
+        ),
       ],
     );
   }
@@ -130,19 +167,22 @@ class _GlobalProgress extends StatelessWidget {
           PanelErrorCard(onRetry: onRetry)
         else
           PanelCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+            child: LayoutBuilder(
+              builder: (context, c) {
+                final metrics = Row(
                   children: [
                     Expanded(
                       child: _MetricCard(
-                          title: 'Puntuación', value: scoreValue, subtitle: 'Últimos 30'),
+                          title: 'Puntuación',
+                          value: scoreValue,
+                          subtitle: 'Últimos 30'),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: _MetricCard(
-                          title: 'Dailys', value: dailysValue, subtitle: 'Realizados'),
+                          title: 'Dailys',
+                          value: dailysValue,
+                          subtitle: 'Realizados'),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
@@ -150,39 +190,89 @@ class _GlobalProgress extends StatelessWidget {
                           title: 'Tiempo', value: timeValue, subtitle: 'Medio'),
                     ),
                   ],
-                ),
-                const SizedBox(height: 20),
-                const _ProgressLegend(),
-                const SizedBox(height: 8),
-                ProgressLineChart(
-                  points: (ts?.points ?? const <TimeSeriesPoint>[])
-                      .map((p) => ProgressPoint(
-                            date: p.date,
-                            score: p.score,
-                            avgTime: p.avgTime,
-                            correct: p.correct,
-                          ))
-                      .toList(),
-                  avgScore: ts?.avgScore30,
-                ),
-                if (heatmap != null) ...[
-                  const SizedBox(height: 24),
-                  Row(
-                    children: const [
-                      Icon(Icons.calendar_month_rounded,
-                          size: 18, color: PanelColors.accent),
-                      SizedBox(width: 8),
-                      Text('Mapa de Actividad',
-                          style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
-                              color: PanelColors.ink)),
+                );
+
+                final progress = Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const _ProgressLegend(),
+                    const SizedBox(height: 8),
+                    ProgressLineChart(
+                      points: (ts?.points ?? const <TimeSeriesPoint>[])
+                          .map((p) => ProgressPoint(
+                                date: p.date,
+                                score: p.score,
+                                avgTime: p.avgTime,
+                                correct: p.correct,
+                              ))
+                          .toList(),
+                      avgScore: ts?.avgScore30,
+                    ),
+                  ],
+                );
+
+                final heat = heatmap;
+                final activity = heat == null
+                    ? null
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: const [
+                              Icon(Icons.calendar_month_rounded,
+                                  size: 18, color: PanelColors.accent),
+                              SizedBox(width: 8),
+                              Text('Mapa de Actividad',
+                                  style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold,
+                                      color: PanelColors.ink)),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          _ActivityHeatmapGrid(heatmap: heat),
+                        ],
+                      );
+
+                // En tablet apaisada, la gráfica a la izquierda y el mapa de
+                // actividad a la derecha. Apilados, el mapa (que son 30
+                // celdas acotadas a 460) dejaba media tarjeta en blanco y las
+                // cuatro insignias de racha se estiraban a 270 px cada una
+                // para enseñar un número de dos cifras.
+                if (c.maxWidth < 900 || activity == null) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      metrics,
+                      const SizedBox(height: 20),
+                      progress,
+                      if (activity != null) ...[
+                        const SizedBox(height: 24),
+                        activity,
+                      ],
                     ],
-                  ),
-                  const SizedBox(height: 12),
-                  _ActivityHeatmapGrid(heatmap: heatmap!),
-                ],
-              ],
+                  );
+                }
+
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      flex: 3,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          metrics,
+                          const SizedBox(height: 20),
+                          progress,
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 24),
+                    Expanded(flex: 2, child: activity),
+                  ],
+                );
+              },
             ),
           ),
       ],
@@ -272,30 +362,39 @@ class _ActivityHeatmapGrid extends StatelessWidget {
 
     return Column(
       children: [
-        GridView.count(
-          crossAxisCount: 7,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          mainAxisSpacing: 6,
-          crossAxisSpacing: 6,
-          childAspectRatio: 1.4,
-          children: [
-            for (final l in _labels)
-              Center(
-                child: Text(l,
-                    style: const TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        color: PanelColors.muted)),
-              ),
-            for (final day in cells)
-              Container(
-                decoration: BoxDecoration(
-                  color: _cellColor(day?.level ?? 0),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-              ),
-          ],
+        // La rejilla son 30 celdas: si se la deja crecer con el ancho de una
+        // tablet, cada día acaba siendo un ladrillo. Se acota y se alinea a la
+        // izquierda, como en la web.
+        Align(
+          alignment: Alignment.centerLeft,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 460),
+            child: GridView.count(
+              crossAxisCount: 7,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              mainAxisSpacing: 6,
+              crossAxisSpacing: 6,
+              childAspectRatio: 1.4,
+              children: [
+                for (final l in _labels)
+                  Center(
+                    child: Text(l,
+                        style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: PanelColors.muted)),
+                  ),
+                for (final day in cells)
+                  Container(
+                    decoration: BoxDecoration(
+                      color: _cellColor(day?.level ?? 0),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                  ),
+              ],
+            ),
+          ),
         ),
         const SizedBox(height: 14),
         Row(
@@ -454,15 +553,49 @@ class PanelCard extends StatelessWidget {
   }
 }
 
+/// Silueta de una tarjeta del panel mientras llegan sus datos.
+///
+/// Antes era un `CircularProgressIndicator` centrado. El cambio no acelera
+/// nada —las peticiones tardan lo mismo— pero un spinner sobre un hueco vacío
+/// no dice qué va a aparecer ahí, y además gira: obliga a repintar la pantalla
+/// entera los ~1,7 s que tarda el backend. La silueta es estática y ya tiene
+/// la forma de lo que viene, así que al llegar los datos no hay salto.
 class PanelLoadingCard extends StatelessWidget {
   final double height;
   const PanelLoadingCard({super.key, this.height = 200});
+
+  static const _bone = Color(0xFFF0EAE6);
+
+  static Widget _hueso(double w, double h, [double r = 6]) => Container(
+        width: w,
+        height: h,
+        decoration: BoxDecoration(
+          color: _bone,
+          borderRadius: BorderRadius.circular(r),
+        ),
+      );
+
   @override
   Widget build(BuildContext context) => PanelCard(
         child: SizedBox(
           height: height,
-          child: const Center(
-            child: CircularProgressIndicator(color: PanelColors.accent),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(child: _hueso(double.infinity, 46, 12)),
+                  const SizedBox(width: 10),
+                  Expanded(child: _hueso(double.infinity, 46, 12)),
+                  const SizedBox(width: 10),
+                  Expanded(child: _hueso(double.infinity, 46, 12)),
+                ],
+              ),
+              const SizedBox(height: 18),
+              _hueso(140, 12),
+              const SizedBox(height: 12),
+              Expanded(child: _hueso(double.infinity, double.infinity, 10)),
+            ],
           ),
         ),
       );

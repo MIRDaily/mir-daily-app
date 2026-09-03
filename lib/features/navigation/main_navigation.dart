@@ -32,6 +32,8 @@ class _MainNavigationState extends State<MainNavigation>
   /// que ya no es la 1; tenerlo en una constante evita que se descuadren el
   /// PageView, la pastilla y los booleanos de visibilidad del sobre.
   static const int _quizIndex = 2;
+  static const int _premiumIndex = 3;
+  static const int _tabCount = 5;
 
   late PageController _pageController;
 
@@ -41,6 +43,26 @@ class _MainNavigationState extends State<MainNavigation>
   // evita reconstruir las cuatro pantallas 120 veces por segundo al deslizar.
   bool _isQuizVisible = true;
   bool _isOnQuizPage = true;
+
+  /// `true` en cuanto Premium se ha llegado a ver una vez.
+  ///
+  /// El `PageView` construye las páginas vecinas para que el deslizamiento sea
+  /// fluido, así que Premium se montaba nada más arrancar la app estando en el
+  /// daily. Sus cinco peticiones de analítica salían siempre, aunque el
+  /// usuario no entrara nunca en la pestaña. No se vuelve a poner a `false`:
+  /// una vez cargado el panel, no hay motivo para descargarlo.
+  bool _premiumSeen = false;
+
+  /// Un bit por pestaña: 1 = sus animaciones corren. Arranca con el daily.
+  ///
+  /// Va en un `ValueNotifier` y NO en el estado a propósito. La máscara cambia
+  /// a mitad de un arrastre, y un `setState` aquí volvería a correr
+  /// `_buildScreens()` y crearía las cinco pantallas de cero en pleno gesto
+  /// —justo lo que evita el resto de esta clase, y lo que vigila el test
+  /// "deslizar sin cambiar de página no reconstruye las pantallas"—. Así solo
+  /// se repinta el envoltorio `TickerMode`, con la pantalla como `child`
+  /// intacto.
+  final ValueNotifier<int> _tickerMask = ValueNotifier(1 << _quizIndex);
 
   bool _isPackOpening = true;
 
@@ -152,11 +174,29 @@ class _MainNavigationState extends State<MainNavigation>
     final isQuizVisible = (page - _quizIndex).abs() < 0.5;
     final isOnQuizPage = page.round() == _quizIndex;
 
-    if (isQuizVisible == _isQuizVisible && isOnQuizPage == _isOnQuizPage) return;
+    final premiumSeen = _premiumSeen || (page - _premiumIndex).abs() < 0.5;
+
+    // Casi una página de margen: en reposo solo queda encendida la actual
+    // (la vecina está a distancia 1), pero en cuanto empieza el arrastre la
+    // que entra ya está animando y no se ve congelada.
+    var mask = 0;
+    for (var i = 0; i < _tabCount; i++) {
+      if ((page - i).abs() < 0.999) mask |= 1 << i;
+    }
+    // Fuera del setState: el notifier solo avisa si el valor cambia de verdad,
+    // y quien escucha es únicamente el envoltorio de cada página.
+    _tickerMask.value = mask;
+
+    if (isQuizVisible == _isQuizVisible &&
+        isOnQuizPage == _isOnQuizPage &&
+        premiumSeen == _premiumSeen) {
+      return;
+    }
 
     setState(() {
       _isQuizVisible = isQuizVisible;
       _isOnQuizPage = isOnQuizPage;
+      _premiumSeen = premiumSeen;
     });
   }
 
@@ -208,6 +248,40 @@ class _MainNavigationState extends State<MainNavigation>
     }
   }
   
+  /// Las pantallas, cada una con sus animaciones apagadas si no se ve.
+  ///
+  /// El `PageView` mantiene vivas las páginas vecinas para que el
+  /// deslizamiento sea fluido, pero eso deja corriendo sus animaciones en
+  /// bucle sin que nadie las mire: los cuatro dibujos del hub de Studio (los
+  /// mazos rotando, la flashcard girando, el abanico del simulacro y el
+  /// electro), el brillo del carné del perfil, el medallón de Premium…
+  ///
+  /// Medido en la Tab S8: la app repintaba a ~128 fotogramas por segundo con
+  /// la pantalla QUIETA, en cualquier pestaña. `TickerMode` silencia los
+  /// tickers de todo el subárbol; los controladores conservan su valor y
+  /// siguen donde estaban al volver.
+  ///
+  /// La ventana es de casi una página entera a cada lado a propósito: durante
+  /// un arrastre, la pestaña que está entrando ya anima, así que no se ve
+  /// congelada mientras se desliza. En reposo solo queda viva la actual.
+  List<Widget> _pageChildren() {
+    final screens = _buildScreens();
+    return [
+      for (var i = 0; i < screens.length; i++)
+        ValueListenableBuilder<int>(
+          valueListenable: _tickerMask,
+          // La pantalla va como `child`: se construye una vez aquí y el
+          // builder la reutiliza tal cual, así que cambiar la máscara no la
+          // reconstruye.
+          child: screens[i],
+          builder: (context, mask, child) => TickerMode(
+            enabled: (mask & (1 << i)) != 0,
+            child: child!,
+          ),
+        ),
+    ];
+  }
+
   List<Widget> _buildScreens() {
     return [
       const BibliotecaHubScreen(key: ValueKey('biblioteca')),
@@ -222,7 +296,7 @@ class _MainNavigationState extends State<MainNavigation>
         isVisible: _isQuizVisible,
         justOnboarded: widget.justOnboarded,
       ),
-      const PremiumScreen(key: ValueKey('premium')),
+      PremiumScreen(key: const ValueKey('premium'), isVisible: _premiumSeen),
       const ProfileScreen(key: ValueKey('profile')),
     ];
   }
@@ -231,6 +305,7 @@ class _MainNavigationState extends State<MainNavigation>
   void dispose() {
     _pillCtrl.dispose();
     _barEntry.dispose();
+    _tickerMask.dispose();
     _pageController.removeListener(_onPageScroll);
     _pageController.dispose();
     super.dispose();
@@ -339,7 +414,7 @@ class _MainNavigationState extends State<MainNavigation>
       blockZone: showPackZoneBlocker ? packZone : null,
       allowImplicitScrolling: true,
       onPageChanged: _onPageSettled,
-      children: _buildScreens(),
+      children: _pageChildren(),
     );
 
     final Widget body = useRail

@@ -196,12 +196,32 @@ class PackOpeningGame extends FlameGame with HorizontalDragDetector {
   double get tearProgress => _tearProgress;
   bool get tearComplete => _tearComplete;
   
-  // Métodos para controlar visibilidad desde fuera
+  /// Enciende o apaga el sobre según esté a la vista.
+  ///
+  /// Antes esto solo bajaba una bandera y `update()` salía temprano, pero el
+  /// bucle de Flame seguía corriendo y **`render()` seguía pintando el juego
+  /// en cada fotograma**. Medido en la Tab S8: la app repintaba a ~127
+  /// fotogramas por segundo estando en Versus o en Premium, con el sobre fuera
+  /// de la pantalla. Era el único motivo por el que no descansaba nunca.
+  ///
+  /// No basta con el `TickerMode` de `MainNavigation`: Flame monta su bucle
+  /// con un `Ticker` CRUDO (ver `game_loop.dart` del paquete), no a través de
+  /// un `TickerProvider`, así que `TickerMode` no puede silenciarlo. Hay que
+  /// parar el motor a mano.
+  ///
+  /// `pauseEngine` y `resumeEngine` son idempotentes (`GameLoop.start()` es un
+  /// noop si ya corre) y seguros antes de que el juego se monte: van por
+  /// `_gameRenderBox?.gameLoop?`, y al montarse el render box respeta
+  /// `paused`. Al reanudar, Flame NO arrastra el tiempo que ha pasado parado,
+  /// así que no hay salto —y `update()` clampea el `dt` de todas formas—.
   void setVisible(bool visible) {
     _isVisible = visible;
     if (visible) {
       // Resetear el tiempo para evitar saltos
       _lastUpdateTime = 0.0;
+      resumeEngine();
+    } else {
+      pauseEngine();
     }
   }
 
