@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:provider/provider.dart';
+
 import 'package:mirdaily_app/core/providers/auth_provider.dart';
 import 'package:mirdaily_app/core/providers/daily_provider.dart';
+import 'package:mirdaily_app/core/providers/settings_provider.dart';
 import 'package:mirdaily_app/core/services/api_service.dart';
 import 'package:mirdaily_app/core/services/app_warmup.dart';
 import 'package:mirdaily_app/core/services/auth_service.dart';
@@ -45,10 +48,13 @@ void main() {
     usePhoneScreen(tester);
     var continued = 0;
     await tester.pumpWidget(
-      MaterialApp(
-        home: LoadingScreen(
-          warmup: buildWarmup(),
-          onContinue: () => continued++,
+      ChangeNotifierProvider(
+        create: (_) => SettingsProvider(),
+        child: MaterialApp(
+          home: LoadingScreen(
+            warmup: buildWarmup(),
+            onContinue: () => continued++,
+          ),
         ),
       ),
     );
@@ -76,6 +82,11 @@ void main() {
       find.byType(ParticlesBackground),
     );
     expect(end.animate, isFalse, reason: 'el fondo debe quedar congelado');
+
+    // El fundido de la música dura más que la salida y sigue vivo después de
+    // que la pantalla se destruya (a propósito: si se cortara aquí, "Continuar"
+    // sonaría a tijeretazo). Se le deja acabar o el test se queja del timer.
+    await tester.pump(const Duration(seconds: 6));
   });
 
   testWidgets('con las animaciones del sistema desactivadas la cascada no '
@@ -94,10 +105,13 @@ void main() {
 
     var continued = 0;
     await tester.pumpWidget(
-      MaterialApp(
-        home: LoadingScreen(
-          warmup: buildWarmup(),
-          onContinue: () => continued++,
+      ChangeNotifierProvider(
+        create: (_) => SettingsProvider(),
+        child: MaterialApp(
+          home: LoadingScreen(
+            warmup: buildWarmup(),
+            onContinue: () => continued++,
+          ),
         ),
       ),
     );
@@ -110,6 +124,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 60));
 
     expect(continued, 1);
+
+    // Dejar acabar el fundido de la música, que sobrevive a la pantalla.
+    await tester.pump(const Duration(seconds: 6));
   });
 
   testWidgets('pulsar Continuar dos veces no dispara dos entradas',
@@ -117,10 +134,13 @@ void main() {
     usePhoneScreen(tester);
     var continued = 0;
     await tester.pumpWidget(
-      MaterialApp(
-        home: LoadingScreen(
-          warmup: buildWarmup(),
-          onContinue: () => continued++,
+      ChangeNotifierProvider(
+        create: (_) => SettingsProvider(),
+        child: MaterialApp(
+          home: LoadingScreen(
+            warmup: buildWarmup(),
+            onContinue: () => continued++,
+          ),
         ),
       ),
     );
@@ -136,5 +156,8 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
 
     expect(continued, 1);
+
+    // Dejar acabar el fundido de la música, que sobrevive a la pantalla.
+    await tester.pump(const Duration(seconds: 6));
   });
 }

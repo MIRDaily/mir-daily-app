@@ -2,6 +2,9 @@ import 'dart:async';
 import 'dart:math';
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../../core/providers/settings_provider.dart';
 import '../../core/services/app_warmup.dart';
 import '../../core/theme/app_theme.dart';
 import 'intro_music.dart';
@@ -69,7 +72,7 @@ class _LoadingScreenState extends State<LoadingScreen>
   bool _frozen = false;
 
   /// MOCKUP de intro con música. Ver `intro_music.dart` para quitarlo.
-  final IntroMusic _music = IntroMusic();
+  late final IntroMusic _music = IntroMusic(context.read<SettingsProvider>());
 
   @override
   void initState() {

@@ -21,6 +21,7 @@ class SettingsProvider extends ChangeNotifier {
   }
 
   static const _kNavBarStyle = 'settings.nav_bar_style';
+  static const _kIntroMusic = 'settings.intro_music';
 
   /// Por defecto: flotante en tablet, clásica en móvil. Solo cuenta si el
   /// usuario no ha elegido nada todavía.
@@ -28,8 +29,23 @@ class SettingsProvider extends ChangeNotifier {
       OrientationLock.isTablet ? NavBarStyle.floating : NavBarStyle.classic;
   NavBarStyle get navBarStyle => _navBarStyle;
 
+  /// Si suena la musiquilla de la pantalla de carga.
+  ///
+  /// Encendida de fábrica, pero es lo primero que va a querer apagar quien
+  /// estudie en una biblioteca. Se puede quitar y volver a poner desde la
+  /// propia pantalla de carga o desde Perfil > Preferencias, y se recuerda.
+  bool _introMusic = true;
+  bool get introMusic => _introMusic;
+
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
+
+    final musica = prefs.getBool(_kIntroMusic);
+    if (musica != null && musica != _introMusic) {
+      _introMusic = musica;
+      notifyListeners();
+    }
+
     final saved = prefs.getString(_kNavBarStyle);
     if (saved == null) return; // se queda con el valor por defecto
     final wanted =
@@ -38,6 +54,14 @@ class SettingsProvider extends ChangeNotifier {
       _navBarStyle = wanted;
       notifyListeners();
     }
+  }
+
+  Future<void> setIntroMusic(bool on) async {
+    if (on == _introMusic) return;
+    _introMusic = on;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_kIntroMusic, on);
   }
 
   Future<void> setNavBarStyle(NavBarStyle style) async {

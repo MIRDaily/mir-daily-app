@@ -169,6 +169,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           : 'Clásica',
                       onTap: _openNavBarStyleSettings,
                     ),
+                    // MOCKUP de intro con música. Ver `intro_music.dart`.
+                    _MenuItemData(
+                      icon: Icons.music_note_outlined,
+                      color: const Color(0xFF8E6BB8),
+                      title: 'Música de la pantalla de carga',
+                      trailing: Switch(
+                        value: context.watch<SettingsProvider>().introMusic,
+                        onChanged: (on) =>
+                            context.read<SettingsProvider>().setIntroMusic(on),
+                        activeColor: AppColors.primary,
+                      ),
+                      onTap: () {
+                        final ajustes = context.read<SettingsProvider>();
+                        ajustes.setIntroMusic(!ajustes.introMusic);
+                      },
+                    ),
                     _MenuItemData(
                       icon: Icons.dark_mode_outlined,
                       color: const Color(0xFF34495E),
