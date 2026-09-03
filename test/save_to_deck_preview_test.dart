@@ -20,7 +20,10 @@ class _FakeApi extends ApiService {
   _FakeApi() : super(AuthService());
 
   /// deckId -> itemId, lo que "hay" en el servidor de mentira.
-  Map<String, String> guardadas = {'d2': 'item-99'};
+  ///
+  /// 'auto' es el mazo automático de fallos: el backend lo contesta como
+  /// cualquier otro, pero no se ofrece y no debe contar como "guardada".
+  Map<String, String> guardadas = {'d2': 'item-99', 'auto': 'item-auto'};
 
   final List<String> llamadas = [];
 
@@ -248,6 +251,76 @@ void main() {
     saved.setSaved(_pregunta, false);
     await tester.pump();
     expect(iconoActual(), Icons.bookmark_add_outlined);
+  });
+
+  // Regresión: el mazo automático de fallos se rellena solo, así que una
+  // pregunta fallada aparecía como "guardada" (icono verde) sin que el usuario
+  // la hubiera guardado, y en un mazo que ni sale en la lista.
+  testWidgets('estar en el mazo automático de fallos no cuenta como guardada',
+      (tester) async {
+    final api = _FakeApi();
+    // Solo está en el automático: el usuario no la ha guardado en ninguno.
+    api.guardadas = {'auto': 'item-auto'};
+
+    final saved = SavedQuestionsProvider();
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          Provider<ApiService>.value(value: api),
+          ChangeNotifierProvider<SavedQuestionsProvider>.value(value: saved),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(
+            body: Center(child: SaveToDeckButton(questionId: _pregunta)),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.byType(IconButton));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    // Ningún mazo de los ofrecidos la tiene.
+    expect(find.text('QUITAR'), findsNothing);
+    expect(saved.isSaved(_pregunta), isFalse);
+  });
+
+  // Mientras cargaba se veía un puntito girando en una caja de 26px y el
+  // popup abría diminuto para estirarse de golpe al llegar los mazos.
+  testWidgets('mientras carga enseña la silueta de la lista, no un spinner',
+      (tester) async {
+    tester.view.physicalSize = const Size(420, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final api = _FakeApi();
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          Provider<ApiService>.value(value: api),
+          ChangeNotifierProvider(create: (_) => SavedQuestionsProvider()),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(
+            body: Center(child: SaveToDeckButton(questionId: _pregunta)),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byType(IconButton));
+    await tester.pump(); // abierto, sin que haya vuelto la peticion
+
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    final alturaCargando = tester.getSize(find.byType(Dialog)).height;
+
+    await tester.pump(const Duration(milliseconds: 500));
+    final alturaCargado = tester.getSize(find.byType(Dialog)).height;
+
+    // Con 3 mazos propios y 3 filas de esqueleto, el alto no debe pegar un
+    // salto: es lo que se veia como "una pestaña que luego se reescala".
+    expect((alturaCargado - alturaCargando).abs(), lessThan(24),
+        reason: 'de $alturaCargando a $alturaCargado');
   });
 
   testWidgets('la marca no se arrastra a otra pregunta', (tester) async {

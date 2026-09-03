@@ -110,9 +110,20 @@ class _SaveToDeckDialogState extends State<_SaveToDeckDialog> {
       // El mazo automático de fallos no admite preguntas a mano (403 en el
       // backend), así que no se ofrece.
       final propios = res.decks.where((d) => !d.isAutoManaged).toList();
+
+      // La pertenencia se acota a los mazos que SÍ se ofrecen. El backend
+      // contesta por todos, y el automático de fallos se rellena solo: sin
+      // este filtro, cualquier pregunta fallada salía marcada como guardada
+      // en un mazo que ni siquiera está en la lista.
+      final ofrecidos = propios.map((d) => d.id).toSet();
+      _ultimoNumeroDeMazos = propios.length;
+
       setState(() {
         _decks = propios;
-        _membership = {...res.membership};
+        _membership = {
+          for (final e in res.membership.entries)
+            if (ofrecidos.contains(e.key)) e.key: e.value,
+        };
         _error = null;
         _checking = false;
       });
@@ -236,6 +247,9 @@ class _SaveToDeckDialogState extends State<_SaveToDeckDialog> {
             const SizedBox(height: 10),
             if (_showCreate) _createForm() else _createButton(),
             const SizedBox(height: 10),
+            // Sin `AnimatedSize` aquí: dentro de este `Flexible` deja de
+            // ajustarse al contenido y estira la tarjeta a toda la pantalla.
+            // El esqueleto ya hace que el popup abra con su tamaño.
             Flexible(child: _deckList()),
             if (_feedback != null) ...[
               const SizedBox(height: 10),
@@ -396,17 +410,12 @@ class _SaveToDeckDialogState extends State<_SaveToDeckDialog> {
 
     final decks = _decks;
     if (decks == null) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 26),
-        child: Center(
-          child: SizedBox(
-            width: 24,
-            height: 24,
-            child: CircularProgressIndicator(
-                strokeWidth: 2.4, color: AppColors.primary),
-          ),
-        ),
-      );
+      // Esqueleto con la forma de la lista, no un puntito girando: así el
+      // popup abre ya con su tamaño en vez de salir como una pestaña y
+      // estirarse de golpe cuando llegan los mazos. Se usan tantas filas como
+      // mazos tenía la última vez, así que a partir de la segunda apertura ni
+      // se mueve.
+      return _DeckListSkeleton(filas: _ultimoNumeroDeMazos ?? 3);
     }
 
     if (decks.isEmpty) {
@@ -467,6 +476,105 @@ class _SaveToDeckDialogState extends State<_SaveToDeckDialog> {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Cuántos mazos propios tenía el usuario la última vez que se abrió la hoja.
+///
+/// Solo sirve para dibujar el esqueleto de carga con el número de filas que
+/// probablemente hagan falta: con esto, a partir de la segunda apertura el
+/// popup ya no cambia de alto al llegar los datos. No es una caché de datos,
+/// no se usa para pintar nada real.
+int? _ultimoNumeroDeMazos;
+
+/// La silueta de la lista mientras cargan los mazos.
+///
+/// Late despacio en vez de girar: un `CircularProgressIndicator` en una caja
+/// de 26px hacía que el popup abriera diminuto y pegara un estirón.
+class _DeckListSkeleton extends StatefulWidget {
+  const _DeckListSkeleton({required this.filas});
+
+  final int filas;
+
+  @override
+  State<_DeckListSkeleton> createState() => _DeckListSkeletonState();
+}
+
+class _DeckListSkeletonState extends State<_DeckListSkeleton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _latido = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 900),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _latido.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _latido,
+      builder: (context, _) {
+        final t = Curves.easeInOut.transform(_latido.value);
+        return Column(
+          children: [
+            for (var i = 0; i < widget.filas; i++) ...[
+              if (i > 0) const SizedBox(height: 6),
+              Opacity(
+                // Las de abajo laten un pelín por detrás: da sensación de
+                // lista que llega, no de bloque parpadeando entero.
+                opacity: 0.45 + 0.25 * (i.isEven ? t : 1 - t),
+                child: Container(
+                  // Mismo alto que una fila real: 9 de padding arriba y abajo,
+                  // 2 de borde y 22 de la muestra de color.
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 9),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: kHairline, width: 2),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 22,
+                        height: 22,
+                        decoration: BoxDecoration(
+                          color: kHairline,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Container(
+                          height: 10,
+                          decoration: BoxDecoration(
+                            color: kHairline,
+                            borderRadius: BorderRadius.circular(5),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 24),
+                      Container(
+                        width: 46,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          color: kHairline,
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ],
+        );
+      },
     );
   }
 }
