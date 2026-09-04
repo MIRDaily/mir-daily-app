@@ -72,7 +72,12 @@ class _LoadingScreenState extends State<LoadingScreen>
   bool _frozen = false;
 
   /// MOCKUP de intro con música. Ver `intro_music.dart` para quitarlo.
-  late final IntroMusic _music = IntroMusic(context.read<SettingsProvider>());
+  ///
+  /// La pantalla NO es su dueña: la música tiene que seguir sonando durante el
+  /// onboarding, que ya no es esta pantalla. Quien la crea y la suelta es el
+  /// provider de `main.dart`, y quien la apaga es `_OnboardingGate` cuando
+  /// arranca la app de verdad.
+  late final IntroMusic _music = context.read<IntroMusic>();
 
   @override
   void initState() {
@@ -159,9 +164,9 @@ class _LoadingScreenState extends State<LoadingScreen>
     setState(() => _leaving = true);
     _phraseTimer?.cancel();
 
-    // Se apaga con un fundido en paralelo a la animación de salida; no se
-    // espera a que termine, que la app no tiene por qué esperar a la música.
-    _music.fadeOutAndStop();
+    // La intro NO se apaga aquí. Si al usuario le toca onboarding, la música
+    // continúa durante él; el apagado lo hace `_OnboardingGate` cuando entra
+    // la app de verdad.
 
     // La app entra sola al acabar (ver el listener de _exitController).
     _exitController.forward();
@@ -190,9 +195,8 @@ class _LoadingScreenState extends State<LoadingScreen>
     _buttonController.dispose();
     _exitController.dispose();
     _phraseTimer?.cancel();
-    // Si se sale sin pulsar "Continuar" (p. ej. matando la pantalla), que no
-    // se quede sonando.
-    _music.dispose();
+    // La música NO se suelta aquí: sigue durante el onboarding. La suelta el
+    // provider que la creó.
     super.dispose();
   }
 

@@ -9,6 +9,7 @@ import 'core/build_info.dart';
 import 'core/responsive/orientation_lock.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/system_ui.dart';
+import 'core/audio/background_music.dart';
 import 'core/providers/quiz_provider.dart';
 import 'core/providers/saved_questions_provider.dart';
 import 'core/providers/settings_provider.dart';
@@ -21,6 +22,7 @@ import 'core/services/auth_service.dart';
 import 'core/services/notification_service.dart';
 import 'features/focus/providers/focus_provider.dart';
 import 'features/navigation/main_navigation.dart';
+import 'features/splash/intro_music.dart';
 import 'features/versus/services/versus_links.dart';
 import 'features/onboarding/screens/onboarding_screen.dart';
 import 'features/auth/login_screen.dart';
@@ -100,6 +102,19 @@ class MIRDailyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => DailyProvider(apiService)),
         ChangeNotifierProvider(create: (_) => SettingsProvider()),
         ChangeNotifierProvider(create: (_) => SavedQuestionsProvider()),
+        // MOCKUP de música de fondo. Ver `core/audio/background_music.dart`.
+        // Se declara después de SettingsProvider porque lee de él el volumen y
+        // el interruptor. No arranca sola: la enciende la entrada a la app.
+        ChangeNotifierProvider(
+          create: (ctx) => BackgroundMusic(ctx.read<SettingsProvider>()),
+        ),
+        // MOCKUP de intro con música. Vive aquí y no dentro de la pantalla de
+        // carga porque tiene que seguir sonando durante el onboarding: si la
+        // dueña fuera la pantalla, se apagaría al salir de ella.
+        Provider<IntroMusic>(
+          create: (ctx) => IntroMusic(ctx.read<SettingsProvider>()),
+          dispose: (_, musica) => musica.dispose(),
+        ),
         // Providers locales heredados de v10.6 (Studio, Premium, Perfil, Focus)
         ChangeNotifierProvider(create: (_) => QuizProvider()),
         ChangeNotifierProvider(create: (_) => UserProvider()),
@@ -240,6 +255,10 @@ class _StartupGateState extends State<StartupGate> {
               ? _OnboardingGate(warmup: _warmupFor(context))
               : LoadingScreen(
                   warmup: _warmupFor(context),
+                  // La intro NO se apaga aquí: si toca onboarding, sigue
+                  // sonando durante él. Quien la apaga (y quien enciende la
+                  // música de fondo) es _OnboardingGate, cuando la app
+                  // arranca de verdad.
                   onContinue: () => setState(() => _continued = true),
                 ),
         },
@@ -308,6 +327,22 @@ class _OnboardingGateState extends State<_OnboardingGate> {
     if (mounted) setState(() => _deferred = true);
   }
 
+  /// MOCKUP de música: apaga la intro y arranca la de fondo.
+  ///
+  /// Se llama desde `build`, así que se hace una sola vez y en el frame
+  /// siguiente: tocar providers en mitad de un build es pedir problemas.
+  bool _relevoHecho = false;
+
+  void _relevoDeMusica() {
+    if (_relevoHecho) return;
+    _relevoHecho = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<IntroMusic>().fadeOutAndStop();
+      context.read<BackgroundMusic>().start();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<AuthProvider>(
@@ -322,11 +357,17 @@ class _OnboardingGateState extends State<_OnboardingGate> {
           );
         }
         if (auth.needsOnboarding && !_deferred) {
+          // La intro sigue sonando: el onboarding es la continuación de la
+          // entrada, no la app todavía.
           return OnboardingScreen(
             onFinished: () {}, // el cambio de perfil ya re-enruta a la app
             onSkip: _defer,
           );
         }
+        // Aquí empieza la app de verdad: se apaga la intro con su fundido y
+        // entra la música de fondo. Este es el único punto por el que se pasa
+        // tanto si hubo onboarding como si no.
+        _relevoDeMusica();
         // Entrada especial (marcada y lenta) solo si acaba de terminar el
         // onboarding en esta sesión.
         return MainNavigation(justOnboarded: auth.onboardingJustCompleted);

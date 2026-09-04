@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../../core/audio/background_music.dart';
 import '../../../core/services/haptics_service.dart';
 
 import '../../../core/services/api_service.dart';
@@ -35,7 +36,7 @@ class VersusRoomScreen extends StatefulWidget {
   State<VersusRoomScreen> createState() => _VersusRoomScreenState();
 }
 
-class _VersusRoomScreenState extends State<VersusRoomScreen> {
+class _VersusRoomScreenState extends State<VersusRoomScreen> with SilencesBackgroundMusic {
   late final VersusRoomController _controller;
   bool _leaving = false;
 

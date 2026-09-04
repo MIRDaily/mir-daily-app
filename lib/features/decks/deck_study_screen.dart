@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/audio/background_music.dart';
 import '../../core/models/models.dart';
 import '../../core/services/api_service.dart';
 import '../../core/theme/app_theme.dart';
@@ -31,7 +32,7 @@ class DeckStudyScreen extends StatefulWidget {
   State<DeckStudyScreen> createState() => _DeckStudyScreenState();
 }
 
-class _DeckStudyScreenState extends State<DeckStudyScreen> {
+class _DeckStudyScreenState extends State<DeckStudyScreen> with SilencesBackgroundMusic {
   static const _letters = ['A', 'B', 'C', 'D', 'E', 'F'];
 
   String? _sessionId;

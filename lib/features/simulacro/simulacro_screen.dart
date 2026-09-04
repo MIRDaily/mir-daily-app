@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/models/models.dart';
+import '../../core/audio/background_music.dart';
 import '../../core/responsive/adaptive_modal.dart';
 import '../../core/responsive/breakpoints.dart';
 import '../../core/responsive/content_shell.dart';
@@ -50,6 +51,31 @@ class SimulacroScreen extends StatefulWidget {
 
 class _SimulacroScreenState extends State<SimulacroScreen> {
   String _phase = 'builder'; // builder | running | results
+
+  /// La música de fondo se calla mientras se responde, no en el creador ni en
+  /// los resultados. Por eso esta pantalla no usa el mixin
+  /// `SilencesBackgroundMusic` (que va por pantalla montada) y lleva la cuenta
+  /// a mano al cambiar de fase.
+  bool _musicaCallada = false;
+
+  void _ajustarMusica() {
+    final callar = _phase == 'running';
+    if (callar == _musicaCallada) return;
+    _musicaCallada = callar;
+    final musica = context.read<BackgroundMusic?>();
+    if (musica == null) return;
+    callar ? musica.pushSilence() : musica.popSilence();
+  }
+
+  @override
+  void dispose() {
+    if (_musicaCallada) {
+      _musicaCallada = false;
+      // Salir del simulacro a medias también tiene que devolver la música.
+      context.read<BackgroundMusic?>()?.popSilence();
+    }
+    super.dispose();
+  }
   String _mode = 'immediate'; // immediate | deferred
   String _layout = 'classic'; // classic | carousel
 
@@ -125,6 +151,7 @@ class _SimulacroScreenState extends State<SimulacroScreen> {
         _sessionId = _genSessionId();
         _phase = 'running';
       });
+      _ajustarMusica();
     } catch (e) {
       if (!mounted) return;
       setState(() => _generationError =
@@ -208,6 +235,7 @@ class _SimulacroScreenState extends State<SimulacroScreen> {
       }
     }
     if (mounted) setState(() => _phase = 'results');
+    _ajustarMusica();
 
     // Guarda el simulacro en el historial. Igual que en la web es
     // "best-effort": el backend solo lo guarda de verdad si hay >=50
@@ -229,6 +257,7 @@ class _SimulacroScreenState extends State<SimulacroScreen> {
       _finishing = false;
       _phase = 'builder';
     });
+    _ajustarMusica();
   }
 
   /// Insignia del modo de corrección (va en el AppBar durante el test).

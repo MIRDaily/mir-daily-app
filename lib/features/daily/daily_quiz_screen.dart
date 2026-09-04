@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/audio/background_music.dart';
 import '../../core/models/models.dart';
 import '../../core/providers/daily_provider.dart';
 import '../../core/responsive/content_shell.dart';
@@ -24,7 +25,7 @@ class DailyQuizScreen extends StatefulWidget {
   State<DailyQuizScreen> createState() => _DailyQuizScreenState();
 }
 
-class _DailyQuizScreenState extends State<DailyQuizScreen> {
+class _DailyQuizScreenState extends State<DailyQuizScreen> with SilencesBackgroundMusic {
   int? _selectedOption;
   late DateTime _questionStart;
   Timer? _ticker;

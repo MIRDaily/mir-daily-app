@@ -10,6 +10,7 @@ import 'package:mirdaily_app/core/providers/settings_provider.dart';
 import 'package:mirdaily_app/core/services/api_service.dart';
 import 'package:mirdaily_app/core/services/app_warmup.dart';
 import 'package:mirdaily_app/core/services/auth_service.dart';
+import 'package:mirdaily_app/features/splash/intro_music.dart';
 import 'package:mirdaily_app/features/splash/loading_screen.dart';
 
 /// La salida de la pantalla de carga: las células se precipitan y barren el
@@ -48,8 +49,16 @@ void main() {
     usePhoneScreen(tester);
     var continued = 0;
     await tester.pumpWidget(
-      ChangeNotifierProvider(
-        create: (_) => SettingsProvider(),
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (_) => SettingsProvider()),
+          // La intro ya no es de la pantalla: vive por encima para poder
+          // seguir sonando durante el onboarding.
+          Provider<IntroMusic>(
+            create: (ctx) => IntroMusic(ctx.read<SettingsProvider>()),
+            dispose: (_, m) => m.dispose(),
+          ),
+        ],
         child: MaterialApp(
           home: LoadingScreen(
             warmup: buildWarmup(),
@@ -105,8 +114,16 @@ void main() {
 
     var continued = 0;
     await tester.pumpWidget(
-      ChangeNotifierProvider(
-        create: (_) => SettingsProvider(),
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (_) => SettingsProvider()),
+          // La intro ya no es de la pantalla: vive por encima para poder
+          // seguir sonando durante el onboarding.
+          Provider<IntroMusic>(
+            create: (ctx) => IntroMusic(ctx.read<SettingsProvider>()),
+            dispose: (_, m) => m.dispose(),
+          ),
+        ],
         child: MaterialApp(
           home: LoadingScreen(
             warmup: buildWarmup(),
@@ -134,8 +151,16 @@ void main() {
     usePhoneScreen(tester);
     var continued = 0;
     await tester.pumpWidget(
-      ChangeNotifierProvider(
-        create: (_) => SettingsProvider(),
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (_) => SettingsProvider()),
+          // La intro ya no es de la pantalla: vive por encima para poder
+          // seguir sonando durante el onboarding.
+          Provider<IntroMusic>(
+            create: (ctx) => IntroMusic(ctx.read<SettingsProvider>()),
+            dispose: (_, m) => m.dispose(),
+          ),
+        ],
         child: MaterialApp(
           home: LoadingScreen(
             warmup: buildWarmup(),

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/audio/background_music.dart';
 import '../../core/models/models.dart';
 import '../../core/services/api_service.dart';
 import '../../core/theme/app_theme.dart';
@@ -31,7 +32,7 @@ class FlashcardStudyScreen extends StatefulWidget {
   State<FlashcardStudyScreen> createState() => _FlashcardStudyScreenState();
 }
 
-class _FlashcardStudyScreenState extends State<FlashcardStudyScreen> {
+class _FlashcardStudyScreenState extends State<FlashcardStudyScreen> with SilencesBackgroundMusic {
   String? _sessionId;
   Flashcard? _card;
   bool _loading = true;

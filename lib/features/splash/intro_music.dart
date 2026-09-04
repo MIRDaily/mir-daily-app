@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
@@ -57,6 +58,7 @@ class IntroMusic with WidgetsBindingObserver {
   Timer? _esperaEntreVueltas;
   Timer? _pasoDelFundido;
 
+  bool _arrancada = false;
   bool _apagando = false;
   bool _muerto = false;
 
@@ -80,6 +82,11 @@ class IntroMusic with WidgetsBindingObserver {
   /// Arranca. Si algo falla (un códec, un permiso, un emulador sin audio) se
   /// traga el error: una intro no puede impedir entrar en la app.
   Future<void> start() async {
+    // Idempotente: la pantalla de carga puede volver a montarse (rotación,
+    // cierre y vuelta a entrar) y no debe arrancar una segunda reproducción
+    // encima de la que ya suena.
+    if (_arrancada || _muerto) return;
+    _arrancada = true;
     try {
       silenciada.value = !_settings.introMusic;
       _settings.addListener(_ajusteCambiado);
@@ -181,11 +188,11 @@ class IntroMusic with WidgetsBindingObserver {
         return;
       }
       try {
-        // Al cuadrado: el oído no percibe el volumen de forma lineal, y un
-        // descenso recto se oye como si cayera de golpe al principio y luego
-        // se quedara colgando.
-        final f = restantes / pasos;
-        await _player.setVolume(_volumen * f * f);
+        // En decibelios, no en amplitud: el oído percibe el volumen de forma
+        // logarítmica, y una rampa cuadrática reparte el cambio tan desigual
+        // que se oye como un escalón. Así cada tramo suena igual de grande.
+        final avance = restantes / pasos;
+        await _player.setVolume(_volumen * _amplitud(avance));
       } catch (_) {
         t.cancel();
         await _apagar();
@@ -217,6 +224,16 @@ class IntroMusic with WidgetsBindingObserver {
   Future<void> dispose() async {
     if (_apagando) return;
     await _apagar();
+  }
+
+  /// Amplitud para un avance de fundido, interpolando en decibelios.
+  ///
+  /// 45 dB de recorrido: el final del fundido es inaudible y el cambio queda
+  /// repartido de forma pareja al oído en vez de concentrarse en un tramo.
+  static double _amplitud(double avance) {
+    if (avance <= 0) return 0;
+    if (avance >= 1) return 1;
+    return math.pow(10, (avance - 1) * 45 / 20).toDouble();
   }
 }
 

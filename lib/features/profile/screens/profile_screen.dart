@@ -169,6 +169,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           : 'Clásica',
                       onTap: _openNavBarStyleSettings,
                     ),
+                    // MOCKUP de música de fondo. Ver `background_music.dart`.
+                    _MenuItemData(
+                      icon: Icons.graphic_eq_rounded,
+                      color: const Color(0xFF6B8EB8),
+                      title: 'Música de fondo',
+                      subtitle: context.watch<SettingsProvider>().backgroundMusic
+                          ? 'Suena al navegar; se calla al responder'
+                          : 'Apagada',
+                      trailing: Switch(
+                        value:
+                            context.watch<SettingsProvider>().backgroundMusic,
+                        onChanged: (on) => context
+                            .read<SettingsProvider>()
+                            .setBackgroundMusic(on),
+                        activeColor: AppColors.primary,
+                      ),
+                      onTap: () {
+                        final ajustes = context.read<SettingsProvider>();
+                        ajustes.setBackgroundMusic(!ajustes.backgroundMusic);
+                      },
+                    ),
                     // MOCKUP de intro con música. Ver `intro_music.dart`.
                     _MenuItemData(
                       icon: Icons.music_note_outlined,
@@ -204,6 +225,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       onTap: () {},
                     ),
                   ]),
+                  // MOCKUP de música de fondo: el volumen va fuera del grupo
+                  // porque una fila de menú no admite un deslizador.
+                  if (context.watch<SettingsProvider>().backgroundMusic) ...[
+                    const SizedBox(height: 12),
+                    const _BackgroundMusicVolume(),
+                  ],
                   const SizedBox(height: 30),
                   _buildLogoutButton(),
                 ],
@@ -743,6 +770,77 @@ class _ProfileScreenState extends State<ProfileScreen> {
 }
 
 /// Datos de una fila de menú de ajustes.
+/// Deslizador de volumen de la música de fondo.
+///
+/// MOCKUP: ver `core/audio/background_music.dart`. Solo aparece cuando la
+/// música está encendida; apagada no hay nada que graduar.
+///
+/// Mientras se arrastra se avisa sin escribir en disco, para que el volumen se
+/// oiga cambiar en directo; el valor definitivo se guarda al soltar. Mover el
+/// dedo son decenas de cambios por segundo y no tiene sentido persistirlos.
+class _BackgroundMusicVolume extends StatelessWidget {
+  const _BackgroundMusicVolume();
+
+  @override
+  Widget build(BuildContext context) {
+    final ajustes = context.watch<SettingsProvider>();
+
+    return StickerCard(
+      depth: 4,
+      radius: 22,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(18, 14, 18, 6),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Text(
+                  'Volumen de la música',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  '${(ajustes.backgroundMusicVolume * 100).round()}%',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+            Row(
+              children: [
+                const Icon(Icons.volume_mute_rounded,
+                    size: 18, color: AppColors.textLight),
+                Expanded(
+                  child: Slider(
+                    value: ajustes.backgroundMusicVolume,
+                    activeColor: AppColors.primary,
+                    onChanged: (v) => context
+                        .read<SettingsProvider>()
+                        .setBackgroundMusicVolume(v, persist: false),
+                    onChangeEnd: (v) => context
+                        .read<SettingsProvider>()
+                        .setBackgroundMusicVolume(v),
+                  ),
+                ),
+                const Icon(Icons.volume_up_rounded,
+                    size: 18, color: AppColors.textLight),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _MenuItemData {
   final IconData icon;
   final Color color;
