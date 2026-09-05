@@ -27,6 +27,10 @@ class _FakeApi extends ApiService {
 
   final List<String> llamadas = [];
 
+  /// Si está puesto, [addDeckItems] lo lanza en vez de guardar: sirve para
+  /// ejercitar el 400 de "mazo lleno".
+  ApiException? alGuardarLanza;
+
   @override
   Future<List<Deck>> getDecks() async => const [
         // El automático de fallos NO debe aparecer: el backend lo rechaza.
@@ -89,6 +93,7 @@ class _FakeApi extends ApiService {
     List<String> questionIds,
   ) async {
     llamadas.add('add:$deckId:${questionIds.join(",")}');
+    if (alGuardarLanza != null) throw alGuardarLanza!;
     guardadas[deckId] = 'item-nuevo';
     return {for (final q in questionIds) q: 'item-nuevo'};
   }
@@ -321,6 +326,37 @@ void main() {
     // salto: es lo que se veia como "una pestaña que luego se reescala".
     expect((alturaCargado - alturaCargando).abs(), lessThan(24),
         reason: 'de $alturaCargando a $alturaCargado');
+  });
+
+  // El mazo tiene un tope (MAX_ITEMS_PER_DECK, 210 por defecto). Al superarlo
+  // el backend responde 400 con un mensaje ya escrito para el usuario y con el
+  // límite real. Se muestra tal cual: reescribir el número aquí lo condenaría a
+  // desincronizarse si se cambia la variable de entorno.
+  testWidgets('el mazo lleno enseña el mensaje del servidor, no uno genérico',
+      (tester) async {
+    tester.view.physicalSize = const Size(420, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final api = _FakeApi()
+      ..alGuardarLanza = const ApiException(
+        400,
+        'Este mazo llegaría a más de 210 preguntas (límite del mazo)',
+      );
+    await _abrir(tester, api);
+
+    await tester.tap(find.text('madre mia'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(
+      find.text('Este mazo llegaría a más de 210 preguntas (límite del mazo)'),
+      findsOneWidget,
+    );
+    // No se ha guardado: "madre mia" y "Perf 07" siguen ofreciéndose (d2 ya la
+    // tenía y sigue en "QUITAR").
+    expect(find.text('GUARDAR'), findsNWidgets(2));
+    expect(find.text('Guardada en "madre mia"'), findsNothing);
   });
 
   testWidgets('la marca no se arrastra a otra pregunta', (tester) async {
