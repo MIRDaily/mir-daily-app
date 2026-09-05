@@ -148,6 +148,24 @@ class BackgroundMusic extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
+  /// Cierra la sesión de música: para y deja el servicio listo para volver a
+  /// arrancar cuando se entre de nuevo.
+  ///
+  /// Se llama al cerrar sesión. Sin esto, la música de fondo seguía sonando
+  /// por encima de la pantalla de login y de la de carga de la siguiente
+  /// cuenta, pisando a la intro.
+  void stopForNewSession() {
+    if (_muerto || !_arrancada) return;
+    _cancelarTemporizadores();
+    _fade = 0;
+    _arrancada = false;
+    _estabaSonando = false;
+    // Las pantallas de la sesión anterior ya no existen: sus motivos para
+    // callar, tampoco.
+    _silencios = 0;
+    _player?.stop().catchError((_) {});
+  }
+
   // ---- Motivos para callarse -----------------------------------------------
 
   /// Entra un modo interactivo. Lo llama [SilencesBackgroundMusic].

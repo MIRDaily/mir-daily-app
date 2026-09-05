@@ -276,6 +276,11 @@ class _StartupGateState extends State<StartupGate> {
         // vale): no se hace dispose porque la pantalla de carga saliente puede
         // seguir viva unos frames dentro del AnimatedSwitcher y aún escucharlo.
         _warmup = null;
+        // MOCKUP de música: la de fondo es de la app, no del login. Se para y
+        // queda lista para volver a arrancar; y la intro vuelve a estar
+        // disponible, porque la siguiente cuenta pasará otra vez por la
+        // pantalla de carga.
+        context.read<BackgroundMusic>().stopForNewSession();
         if (_continued) setState(() => _continued = false);
       });
     }

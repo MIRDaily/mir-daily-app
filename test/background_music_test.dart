@@ -295,6 +295,50 @@ void main() {
     });
   });
 
+  // La musica de fondo es de la app, no del login. Al cerrar sesion seguia
+  // sonando por encima de la pantalla de login y de la de carga de la cuenta
+  // siguiente, pisando a la intro.
+  group('cerrar sesion', () {
+    test('para la musica', () async {
+      final (_, musica) = await _crear();
+      expect(musica.sonando, isTrue);
+
+      musica.stopForNewSession();
+      expect(musica.sonando, isFalse);
+
+      musica.dispose();
+    });
+
+    test('y deja el servicio listo para la sesion siguiente', () async {
+      final (_, musica) = await _crear();
+      musica.stopForNewSession();
+
+      final antes = musica.reproduccionesIniciadas;
+      await musica.start();
+
+      expect(musica.sonando, isTrue, reason: 'la nueva sesion vuelve a sonar');
+      expect(musica.reproduccionesIniciadas, antes + 1);
+
+      musica.dispose();
+    });
+
+    test('olvida los motivos de silencio de la sesion anterior', () async {
+      final (_, musica) = await _crear();
+
+      // Se cierra sesion desde dentro de un modo interactivo.
+      musica.pushSilence();
+      musica.stopForNewSession();
+      expect(musica.silencios, 0,
+          reason: 'esas pantallas ya no existen; si no, la nueva sesion '
+              'arrancaria callada para siempre');
+
+      await musica.start();
+      expect(musica.sonando, isTrue);
+
+      musica.dispose();
+    });
+  });
+
   group('el mixin de las pantallas interactivas', () {
     testWidgets('montar la pantalla calla, y desmontarla devuelve la musica',
         (tester) async {

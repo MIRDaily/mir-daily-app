@@ -130,24 +130,37 @@ void main() {
       unawaited(musica.fadeOutAndStop());
       await Future<void>.delayed(const Duration(milliseconds: 50));
 
-      // La pantalla de salida termina (850ms) y se destruye. Esto NO debe
-      // apagar el reproductor: el fundido dura 5s y tiene que seguir.
-      await musica.dispose();
-
+      // La pantalla de carga ya NO es la dueña de la musica (vive en un
+      // provider, para poder seguir sonando durante el onboarding), asi que
+      // destruirla no puede cortar el fundido. Lo que se comprueba aqui es que
+      // el objeto sigue vivo mientras el fundido corre.
       expect(musica.soltado, isFalse,
-          reason: 'destruir la pantalla cortaba el fundido en seco');
+          reason: 'el fundido tiene que sobrevivir a la pantalla');
+
+      await musica.dispose();
     });
 
-    test('el fundido acaba soltando el reproductor por su cuenta', () async {
+    // Cerrar sesion y entrar con otra cuenta pasa otra vez por la pantalla de
+    // carga: la intro tiene que volver a sonar. Antes el apagado destruia el
+    // objeto y la segunda entrada se quedaba muda.
+    test('tras apagarse puede volver a arrancar', () async {
       final ajustes = SettingsProvider();
       await Future<void>.delayed(Duration.zero);
       final musica = IntroMusic(ajustes);
+
       await musica.start();
 
-      // Silenciada: el fundido no tiene nada que bajar y suelta enseguida.
+      // Silenciada: el fundido no tiene nada que bajar y para enseguida.
       await ajustes.setIntroMusic(false);
       await musica.fadeOutAndStop();
+      expect(musica.soltado, isFalse, reason: 'parada no es destruida');
 
+      // Segunda sesion: vuelve a arrancar sin quejarse.
+      await ajustes.setIntroMusic(true);
+      await musica.start();
+
+      // Y solo al soltarla del todo queda inservible.
+      await musica.dispose();
       expect(musica.soltado, isTrue);
     });
 

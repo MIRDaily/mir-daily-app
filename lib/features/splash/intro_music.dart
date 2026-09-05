@@ -172,7 +172,7 @@ class IntroMusic with WidgetsBindingObserver {
     _esperaEntreVueltas?.cancel();
 
     if (silenciada.value) {
-      await _apagar();
+      await _detener();
       return;
     }
 
@@ -184,7 +184,7 @@ class IntroMusic with WidgetsBindingObserver {
       restantes--;
       if (_muerto || restantes <= 0) {
         t.cancel();
-        await _apagar();
+        await _detener();
         return;
       }
       try {
@@ -195,35 +195,41 @@ class IntroMusic with WidgetsBindingObserver {
         await _player.setVolume(_volumen * _amplitud(avance));
       } catch (_) {
         t.cancel();
-        await _apagar();
+        await _detener();
       }
     });
   }
 
-  /// Suelta todo. Idempotente.
-  Future<void> _apagar() async {
-    if (_muerto) return;
-    _muerto = true;
+  /// Para y deja el objeto listo para volver a sonar.
+  ///
+  /// NO es `dispose`: si el usuario cierra sesión, vuelve al login y entra con
+  /// otra cuenta, la pantalla de carga aparece de nuevo y la intro tiene que
+  /// sonar otra vez. Antes esto destruía el objeto y la segunda entrada se
+  /// quedaba muda.
+  Future<void> _detener() async {
     _esperaEntreVueltas?.cancel();
     _pasoDelFundido?.cancel();
     await _finDeVuelta?.cancel();
+    _finDeVuelta = null;
     _settings.removeListener(_ajusteCambiado);
     WidgetsBinding.instance.removeObserver(this);
-    silenciada.dispose();
+    _apagando = false;
+    _arrancada = false;
+    _enPausaPorFondo = false;
     try {
       await _player.stop();
-      await _player.dispose();
     } catch (_) {}
   }
 
-  /// Lo llama la pantalla al destruirse.
-  ///
-  /// Si hay un fundido en marcha NO corta: el fundido dura más que la
-  /// animación de salida y se apaga solo al terminar. Cortar aquí era
-  /// justamente lo que hacía que "Continuar" sonara a tijeretazo.
+  /// Suelta el reproductor para siempre. Lo llama el provider al morir la app.
   Future<void> dispose() async {
-    if (_apagando) return;
-    await _apagar();
+    if (_muerto) return;
+    _muerto = true;
+    await _detener();
+    silenciada.dispose();
+    try {
+      await _player.dispose();
+    } catch (_) {}
   }
 
   /// Amplitud para un avance de fundido, interpolando en decibelios.
