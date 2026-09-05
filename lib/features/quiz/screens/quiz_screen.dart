@@ -5,10 +5,14 @@ import 'package:provider/provider.dart';
 import '../../../core/responsive/breakpoints.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/providers/daily_provider.dart';
+import '../../../core/providers/settings_provider.dart';
 import '../../daily/daily_quiz_screen.dart';
 import '../../results/results_screen.dart';
 import '../../../shared/widgets/goo_fission_loader.dart';
+import '../game/pack_burst_game.dart';
+import '../game/pack_game_base.dart';
 import '../game/pack_opening_game.dart';
+import '../game/pack_twist_game.dart';
 
 /// Pestaña "Sobre": mantiene la animación Flame de apertura del sobre de
 /// v10.6, pero alimentada por el daily REAL del backend (DailyProvider).
@@ -34,7 +38,10 @@ class QuizScreen extends StatefulWidget {
 
 class _QuizScreenState extends State<QuizScreen>
     with TickerProviderStateMixin, AutomaticKeepAliveClientMixin {
-  PackOpeningGame? _game;
+  PackGameBase? _game;
+
+  /// El estilo con el que se montó [_game], para saber si hay que rehacerlo.
+  PackOpeningStyle? _gameStyle;
 
   // Animación de entrada del daily (fundido + escala) al abrir la app.
   late AnimationController _dailyEntry;
@@ -85,14 +92,40 @@ class _QuizScreenState extends State<QuizScreen>
     });
   }
 
-  void _ensureGame(DailyProvider daily) {
-    if (_game != null || daily.questions.isEmpty) return;
+  /// Monta el juego del sobre, o lo cambia por el del otro estilo.
+  ///
+  /// El juego se rehace al cambiar de estilo, pero SOLO si el sobre está
+  /// intacto. A media apertura no: las cartas ya vienen en camino y cambiar de
+  /// animación por debajo sería un salto sin sentido —y le quitaría el avance
+  /// a quien está a punto de abrirlo—.
+  void _ensureGame(DailyProvider daily, PackOpeningStyle style) {
+    if (daily.questions.isEmpty) return;
+
+    final actual = _game;
+    if (actual != null) {
+      if (_gameStyle == style) return;
+      if (actual.openProgress > 0 || actual.opened) return;
+      actual.setVisible(false); // para su bucle antes de soltarlo
+    }
+
     final specialties =
         daily.questions.map((q) => q.subject ?? 'General').toList();
-    _game = PackOpeningGame(
-      specialties: specialties,
-      onComplete: _onPackOpeningComplete,
-    );
+
+    _gameStyle = style;
+    _game = switch (style) {
+      PackOpeningStyle.tear => PackOpeningGame(
+          specialties: specialties,
+          onComplete: _onPackOpeningComplete,
+        ),
+      PackOpeningStyle.burst => PackBurstGame(
+          specialties: specialties,
+          onComplete: _onPackOpeningComplete,
+        ),
+      PackOpeningStyle.twist => PackTwistGame(
+          specialties: specialties,
+          onComplete: _onPackOpeningComplete,
+        ),
+    };
     _game!.setVisible(widget.isVisible);
   }
 
@@ -111,6 +144,7 @@ class _QuizScreenState extends State<QuizScreen>
     if (mounted) {
       setState(() {
         _game = null;
+        _gameStyle = null;
         _quizPushed = false;
       });
     }
@@ -190,7 +224,9 @@ class _QuizScreenState extends State<QuizScreen>
       case DailyStatus.ready:
       case DailyStatus.playing:
       case DailyStatus.submitting:
-        _ensureGame(daily);
+        // Se observa el estilo: al cambiarlo desde el selector, este build se
+        // repite y _ensureGame cambia el juego por el del otro estilo.
+        _ensureGame(daily, context.watch<SettingsProvider>().packOpeningStyle);
         if (_game == null) {
           return _buildLoading('Preparando las preguntas...');
         }
@@ -370,86 +406,24 @@ class _QuizScreenState extends State<QuizScreen>
           constraints: BoxConstraints(
             maxWidth: context.isWide ? 460 : double.infinity,
           ),
-          child: Stack(
-            children: [
-              // El fondo lo pone el propio juego
-              // (PackOpeningGame.backgroundColor), que es lo único que se
-              // pinta mientras carga.
-              GameWidget(game: _game!),
-              _buildOverlay(),
-            ],
-          ),
+          // Nada encima del sobre: ni barra de progreso ni selector.
+          //
+          // El avance ya lo cuenta el propio sobre —lo abierto que está el
+          // desgarro, lo hinchado, lo retorcido— y la vibración lo acompaña.
+          // El estilo de apertura se elige en Perfil > Jugabilidad, no aquí:
+          // es un ajuste que se toca una vez, y tenerlo permanentemente encima
+          // del sobre le robaba protagonismo a lo único que hay que mirar.
+          //
+          // El fondo lo pone el propio juego (PackGameBase.backgroundColor),
+          // que es lo único que se pinta mientras carga.
+          //
+          // La llave por estilo es lo que fuerza a Flame a soltar el juego
+          // viejo y montar el nuevo al cambiar de animación. Sin ella,
+          // GameWidget reutiliza su State y se queda con el primero.
+          child: GameWidget(key: ValueKey(_gameStyle), game: _game!),
         ),
       ),
     );
   }
 
-  Widget _buildOverlay() {
-    return StatefulBuilder(
-      builder: (context, setOverlayState) {
-        Future.delayed(const Duration(milliseconds: 50), () {
-          if (mounted && _game != null && !_quizPushed) {
-            setOverlayState(() {});
-          }
-        });
-
-        final tearProgress = _game?.tearProgress ?? 0.0;
-        final tearComplete = _game?.tearComplete ?? false;
-
-        return Stack(
-          children: [
-            // El gesto lo enseña la tijera que recorre la línea de corte
-            // (CutLineIndicatorComponent), no un cartel.
-
-            // Barra de progreso del rasgado
-            if (tearProgress > 0 && !tearComplete)
-              Positioned(
-                bottom: 100,
-                left: 50,
-                right: 50,
-                child: Column(
-                  children: [
-                    Container(
-                      height: 12,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(6),
-                        color: Colors.white,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.1),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(6),
-                        child: LinearProgressIndicator(
-                          value: tearProgress,
-                          backgroundColor: Colors.grey.shade200,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            Color.lerp(
-                                AppColors.primary, Colors.green, tearProgress)!,
-                          ),
-                          minHeight: 12,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      '${(tearProgress * 100).toInt()}%',
-                      style: const TextStyle(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-          ],
-        );
-      },
-    );
-  }
 }

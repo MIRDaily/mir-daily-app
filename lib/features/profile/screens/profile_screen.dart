@@ -14,6 +14,7 @@ import '../../../core/services/notification_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/sticker/sticker.dart';
 import '../../onboarding/screens/onboarding_screen.dart';
+import '../../quiz/widgets/pack_style_selector.dart';
 import '../widgets/profile_card.dart';
 import '../widgets/profile_card_fields.dart';
 import '../widgets/profile_editor_sheet.dart';
@@ -169,43 +170,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           : 'Clásica',
                       onTap: _openNavBarStyleSettings,
                     ),
-                    // MOCKUP de música de fondo. Ver `background_music.dart`.
-                    _MenuItemData(
-                      icon: Icons.graphic_eq_rounded,
-                      color: const Color(0xFF6B8EB8),
-                      title: 'Música de fondo',
-                      subtitle: context.watch<SettingsProvider>().backgroundMusic
-                          ? 'Suena al navegar; se calla al responder'
-                          : 'Apagada',
-                      trailing: Switch(
-                        value:
-                            context.watch<SettingsProvider>().backgroundMusic,
-                        onChanged: (on) => context
-                            .read<SettingsProvider>()
-                            .setBackgroundMusic(on),
-                        activeColor: AppColors.primary,
-                      ),
-                      onTap: () {
-                        final ajustes = context.read<SettingsProvider>();
-                        ajustes.setBackgroundMusic(!ajustes.backgroundMusic);
-                      },
-                    ),
-                    // MOCKUP de intro con música. Ver `intro_music.dart`.
-                    _MenuItemData(
-                      icon: Icons.music_note_outlined,
-                      color: const Color(0xFF8E6BB8),
-                      title: 'Música de la pantalla de carga',
-                      trailing: Switch(
-                        value: context.watch<SettingsProvider>().introMusic,
-                        onChanged: (on) =>
-                            context.read<SettingsProvider>().setIntroMusic(on),
-                        activeColor: AppColors.primary,
-                      ),
-                      onTap: () {
-                        final ajustes = context.read<SettingsProvider>();
-                        ajustes.setIntroMusic(!ajustes.introMusic);
-                      },
-                    ),
                     _MenuItemData(
                       icon: Icons.dark_mode_outlined,
                       color: const Color(0xFF34495E),
@@ -225,12 +189,83 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       onTap: () {},
                     ),
                   ]),
-                  // MOCKUP de música de fondo: el volumen va fuera del grupo
-                  // porque una fila de menú no admite un deslizador.
+
+                  // ---- Jugabilidad ----
+                  //
+                  // Lo que cambia cómo se JUEGA, no cómo se ve. Hoy es solo la
+                  // apertura del sobre; el apartado existe porque ese ajuste
+                  // vivía flotando encima del propio sobre, y ahí molestaba:
+                  // se toca una vez y se queda, pero estaba permanentemente
+                  // robándole protagonismo a la animación.
+                  const SizedBox(height: 26),
+                  _buildSectionTitle('Jugabilidad'),
+                  const SizedBox(height: 12),
+                  _buildGroup([
+                    _MenuItemData(
+                      icon: Icons.auto_awesome_rounded,
+                      color: AppColors.primaryDark,
+                      title: 'Apertura del sobre',
+                      subtitle: _packStyleName(
+                        context.watch<SettingsProvider>().packOpeningStyle,
+                      ),
+                      onTap: _openPackStyleSettings,
+                    ),
+                  ]),
+
+                  // ---- Sonido y música ----
+                  const SizedBox(height: 26),
+                  _buildSectionTitle('Sonido y música'),
+                  const SizedBox(height: 12),
+                  _buildGroup([
+                    // MOCKUP de música de fondo. Ver `background_music.dart`.
+                    _MenuItemData(
+                      icon: Icons.graphic_eq_rounded,
+                      color: const Color(0xFF6B8EB8),
+                      title: 'Música de fondo',
+                      subtitle:
+                          context.watch<SettingsProvider>().backgroundMusic
+                              ? 'Suena al navegar; se calla al responder'
+                              : 'Apagada',
+                      trailing: Switch(
+                        value:
+                            context.watch<SettingsProvider>().backgroundMusic,
+                        onChanged: (on) => context
+                            .read<SettingsProvider>()
+                            .setBackgroundMusic(on),
+                        activeColor: AppColors.primary,
+                      ),
+                      onTap: () {
+                        final ajustes = context.read<SettingsProvider>();
+                        ajustes.setBackgroundMusic(!ajustes.backgroundMusic);
+                      },
+                    ),
+                    // MOCKUP de intro con música. Ver `intro_music.dart`.
+                    _MenuItemData(
+                      icon: Icons.music_note_outlined,
+                      color: const Color(0xFF8E6BB8),
+                      title: 'Música de la pantalla de carga',
+                      subtitle: context.watch<SettingsProvider>().introMusic
+                          ? 'Suena la musiquilla al abrir la app'
+                          : 'Apagada',
+                      trailing: Switch(
+                        value: context.watch<SettingsProvider>().introMusic,
+                        onChanged: (on) =>
+                            context.read<SettingsProvider>().setIntroMusic(on),
+                        activeColor: AppColors.primary,
+                      ),
+                      onTap: () {
+                        final ajustes = context.read<SettingsProvider>();
+                        ajustes.setIntroMusic(!ajustes.introMusic);
+                      },
+                    ),
+                  ]),
+                  // El volumen va fuera del grupo porque una fila de menú no
+                  // admite un deslizador.
                   if (context.watch<SettingsProvider>().backgroundMusic) ...[
                     const SizedBox(height: 12),
                     const _BackgroundMusicVolume(),
                   ],
+
                   const SizedBox(height: 30),
                   _buildLogoutButton(),
                 ],
@@ -698,6 +733,90 @@ class _ProfileScreenState extends State<ProfileScreen> {
     showAdaptiveModal<void>(
       context: context,
       builder: (_) => const _NotificationSettingsSheet(),
+    );
+  }
+
+  /// El nombre del gesto, para la fila del menú.
+  static String _packStyleName(PackOpeningStyle estilo) => switch (estilo) {
+        PackOpeningStyle.tear => 'Rasgar',
+        PackOpeningStyle.burst => 'Apretar',
+        PackOpeningStyle.twist => 'Retorcer',
+      };
+
+  /// Qué hay que hacer con el dedo. Es lo único que de verdad distingue una
+  /// opción de otra, y no se puede adivinar del nombre.
+  static String _packStyleHow(PackOpeningStyle estilo) => switch (estilo) {
+        PackOpeningStyle.tear =>
+          'Desliza el dedo por la costura de arriba, donde pasa la tijera. '
+              'El sobre se abre y la tapa sale volando.',
+        PackOpeningStyle.burst =>
+          'Mantén el dedo apretando el sobre. Se hincha, tiembla cada vez '
+              'más y revienta en dos con confeti.',
+        PackOpeningStyle.twist =>
+          'Gira el dedo alrededor del sobre, en cualquier sentido. Se '
+              'retuerce como un caramelo hasta romperse por el cuello.',
+      };
+
+  void _openPackStyleSettings() {
+    final settings = context.read<SettingsProvider>();
+    showAdaptiveModal<void>(
+      context: context,
+      builder: (sheetCtx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Apertura del sobre',
+                style: TextStyle(
+                    fontWeight: FontWeight.w900, fontSize: 19, color: kInk),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'Las tres acaban en las mismas cinco cartas y en el mismo '
+                'quiz. Lo único que cambia es el gesto.',
+                style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 16),
+              // Se escucha al provider DENTRO de la hoja para que la pastilla
+              // se deslice al elegir. La hoja NO se cierra: es un ajuste que
+              // se prueba comparando, y cerrarla obligaría a volver a abrirla
+              // para leer en qué consiste la siguiente.
+              Consumer<SettingsProvider>(
+                builder: (_, ajustes, __) => Column(
+                  children: [
+                    Center(
+                      child: PackStyleSelector(
+                        value: ajustes.packOpeningStyle,
+                        onChanged: settings.setPackOpeningStyle,
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    // La explicación cambia con la opción elegida. Sin esto,
+                    // los nombres solos no dicen qué hacer con el dedo.
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 220),
+                      child: Text(
+                        _packStyleHow(ajustes.packOpeningStyle),
+                        key: ValueKey(ajustes.packOpeningStyle),
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 13.5,
+                          height: 1.45,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

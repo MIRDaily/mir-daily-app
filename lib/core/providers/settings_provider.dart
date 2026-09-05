@@ -13,6 +13,25 @@ enum NavBarStyle {
   floating,
 }
 
+/// Cómo se abre el sobre del daily.
+///
+/// Es puro gusto: las dos acaban en las mismas cinco cartas y en el mismo
+/// quiz, solo cambia el gesto y su animación. Se elige desde la propia
+/// pantalla del sobre.
+/// Cada una pide un gesto distinto —un dedo que viaja, uno que se queda
+/// quieto y uno que gira—, así que ninguna se confunde con otra ni con el
+/// deslizamiento entre pestañas.
+enum PackOpeningStyle {
+  /// La de siempre: se desliza el dedo por la costura y el sobre se rasga.
+  tear,
+
+  /// Se mantiene el dedo apretando hasta que el sobre revienta.
+  burst,
+
+  /// Se gira el dedo alrededor del sobre hasta que se rompe por el cuello.
+  twist,
+}
+
 /// Ajustes de la app que son puras preferencias de visualización (viven en
 /// el dispositivo, no en el servidor).
 class SettingsProvider extends ChangeNotifier {
@@ -21,6 +40,7 @@ class SettingsProvider extends ChangeNotifier {
   }
 
   static const _kNavBarStyle = 'settings.nav_bar_style';
+  static const _kPackStyle = 'settings.pack_opening_style';
   static const _kIntroMusic = 'settings.intro_music';
   static const _kBgMusic = 'settings.bg_music';
   static const _kBgMusicVolume = 'settings.bg_music_volume';
@@ -30,6 +50,15 @@ class SettingsProvider extends ChangeNotifier {
   late NavBarStyle _navBarStyle =
       OrientationLock.isTablet ? NavBarStyle.floating : NavBarStyle.classic;
   NavBarStyle get navBarStyle => _navBarStyle;
+
+  /// Cómo se abre el sobre del daily.
+  ///
+  /// De fábrica, **apretar**: el sobre se hincha, tiembla y revienta, y ese
+  /// gesto se descubre solo —el dedo se queda donde cae— mientras que rasgar
+  /// exige acertar con la costura. Quien prefiera otra lo cambia desde
+  /// Perfil > Jugabilidad.
+  PackOpeningStyle _packStyle = PackOpeningStyle.burst;
+  PackOpeningStyle get packOpeningStyle => _packStyle;
 
   /// Si suena la musiquilla de la pantalla de carga.
   ///
@@ -70,6 +99,19 @@ class SettingsProvider extends ChangeNotifier {
       notifyListeners();
     }
 
+    final sobre = prefs.getString(_kPackStyle);
+    if (sobre != null) {
+      // Por nombre, no por índice: si algún día se reordena el enum, lo
+      // guardado no debe pasar a significar otra animación.
+      final quiere = PackOpeningStyle.values
+          .where((e) => e.name == sobre)
+          .firstOrNull;
+      if (quiere != null && quiere != _packStyle) {
+        _packStyle = quiere;
+        notifyListeners();
+      }
+    }
+
     final saved = prefs.getString(_kNavBarStyle);
     if (saved == null) return; // se queda con el valor por defecto
     final wanted =
@@ -107,6 +149,14 @@ class SettingsProvider extends ChangeNotifier {
     if (!persist) return;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setDouble(_kBgMusicVolume, nuevo);
+  }
+
+  Future<void> setPackOpeningStyle(PackOpeningStyle style) async {
+    if (style == _packStyle) return;
+    _packStyle = style;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_kPackStyle, style.name);
   }
 
   Future<void> setNavBarStyle(NavBarStyle style) async {
