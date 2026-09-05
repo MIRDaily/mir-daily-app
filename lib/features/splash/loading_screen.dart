@@ -4,7 +4,6 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../core/providers/settings_provider.dart';
 import '../../core/services/app_warmup.dart';
 import '../../core/theme/app_theme.dart';
 import 'intro_music.dart';

@@ -850,50 +850,57 @@ class _ItemCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ListTile(
-            onTap: onToggle,
-            title: HighlightedText(
-              text: q.statement,
-              query: query,
-              maxLines: expanded ? null : 2,
-              overflow: expanded ? null : TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: kInk,
-                fontWeight: FontWeight.w700,
-                fontSize: 14,
-                height: 1.35,
-              ),
-            ),
-            subtitle: showMeta && meta.isNotEmpty
-                ? Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Text(
-                      meta,
-                      style: const TextStyle(
-                        color: AppColors.textLight,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  )
-                : null,
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (onRemove != null)
-                  IconButton(
-                    tooltip: 'Quitar del mazo',
-                    onPressed: onRemove,
-                    icon: const Icon(Icons.delete_outline_rounded,
-                        color: AppColors.textLight, size: 20),
-                  ),
-                AnimatedRotation(
-                  turns: expanded ? 0.5 : 0,
-                  duration: const Duration(milliseconds: 200),
-                  child: const Icon(Icons.expand_more_rounded,
-                      color: AppColors.textLight),
+          // La StickerCard pinta su fondo con un DecoratedBox, sin Material
+          // por debajo. Flutter 3.44 lo volvió un assert: un ListTile con onTap
+          // necesita un Material propio donde pintar su tinta, o el fondo de la
+          // tarjeta se la come. Transparente, para no tapar la cartulina.
+          Material(
+            type: MaterialType.transparency,
+            child: ListTile(
+              onTap: onToggle,
+              title: HighlightedText(
+                text: q.statement,
+                query: query,
+                maxLines: expanded ? null : 2,
+                overflow: expanded ? null : TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: kInk,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                  height: 1.35,
                 ),
-              ],
+              ),
+              subtitle: showMeta && meta.isNotEmpty
+                  ? Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        meta,
+                        style: const TextStyle(
+                          color: AppColors.textLight,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    )
+                  : null,
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (onRemove != null)
+                    IconButton(
+                      tooltip: 'Quitar del mazo',
+                      onPressed: onRemove,
+                      icon: const Icon(Icons.delete_outline_rounded,
+                          color: AppColors.textLight, size: 20),
+                    ),
+                  AnimatedRotation(
+                    turns: expanded ? 0.5 : 0,
+                    duration: const Duration(milliseconds: 200),
+                    child: const Icon(Icons.expand_more_rounded,
+                        color: AppColors.textLight),
+                  ),
+                ],
+              ),
             ),
           ),
           if (expanded)

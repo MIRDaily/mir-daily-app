@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../core/providers/user_provider.dart';
 import '../providers/focus_provider.dart';
 import '../models/focus_room.dart';
 import '../widgets/animated_focus_background.dart';

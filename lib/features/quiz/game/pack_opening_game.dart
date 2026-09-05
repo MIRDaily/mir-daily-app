@@ -246,7 +246,6 @@ class GlowEffectComponent extends PositionComponent {
   double intensity = 0.0;
   double _wavePhase = 0.0;
   double _flashIntensity = 0.0;
-  bool _isFlashing = false;
 
   GlowEffectComponent({
     required this.packPosition,
@@ -323,7 +322,6 @@ class GlowEffectComponent extends PositionComponent {
   }
 
   void flashAndFade() {
-    _isFlashing = true;
     _flashIntensity = 1.5;
 
     packAnimate(
@@ -332,7 +330,6 @@ class GlowEffectComponent extends PositionComponent {
       onUpdate: (t) =>
           _flashIntensity = 1.5 * (1 - Curves.easeOutCubic.transform(t)),
       onDone: () {
-        _isFlashing = false;
         intensity = 0;
       },
     );
