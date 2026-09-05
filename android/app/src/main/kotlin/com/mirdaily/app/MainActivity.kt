@@ -1,4 +1,4 @@
-package com.example.mirdaily_app
+package com.mirdaily.app
 
 import android.content.Context
 import android.os.Build
@@ -39,6 +39,36 @@ class MainActivity : FlutterActivity() {
                         val amplitudes = call.argument<List<Int>>("amplitudes")?.toIntArray()
                         vibratePattern(timings, amplitudes)
                         result.success(null)
+                    }
+                    "cancel" -> {
+                        getVibrator()?.cancel()
+                        result.success(null)
+                    }
+                    /**
+                     * Qué sabe hacer el motor de este aparato.
+                     *
+                     * `hasAmplitudeControl` es LA pregunta: si es false,
+                     * `createOneShot(ms, amplitud)` IGNORA la amplitud y
+                     * vibra a full siempre. Una rampa de intensidad montada
+                     * encima de eso no escala nada, por muy bien que estén
+                     * calculados los números que se mandan desde Dart.
+                     */
+                    "capabilities" -> {
+                        val v = getVibrator()
+                        val amplitud =
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                v?.hasAmplitudeControl() ?: false
+                            } else {
+                                false
+                            }
+                        result.success(
+                            mapOf(
+                                "hasVibrator" to (v?.hasVibrator() ?: false),
+                                "hasAmplitudeControl" to amplitud,
+                                "sdk" to Build.VERSION.SDK_INT,
+                                "device" to "${Build.MANUFACTURER} ${Build.MODEL}"
+                            )
+                        )
                     }
                     else -> result.notImplemented()
                 }

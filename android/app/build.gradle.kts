@@ -23,12 +23,13 @@ fun gitShortSha(): String = try {
 /// "-6e70aa2e-0901.1652". La app lo lee con package_info_plus y lo muestra en
 /// una esquina (ver lib/core/build_info.dart). Se aplica a debug Y release
 /// porque hoy TODOS los builds son de prueba interna.
-/// ANTES DE PUBLICAR EN PLAY: quitarlo del buildType release (junto con el
-/// `.v5` de arriba) y pasar `--dart-define=HIDE_BUILD_TAG=true`.
+/// ANTES DE PUBLICAR EN PLAY: quitarlo del buildType release y pasar
+/// `--dart-define=HIDE_BUILD_TAG=true`. (El sufijo `.v5` del applicationId ya
+/// se quitó al fijar el id definitivo.)
 val buildStampSuffix = "-${gitShortSha()}-${SimpleDateFormat("MMdd.HHmm").format(Date())}"
 
 android {
-    namespace = "com.example.mirdaily_app"
+    namespace = "com.mirdaily.app"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -44,16 +45,20 @@ android {
 
     defaultConfig {
         // ─────────────────────────────────────────────────────────────────
-        // OJO: este id lleva el sufijo `.v5` SOLO para poder tener instaladas
-        // a la vez v4 y v5 en el mismo telefono y compararlas. Android
-        // considera dos apps distintas dos ids distintos, y esa es la unica
-        // forma de que convivan.
+        // La identidad de la app en Google Play. Es DEFINITIVA: una vez
+        // publicada, cambiarla no es actualizar la app, es publicar otra
+        // distinta —se pierden instalaciones, valoraciones y usuarios—.
         //
-        // ANTES DE PUBLICAR hay que quitarlo y dejar el id de siempre, o
-        // saldria una app nueva en vez de una actualizacion de la existente.
-        // El id "de verdad" sigue siendo com.example.mirdaily_app.
+        // Coincide a proposito con el esquema de los enlaces profundos
+        // (com.mirdaily.app://auth-callback, ver AndroidManifest y
+        // AuthService.oauthRedirect), aunque Android no obligue a ello.
+        //
+        // Antes llevaba el sufijo `.v5` para poder tener v4 y v5 instaladas
+        // a la vez y compararlas. Se ha quitado al fijar el id definitivo: si
+        // vuelve a hacer falta convivencia, el sitio para eso es un
+        // `applicationIdSuffix` en un buildType o flavor, no el id base.
         // ─────────────────────────────────────────────────────────────────
-        applicationId = "com.example.mirdaily_app.v5"
+        applicationId = "com.mirdaily.app"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
