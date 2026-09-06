@@ -202,4 +202,71 @@ void main() {
     await tester.pumpWidget(const SizedBox());
     expect(tester.takeException(), isNull);
   });
+
+  // Regresión #7: de la slide del ranking en adelante, el tap izquierda/derecha
+  // para navegar dejaba de funcionar (esas slides se saltaban el GestureDetector
+  // por tener toques propios). Solo iba el swipe.
+  testWidgets('el tap izquierda/derecha navega también en las slides manuales',
+      (tester) async {
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      const MethodChannel('com.llfbandit.app_links/messages'),
+      (call) async => null,
+    );
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      const MethodChannel('com.llfbandit.app_links/events'),
+      (call) async => null,
+    );
+
+    tester.view.physicalSize = const Size(1080, 2340);
+    tester.view.devicePixelRatio = 3.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(buildApp(_FakeApi()));
+    for (var i = 0; i < 8; i++) {
+      await tester.pump(const Duration(milliseconds: 90));
+    }
+
+    Future<void> settle() async {
+      for (var i = 0; i < 8; i++) {
+        await tester.pump(const Duration(milliseconds: 90));
+      }
+    }
+
+    // Llega hasta la primera revisión con el botón "Siguiente".
+    for (final slide in const [
+      'Desglose de puntuación',
+      'Rendimiento comparativo',
+      'Progreso',
+      'Distribución de hoy',
+      'TU POSICIÓN DE HOY',
+      'Revisión · 1/5',
+    ]) {
+      var waited = 0;
+      while (waited < 8000 && find.text(slide).evaluate().isEmpty) {
+        await tester.tap(find.text('Siguiente'), warnIfMissed: false);
+        await settle();
+        waited += 800;
+      }
+      expect(find.text(slide), findsWidgets, reason: 'no llegó a "$slide"');
+    }
+
+    final size = tester.view.physicalSize / tester.view.devicePixelRatio;
+    final mid = size.height / 2;
+
+    // Tap en la mitad derecha: avanza.
+    await tester.tapAt(Offset(size.width * 0.8, mid));
+    await settle();
+    expect(find.text('Revisión · 2/5'), findsWidgets,
+        reason: 'el tap a la derecha no avanzó');
+
+    // Tap en el tercio izquierdo: retrocede.
+    await tester.tapAt(Offset(size.width * 0.1, mid));
+    await settle();
+    expect(find.text('Revisión · 1/5'), findsWidgets,
+        reason: 'el tap a la izquierda no retrocedió');
+
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
 }

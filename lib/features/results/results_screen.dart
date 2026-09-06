@@ -338,7 +338,7 @@ class _ResultsScreenState extends State<ResultsScreen>
                       onTapBackward: _prev,
                       onHoldStart: _pause,
                       onHoldEnd: _resume,
-                      interactive: _slides[i].duration == null,
+                      autoAdvances: _slides[i].duration != null,
                       controller: _pageController,
                       pageIndex: i,
                       builder: _slides[i].content,
@@ -1353,11 +1353,21 @@ class _StorySlide {
 }
 
 /// Página de una historia: gestiona la animación de entrada (que se relanza
-/// al activarse) y, en slides no interactivos, el tap izquierda/derecha para
-/// retroceder/avanzar y el mantener pulsado para pausar el auto-avance.
+/// al activarse), el tap izquierda/derecha para retroceder/avanzar y —solo en
+/// las slides con autoavance— el mantener pulsado para pausarlo.
+///
+/// El tap para navegar va en TODAS las slides. Antes las "manuales" (ranking,
+/// revisión, actividad — las que no se avanzan solas) se lo saltaban porque
+/// tienen toques propios, y el resultado era que de la del ranking en adelante
+/// solo funcionaba el swipe. Ahora el contenido propio de cada slide gana el
+/// gesto por la arena: un `onTap` hijo se impone al `onTapUp` de aquí en su
+/// área, y un arrastre (scroll de una lista) también.
 class _StoryPage extends StatefulWidget {
   final bool active;
-  final bool interactive;
+
+  /// La slide se avanza sola tras [_StorySlide.duration]. Habilita el
+  /// mantener-pulsado-para-pausar.
+  final bool autoAdvances;
   final VoidCallback onTapForward;
   final VoidCallback onTapBackward;
   final VoidCallback onHoldStart;
@@ -1368,7 +1378,7 @@ class _StoryPage extends StatefulWidget {
 
   const _StoryPage({
     required this.active,
-    required this.interactive,
+    required this.autoAdvances,
     required this.onTapForward,
     required this.onTapBackward,
     required this.onHoldStart,
@@ -1447,9 +1457,9 @@ class _StoryPageState extends State<_StoryPage>
           : widget.builder(context, _intro),
     );
 
-    if (widget.interactive) return page;
-
-    // Slides pasivos: tap para navegar + mantener pulsado para pausar.
+    // Tap izquierda/derecha para navegar, en TODAS las slides. Mantener
+    // pulsado para pausar solo donde hay autoavance (en las manuales no pausa
+    // nada, así que se deja sin registrar y no compite con sus toques).
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTapUp: (details) {
@@ -1460,8 +1470,9 @@ class _StoryPageState extends State<_StoryPage>
           widget.onTapForward();
         }
       },
-      onLongPressStart: (_) => widget.onHoldStart(),
-      onLongPressEnd: (_) => widget.onHoldEnd(),
+      onLongPressStart:
+          widget.autoAdvances ? (_) => widget.onHoldStart() : null,
+      onLongPressEnd: widget.autoAdvances ? (_) => widget.onHoldEnd() : null,
       child: page,
     );
   }
