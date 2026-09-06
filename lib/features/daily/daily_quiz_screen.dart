@@ -312,29 +312,38 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> with SilencesBackgrou
         children: [
           Row(
             children: [
-              if (question.subject != null)
-                Flexible(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.14),
-                      borderRadius: BorderRadius.circular(99),
-                    ),
-                    child: Text(
-                      question.subject!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppColors.primaryDark,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 12,
-                        letterSpacing: 0.4,
-                      ),
-                    ),
-                  ),
+              // El badge va en un Expanded (no Flexible) + Align a la izquierda:
+              // el Expanded se queda TODO el hueco libre y el año + el botón de
+              // guardar quedan clavados al borde derecho. Con Flexible + Spacer,
+              // los dos eran flex y se repartían el hueco a medias; con una
+              // asignatura corta el badge no llenaba su parte y el año + botón
+              // se quedaban a media tarjeta.
+              Expanded(
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: question.subject == null
+                      ? const SizedBox.shrink()
+                      : Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.14),
+                            borderRadius: BorderRadius.circular(99),
+                          ),
+                          child: Text(
+                            question.subject!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: AppColors.primaryDark,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12,
+                              letterSpacing: 0.4,
+                            ),
+                          ),
+                        ),
                 ),
-              const Spacer(),
+              ),
               if (question.year != null)
                 Text(
                   'MIR ${question.year}',
