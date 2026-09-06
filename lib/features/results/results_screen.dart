@@ -1138,65 +1138,202 @@ class _ResultsScreenState extends State<ResultsScreen>
 
   // ---------- SLIDE 5: DISTRIBUCIÓN ----------
 
+  static const _meanBlue = Color(0xFF4F7BC0);
+  static const _medianOrange = Color(0xFFE08B3D);
+  static const _userRed = Color(0xFFC4655A);
+
   Widget _distributionSlide(Animation<double> intro, ScoreDistribution d) {
     return AnimatedBuilder(
       animation: intro,
       builder: (context, _) {
         final t = intro.value;
         final reveal = _eio(_sub(t, 0.25, 1.0));
+        final hasCards = d.mean != null || d.median != null;
 
         return _centered([
           _fadeUp(
             _eio(_sub(t, 0, 0.5)),
             _slideHeader(
-              icon: Icons.bar_chart_rounded,
+              icon: Icons.show_chart_rounded,
               title: 'Distribución de hoy',
               subtitle: '${d.totalUsers} participantes',
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 22),
+          if (hasCards) ...[
+            _fadeUp(
+              _eio(_sub(t, 0.1, 0.7)),
+              Row(
+                children: [
+                  if (d.mean != null)
+                    _distStatCard('Media',
+                        '${d.mean!.toStringAsFixed(1)} pts', _meanBlue),
+                  if (d.mean != null && d.median != null)
+                    const SizedBox(width: 10),
+                  if (d.median != null)
+                    _distStatCard('Mediana',
+                        '${d.median!.toStringAsFixed(1)} pts', _medianOrange),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+          ],
           _fadeUp(
             _eio(_sub(t, 0.15, 0.8)),
             Container(
-              padding: const EdgeInsets.fromLTRB(6, 10, 6, 6),
+              padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.85),
+                color: Colors.white.withValues(alpha: 0.9),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(color: const Color(0xFFF0EBE8)),
               ),
-              child: CustomPaint(
-                size: const Size(double.infinity, 150),
-                painter: _DistributionPainter(
-                  scores: d.scores,
-                  mean: d.mean,
-                  userScore: d.userScore,
-                  reveal: reveal,
+              child: AspectRatio(
+                aspectRatio: 5 / 2.3,
+                child: CustomPaint(
+                  painter: _KdeDistributionPainter(
+                    scores: d.scores,
+                    mean: d.mean,
+                    median: d.median,
+                    userScore: d.userScore,
+                    reveal: reveal,
+                  ),
                 ),
               ),
             ),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 12),
           _fadeUp(
-            _eio(_sub(t, 0.35, 0.95)),
-            Row(
+            _eio(_sub(t, 0.3, 0.9)),
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              alignment: WrapAlignment.center,
               children: [
-                if (d.userScore != null)
-                  _statChip('Tú', '${d.userScore} pts', AppColors.primaryDark),
-                if (d.userScore != null && d.mean != null)
-                  const SizedBox(width: 8),
-                if (d.mean != null)
-                  _statChip('Media', '${d.mean!.round()} pts',
-                      const Color(0xFF475569)),
-                if (d.percentile != null) ...[
-                  const SizedBox(width: 8),
-                  _statChip('Percentil', 'P${d.percentile!.round()}',
-                      AppColors.success),
-                ],
+                _legendChip('Media', _meanBlue),
+                _legendChip('Mediana', _medianOrange),
+                _legendChip('Tu puntuación', _userRed, dot: true),
               ],
             ),
           ),
+          if (d.sameScoreCount > 0) ...[
+            const SizedBox(height: 10),
+            _fadeUp(
+              _eio(_sub(t, 0.4, 1.0)),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.groups_rounded,
+                      size: 15, color: AppColors.textSecondary),
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      '${d.sameScoreCount} '
+                      'persona${d.sameScoreCount == 1 ? '' : 's'} '
+                      'con tu mismo resultado',
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          if (d.userScore != null) ...[
+            const SizedBox(height: 8),
+            _fadeUp(
+              _eio(_sub(t, 0.45, 1.0)),
+              Text.rich(
+                TextSpan(
+                  style: const TextStyle(
+                      color: AppColors.textSecondary, fontSize: 12.5),
+                  children: [
+                    const TextSpan(text: 'Tu puntuación: '),
+                    TextSpan(
+                      text: '${d.userScore} pts',
+                      style: const TextStyle(
+                          color: _userRed, fontWeight: FontWeight.w800),
+                    ),
+                    if (d.percentile != null)
+                      TextSpan(text: '  ·  Percentil P${d.percentile!.round()}'),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ]);
       },
+    );
+  }
+
+  Widget _distStatCard(String label, String value, Color color) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.9),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFF0EBE8)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label.toUpperCase(),
+              style: TextStyle(
+                color: color,
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.2,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              value,
+              style: const TextStyle(
+                color: _ink,
+                fontSize: 19,
+                fontWeight: FontWeight.w900,
+                height: 1,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _legendChip(String text, Color color, {bool dot = false}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(99),
+        border: Border.all(color: color.withValues(alpha: 0.28)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          dot
+              ? Container(
+                  width: 7,
+                  height: 7,
+                  decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+                )
+              : Container(width: 12, height: 2.5, color: color),
+          const SizedBox(width: 6),
+          Text(
+            text,
+            style: TextStyle(
+              color: color,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1297,39 +1434,6 @@ class _ResultsScreenState extends State<ResultsScreen>
     );
   }
 
-  Widget _statChip(String label, String value, Color color) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.09),
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: Column(
-          children: [
-            Text(
-              label.toUpperCase(),
-              style: TextStyle(
-                color: color,
-                fontSize: 9,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 1,
-              ),
-            ),
-            const SizedBox(height: 3),
-            Text(
-              value,
-              style: const TextStyle(
-                color: _ink,
-                fontSize: 14,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 // ============================================================
@@ -3109,133 +3213,161 @@ class _ZScoreCurvePainter extends CustomPainter {
 }
 
 /// Histograma de la distribución de puntuaciones de hoy.
-class _DistributionPainter extends CustomPainter {
+/// La campana de la web (dashboard `/panel`): una estimación de densidad
+/// gaussiana (KDE) de las puntuaciones de hoy, con las verticales de media
+/// (azul) y mediana (naranja) y tu marca (roja) sobre la curva.
+///
+/// El pico se exagera un poco (`^1.35`) para que la forma se lea aunque las
+/// puntuaciones estén muy juntas, igual que en `buildKdePath` de la web.
+class _KdeDistributionPainter extends CustomPainter {
   final List<int> scores;
   final double? mean;
+  final double? median;
   final int? userScore;
   final double reveal;
 
-  _DistributionPainter({
+  _KdeDistributionPainter({
     required this.scores,
     required this.mean,
+    required this.median,
     required this.userScore,
     required this.reveal,
   });
 
-  static const _bins = 16;
+  static const _samples = 60;
+  static const _verticalScale = 1.35;
+
+  static const _line = Color(0xFF7FA17D);
+  static const _area = Color(0xFF8BA888);
+  static const _meanColor = Color(0xFF4F7BC0);
+  static const _medianColor = Color(0xFFE08B3D);
+  static const _userColor = Color(0xFFC4655A);
 
   @override
   void paint(Canvas canvas, Size size) {
     if (scores.isEmpty) return;
 
-    const marginTop = 16.0;
-    const marginBottom = 24.0;
-    const marginSide = 8.0;
-    final innerW = size.width - marginSide * 2;
-    final innerH = size.height - marginTop - marginBottom;
+    const left = 6.0;
+    const top = 14.0;
+    final right = size.width - 6;
+    final bottom = size.height - 6;
+    final chartH = bottom - top;
 
-    final minScore = scores.reduce(math.min).toDouble();
-    final maxScore = scores.reduce(math.max).toDouble();
-    final span = maxScore - minScore;
-    final lo = minScore - span * 0.08 - 1;
-    final hi = maxScore + span * 0.08 + 1;
-    final range = (hi - lo) == 0 ? 1.0 : (hi - lo);
+    final minS = scores.reduce(math.min).toDouble();
+    final maxS = scores.reduce(math.max).toDouble();
+    final pad = (maxS - minS) * 0.1;
+    final domMin = minS - pad;
+    final domMax = maxS + pad;
+    final domSpan = (domMax - domMin) <= 0 ? 1.0 : (domMax - domMin);
 
-    final counts = List<int>.filled(_bins, 0);
-    for (final s in scores) {
-      var idx = (((s - lo) / range) * _bins).floor();
-      idx = idx.clamp(0, _bins - 1);
-      counts[idx]++;
-    }
-    final maxCount = counts.reduce(math.max).toDouble();
-    if (maxCount == 0) return;
+    double xForScore(double v) =>
+        left + ((v - domMin) / domSpan).clamp(0.0, 1.0) * (right - left);
 
-    double xToPx(double v) => marginSide + ((v - lo) / range) * innerW;
-
-    int? userBin;
-    if (userScore != null) {
-      userBin =
-          (((userScore! - lo) / range) * _bins).floor().clamp(0, _bins - 1);
+    // Fondo de puntitos, como en la web.
+    final grid = Paint()..color = const Color(0xFF0F172A).withValues(alpha: 0.05);
+    for (var gy = top; gy <= bottom; gy += 11) {
+      for (var gx = left; gx <= right; gx += 11) {
+        canvas.drawCircle(Offset(gx, gy), 0.7, grid);
+      }
     }
 
-    final barW = innerW / _bins;
-    for (var i = 0; i < _bins; i++) {
-      final h = (counts[i] / maxCount) * innerH * reveal;
-      if (h <= 0) continue;
-      final left = marginSide + i * barW + 1.2;
-      final top = marginTop + innerH - h;
-      final isUser = userBin == i;
-      final paint = Paint()
-        ..color = isUser
-            ? AppColors.primaryDark
-            : AppColors.primary.withValues(alpha: 0.35);
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromLTWH(left, top, barW - 2.4, h),
-          const Radius.circular(3),
-        ),
-        paint,
-      );
+    final bandwidth = math.max(domSpan / 10, 1.0);
+    final step = domSpan / (_samples - 1);
+
+    double densityAt(double x) {
+      var acc = 0.0;
+      for (final s in scores) {
+        final z = (x - s) / bandwidth;
+        acc += math.exp(-0.5 * z * z);
+      }
+      return acc / scores.length;
     }
 
-    canvas.drawLine(
-      Offset(marginSide, marginTop + innerH),
-      Offset(size.width - marginSide, marginTop + innerH),
+    final densities = List<double>.generate(
+      _samples,
+      (i) => densityAt(domMin + i * step),
+    );
+    final maxD = densities.reduce(math.max);
+    final peak = maxD <= 0 ? 1.0 : maxD;
+
+    double yForDensity(double d) {
+      final norm = (d / peak).clamp(0.0, 1.0);
+      return bottom - math.pow(norm, _verticalScale).toDouble() * chartH * reveal;
+    }
+
+    // Curva y área bajo ella.
+    final curve = Path();
+    for (var i = 0; i < _samples; i++) {
+      final x = xForScore(domMin + i * step);
+      final y = yForDensity(densities[i]);
+      i == 0 ? curve.moveTo(x, y) : curve.lineTo(x, y);
+    }
+    final area = Path.from(curve)
+      ..lineTo(right, bottom)
+      ..lineTo(left, bottom)
+      ..close();
+
+    canvas.drawPath(
+      area,
       Paint()
-        ..color = const Color(0xFFE7DFDA)
-        ..strokeWidth = 1,
+        ..shader = ui.Gradient.linear(
+          const Offset(0, top),
+          Offset(0, bottom),
+          [_area.withValues(alpha: 0.28), _area.withValues(alpha: 0.05)],
+        ),
+    );
+    canvas.drawPath(
+      curve,
+      Paint()
+        ..color = _line
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.4
+        ..strokeJoin = StrokeJoin.round
+        ..strokeCap = StrokeCap.round,
     );
 
-    if (mean != null) {
-      final mx = xToPx(mean!);
-      final p = Paint()
-        ..color = const Color(0xFF94A3B8)
-        ..strokeWidth = 1.4;
-      var y = marginTop;
-      while (y < marginTop + innerH) {
-        canvas.drawLine(Offset(mx, y), Offset(mx, y + 4), p);
-        y += 8;
+    // Marcas verticales. Entran en la segunda mitad del reveal.
+    final markOp = ((reveal - 0.35) / 0.65).clamp(0.0, 1.0);
+    if (markOp > 0) {
+      if (mean != null) {
+        _vline(canvas, xForScore(mean!), top, bottom,
+            _meanColor.withValues(alpha: markOp), 1.75);
       }
-      _label(canvas, 'media', mx, marginTop + innerH + 6,
-          const Color(0xFF7D8A96), 9);
-    }
-
-    if (userScore != null && reveal > 0.55) {
-      final ux = xToPx(userScore!.toDouble());
-      final op = ((reveal - 0.55) / 0.45).clamp(0.0, 1.0);
-      canvas.drawLine(
-        Offset(ux, marginTop),
-        Offset(ux, marginTop + innerH),
-        Paint()
-          ..color = AppColors.primaryDark.withValues(alpha: op)
-          ..strokeWidth = 2.4,
-      );
-      _label(canvas, 'Tú', ux, 0,
-          AppColors.primaryDark.withValues(alpha: op), 11,
-          bold: true);
+      if (median != null) {
+        _vline(canvas, xForScore(median!), top, bottom,
+            _medianColor.withValues(alpha: markOp), 1.75);
+      }
+      if (userScore != null) {
+        final ux = xForScore(userScore!.toDouble());
+        _dashedVline(canvas, ux, top, bottom,
+            _userColor.withValues(alpha: markOp), 1.25);
+        final uy = yForDensity(densityAt(userScore!.toDouble()));
+        canvas.drawCircle(Offset(ux, uy), 5.5,
+            Paint()..color = Colors.white.withValues(alpha: markOp));
+        canvas.drawCircle(Offset(ux, uy), 4.6,
+            Paint()..color = _userColor.withValues(alpha: markOp));
+      }
     }
   }
 
-  void _label(Canvas canvas, String text, double cx, double y, Color color,
-      double fontSize,
-      {bool bold = false}) {
-    final tp = TextPainter(
-      text: TextSpan(
-        text: text,
-        style: TextStyle(
-          color: color,
-          fontSize: fontSize,
-          fontWeight: bold ? FontWeight.w800 : FontWeight.w600,
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    tp.paint(canvas, Offset(cx - tp.width / 2, y));
+  void _vline(Canvas c, double x, double y1, double y2, Color color, double w) {
+    c.drawLine(Offset(x, y1), Offset(x, y2),
+        Paint()..color = color..strokeWidth = w);
+  }
+
+  void _dashedVline(
+      Canvas c, double x, double y1, double y2, Color color, double w) {
+    final p = Paint()..color = color..strokeWidth = w;
+    for (var y = y1; y < y2; y += 8) {
+      c.drawLine(Offset(x, y), Offset(x, math.min(y + 4, y2)), p);
+    }
   }
 
   @override
-  bool shouldRepaint(covariant _DistributionPainter oldDelegate) =>
-      oldDelegate.reveal != reveal ||
-      oldDelegate.userScore != userScore ||
-      oldDelegate.scores != scores;
+  bool shouldRepaint(covariant _KdeDistributionPainter old) =>
+      old.reveal != reveal ||
+      old.userScore != userScore ||
+      old.mean != mean ||
+      old.median != median ||
+      !identical(old.scores, scores);
 }
