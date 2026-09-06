@@ -334,6 +334,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "7.2.0"
+  flutter_lucide:
+    dependency: "direct main"
+    description:
+      name: flutter_lucide
+      sha256: c7c695d3fd75a070605a77fc8e13d2b6964934da85ae97ac354431ae07c632f2
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.41.0"
   flutter_plugin_android_lifecycle:
     dependency: transitive
     description:

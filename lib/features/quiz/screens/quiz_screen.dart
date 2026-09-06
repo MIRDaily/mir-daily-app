@@ -13,6 +13,7 @@ import '../game/pack_burst_game.dart';
 import '../game/pack_game_base.dart';
 import '../game/pack_opening_game.dart';
 import '../game/pack_twist_game.dart';
+import '../widgets/subject_legend.dart';
 
 /// Pestaña "Sobre": mantiene la animación Flame de apertura del sobre de
 /// v10.6, pero alimentada por el daily REAL del backend (DailyProvider).
@@ -420,7 +421,20 @@ class _QuizScreenState extends State<QuizScreen>
           // La llave por estilo es lo que fuerza a Flame a soltar el juego
           // viejo y montar el nuevo al cambiar de animación. Sin ella,
           // GameWidget reutiliza su State y se queda con el primero.
-          child: GameWidget(key: ValueKey(_gameStyle), game: _game!),
+          //
+          // La leyenda de siglas se apila encima (no es un overlay de Flame
+          // para no tener que registrar builders en los tests del juego).
+          child: Stack(
+            children: [
+              GameWidget(key: ValueKey(_gameStyle), game: _game!),
+              ValueListenableBuilder<bool>(
+                valueListenable: _game!.legendVisible,
+                builder: (_, show, __) => show
+                    ? SubjectLegend(specialties: _game!.specialties)
+                    : const SizedBox.shrink(),
+              ),
+            ],
+          ),
         ),
       ),
     );

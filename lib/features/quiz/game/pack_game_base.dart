@@ -4,6 +4,7 @@ import 'package:flame/game.dart';
 import 'package:flame/effects.dart';
 import 'package:flutter/material.dart';
 
+import '../../../core/data/subject_visuals.dart';
 import '../../../core/services/haptics_service.dart';
 import '../../../core/theme/app_theme.dart';
 import 'pack_haptics.dart';
@@ -64,6 +65,13 @@ TimerComponent packAnimate(
 abstract class PackGameBase extends FlameGame {
   final List<String> specialties;
   final OnPackOpenComplete onComplete;
+
+  /// `true` mientras hay que enseñar la leyenda de siglas (`CD · Cardiología …`)
+  /// al pie del sobre: se enciende tras revelar las cartas y se apaga al
+  /// recogerlas. Lo pinta [QuizScreen] con un `ValueListenableBuilder`; se hace
+  /// así y no con un overlay de Flame para que los tests puedan montar el juego
+  /// suelto sin registrar builders.
+  final ValueNotifier<bool> legendVisible = ValueNotifier(false);
 
   /// [haptics] se puede sustituir en tests por un doble que apunte lo que
   /// sale: la vibración no se ve ni se oye, así que es la única forma de
@@ -272,6 +280,12 @@ abstract class PackGameBase extends FlameGame {
   /// daba un pantallazo negro al entrar.
   @override
   Color backgroundColor() => AppColors.background;
+
+  @override
+  void onRemove() {
+    legendVisible.dispose();
+    super.onRemove();
+  }
 
   @override
   Future<void> onLoad() async {
@@ -669,12 +683,20 @@ abstract class PackGameBase extends FlameGame {
     final waitAfterLast = lastRevealTime + 1200;
     final totalWait = max(waitAfterFirst, waitAfterLast);
 
+    // La leyenda entra justo después del último volteo y acompaña a las cartas
+    // mientras están quietas.
+    Future.delayed(Duration(milliseconds: lastRevealTime + 350), () {
+      if (isMounted && _opened) legendVisible.value = true;
+    });
+
     Future.delayed(Duration(milliseconds: totalWait), () {
       _gatherAndShuffle();
     });
   }
 
   void _gatherAndShuffle() async {
+    legendVisible.value = false;
+
     final centerX = size.x / 2 - cardWidth / 2;
     final centerY = size.y / 2 - cardHeight / 2;
     final centerPos = Vector2(centerX, centerY);
@@ -862,26 +884,13 @@ class CardComponent extends PositionComponent with HasGameRef {
   double _floatPhase = 0.0;
   double _floatAmplitude = 0.0;
   bool _isFloating = false;
-  
-  static const Map<String, String> specialtyEmojis = {
-    'Cardiología': '❤️',
-    'Neurología': '🧠',
-    'Neumología': '🫁',
-    'Digestivo': '🍽️',
-    'Nefrología': '💧',
-    'Pediatría': '👶',
-    'Infecciosas': '🦠',
-    'Traumatología': '🦴',
-    'Dermatología': '🧴',
-    'Oftalmología': '👁️',
-    'Ginecología': '🤰',
-    'Psiquiatría': '🧘',
-    'Cirugía': '🔪',
-    'Farmacología': '💊',
-    'Hematología': '🩸',
-    'Endocrinología': '⚖️',
-    'General': '🏥',
-  };
+
+  /// La sigla (CD, DG, NR…) y el icono de la asignatura. Se resuelve una vez:
+  /// el nombre del backend viene con muchas variantes y casarlo no es gratis.
+  late final SubjectVisual _visual = subjectVisual(specialty);
+
+  /// Marrón tinta del marco de la carta, el mismo que llevaba el nombre.
+  static const Color _cardInk = Color(0xFF4E342E);
 
   CardComponent({
     required this.index,
@@ -968,51 +977,61 @@ class CardComponent extends PositionComponent with HasGameRef {
   static const double _seamInset = 0.035;
 
   void _drawSpecialtyOverlay(Canvas canvas) {
-    final emoji = specialtyEmojis[specialty] ?? specialtyEmojis['General']!;
-
     // Recuadro de trabajo: por dentro de la costura, con su respiro.
     final left = size.x * (_seamLeft + _seamInset);
     final right = size.x * (_seamRight - _seamInset);
     final top = size.y * (_seamTop + _seamInset);
     final bottom = size.y * (_seamBottom - _seamInset);
-    final boxWidth = right - left;
     final centerX = (left + right) / 2;
 
     // Cuánto ha crecido la carta respecto al diseño original.
     final scale = size.x / PackGameBase.cardDesignWidth;
 
-    final emojiPainter = TextPainter(
-      text: TextSpan(text: emoji, style: TextStyle(fontSize: 30 * scale)),
+    // Icono de línea (Lucide) en el glifo de su fuente, tintado como el marco.
+    final iconPainter = TextPainter(
+      text: TextSpan(
+        text: String.fromCharCode(_visual.icon.codePoint),
+        style: TextStyle(
+          fontSize: 30 * scale,
+          fontFamily: _visual.icon.fontFamily,
+          package: _visual.icon.fontPackage,
+          color: _cardInk,
+          height: 1,
+        ),
+      ),
       textDirection: TextDirection.ltr,
     );
-    emojiPainter.layout();
+    iconPainter.layout();
 
-    final namePainter = TextPainter(
+    // La sigla (CD, DG…) en grande y a UNA línea: los nombres completos se
+    // salían de la costura o quedaban a dos renglones apretados.
+    final siglaPainter = TextPainter(
       text: TextSpan(
-        text: specialty,
+        text: _visual.sigla,
         style: TextStyle(
-          fontSize: 11 * sqrt(scale),
-          color: Colors.brown.shade800,
-          fontWeight: FontWeight.w700,
-          letterSpacing: -0.3,
+          fontSize: 17 * sqrt(scale),
+          color: _cardInk,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 0.5,
         ),
       ),
       textDirection: TextDirection.ltr,
       textAlign: TextAlign.center,
-      maxLines: 2,
-      ellipsis: '…',
     );
-    namePainter.layout(maxWidth: boxWidth);
+    siglaPainter.layout();
 
-    // El nombre se ancla al fondo del recuadro y el emoji se centra en lo que
-    // queda por encima.
-    final nameTop = bottom - namePainter.height;
-    namePainter.paint(canvas, Offset(centerX - namePainter.width / 2, nameTop));
-    emojiPainter.paint(
+    // La sigla se ancla al fondo del recuadro y el icono se centra en el hueco
+    // que queda por encima.
+    final siglaTop = bottom - siglaPainter.height;
+    siglaPainter.paint(
+      canvas,
+      Offset(centerX - siglaPainter.width / 2, siglaTop),
+    );
+    iconPainter.paint(
       canvas,
       Offset(
-        centerX - emojiPainter.width / 2,
-        (top + nameTop) / 2 - emojiPainter.height / 2,
+        centerX - iconPainter.width / 2,
+        (top + siglaTop) / 2 - iconPainter.height / 2,
       ),
     );
   }
