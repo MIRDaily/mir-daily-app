@@ -4,15 +4,15 @@
 //
 // Es lógica pura con la misma trampa que `mir_weights`: los nombres del
 // backend vienen con mil variantes, y "urologia" está dentro de "neurologia".
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_lucide/flutter_lucide.dart';
 
 import 'package:mirdaily_app/core/data/subject_visuals.dart';
 
 void main() {
   test('casa el nombre exacto', () {
     expect(subjectVisual('Cardiología').sigla, 'CD');
-    expect(subjectVisual('Cardiología').icon, LucideIcons.heart);
+    expect(subjectVisual('Cardiología').icon, Icons.monitor_heart_outlined);
     expect(subjectVisual('Neurología').sigla, 'NR');
     expect(subjectVisual('Digestivo').sigla, 'DG');
   });
@@ -40,7 +40,7 @@ void main() {
   test('asignatura desconocida: sigla de iniciales + icono genérico', () {
     final geriatria = subjectVisual('Geriatría');
     expect(geriatria.sigla, 'GE');
-    expect(geriatria.icon, LucideIcons.stethoscope);
+    expect(geriatria.icon, Icons.medical_services_outlined);
 
     expect(subjectVisual('Cuidados Paliativos').sigla, 'CP');
   });

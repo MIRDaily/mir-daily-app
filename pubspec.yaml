@@ -15,8 +15,6 @@ dependencies:
 
   # Iconos
   cupertino_icons: ^1.0.6
-  # Set de iconos de línea (Lucide) para las cartas del sobre, en color tinta.
-  flutter_lucide: ^1.41.0
 
   # Red / API (backend MIRDaily en Railway + Supabase Auth)
   http: ^1.2.0

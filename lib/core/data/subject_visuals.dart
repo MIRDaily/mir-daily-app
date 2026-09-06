@@ -1,9 +1,12 @@
-import 'package:flutter/widgets.dart';
-import 'package:flutter_lucide/flutter_lucide.dart';
+import 'package:flutter/material.dart';
 
 /// Cómo se representa una asignatura en las cartas del sobre: una sigla corta
-/// (el código AMIR de siempre — CD, DG, NR…, ver `mir_weights.dart`) y un icono
-/// de línea de Lucide.
+/// (el código AMIR de siempre — CD, DG, NR…, ver `mir_weights.dart`) y un icono.
+///
+/// Los iconos son de Material (los mismos que usa el resto de la app, en su
+/// variante de línea): sin dependencia ni fuente extra, que en este repo —con
+/// espacios en la ruta y la caché de pub cuatro carpetas arriba— daba
+/// problemas de compilación en Android.
 ///
 /// El backend manda `questions.subject` como texto libre y con muchas variantes
 /// ("Digestivo", "Aparato digestivo", "Digestivo y Cirugía General"…). Se
@@ -17,30 +20,30 @@ class SubjectVisual {
 
 /// Clave normalizada (sin tildes, minúsculas, solo letras) -> sigla + icono.
 const Map<String, SubjectVisual> _table = {
-  'digestivo': SubjectVisual('DG', LucideIcons.soup),
-  'cardiologia': SubjectVisual('CD', LucideIcons.heart),
-  'neurologia': SubjectVisual('NR', LucideIcons.brain),
-  'neumologia': SubjectVisual('NM', LucideIcons.wind),
-  'infecciosas': SubjectVisual('IF', LucideIcons.bug),
-  'endocrinologia': SubjectVisual('ED', LucideIcons.scale),
-  'ginecologia': SubjectVisual('GC', LucideIcons.venus),
-  'estadistica': SubjectVisual('ET', LucideIcons.sigma),
-  'reumatologia': SubjectVisual('RM', LucideIcons.bone),
-  'traumatologia': SubjectVisual('TM', LucideIcons.bone_fracture),
-  'pediatria': SubjectVisual('PD', LucideIcons.baby),
-  'nefrologia': SubjectVisual('NF', LucideIcons.droplet),
-  'psiquiatria': SubjectVisual('PQ', LucideIcons.brain_cog),
-  'hematologia': SubjectVisual('HM', LucideIcons.droplets),
-  'otorrinolaringologia': SubjectVisual('OR', LucideIcons.ear),
-  'dermatologia': SubjectVisual('DM', LucideIcons.hand),
-  'urologia': SubjectVisual('UR', LucideIcons.flask_round),
-  'inmunologia': SubjectVisual('IM', LucideIcons.shield),
-  'oftalmologia': SubjectVisual('OF', LucideIcons.eye),
-  'miscelanea': SubjectVisual('MC', LucideIcons.shapes),
-  'farmacologia': SubjectVisual('FM', LucideIcons.pill),
-  'genetica': SubjectVisual('GN', LucideIcons.dna),
-  'anatomiapatologica': SubjectVisual('AP', LucideIcons.microscope),
-  'oncologia': SubjectVisual('ON', LucideIcons.ribbon),
+  'digestivo': SubjectVisual('DG', Icons.restaurant_outlined),
+  'cardiologia': SubjectVisual('CD', Icons.monitor_heart_outlined),
+  'neurologia': SubjectVisual('NR', Icons.psychology_outlined),
+  'neumologia': SubjectVisual('NM', Icons.air_rounded),
+  'infecciosas': SubjectVisual('IF', Icons.coronavirus_outlined),
+  'endocrinologia': SubjectVisual('ED', Icons.balance_outlined),
+  'ginecologia': SubjectVisual('GC', Icons.pregnant_woman_outlined),
+  'estadistica': SubjectVisual('ET', Icons.insights_outlined),
+  'reumatologia': SubjectVisual('RM', Icons.accessibility_new_rounded),
+  'traumatologia': SubjectVisual('TM', Icons.personal_injury_outlined),
+  'pediatria': SubjectVisual('PD', Icons.child_care_outlined),
+  'nefrologia': SubjectVisual('NF', Icons.water_drop_outlined),
+  'psiquiatria': SubjectVisual('PQ', Icons.self_improvement_rounded),
+  'hematologia': SubjectVisual('HM', Icons.bloodtype_outlined),
+  'otorrinolaringologia': SubjectVisual('OR', Icons.hearing_rounded),
+  'dermatologia': SubjectVisual('DM', Icons.back_hand_outlined),
+  'urologia': SubjectVisual('UR', Icons.water_outlined),
+  'inmunologia': SubjectVisual('IM', Icons.shield_outlined),
+  'oftalmologia': SubjectVisual('OF', Icons.visibility_outlined),
+  'miscelanea': SubjectVisual('MC', Icons.category_outlined),
+  'farmacologia': SubjectVisual('FM', Icons.medication_outlined),
+  'genetica': SubjectVisual('GN', Icons.biotech_outlined),
+  'anatomiapatologica': SubjectVisual('AP', Icons.science_outlined),
+  'oncologia': SubjectVisual('ON', Icons.local_hospital_outlined),
 };
 
 /// Nombres alternativos con los que puede venir la asignatura -> clave de
@@ -94,9 +97,8 @@ const _connectors = {'del', 'las', 'los', 'general', 'aparato', 'enfermedades'};
 
 List<String> _words(String raw) => raw
     .split(RegExp(r'[\s,/&·+-]+'))
-    .map((w) => (raw: w, norm: _norm(w)))
-    .where((w) => w.norm.length > 2 && !_connectors.contains(w.norm))
-    .map((w) => w.norm)
+    .map(_norm)
+    .where((w) => w.length > 2 && !_connectors.contains(w))
     .toList();
 
 /// Sigla + icono para una asignatura, venga como venga escrita.
@@ -118,7 +120,7 @@ SubjectVisual subjectVisual(String raw) {
     }
   }
 
-  return SubjectVisual(_initials(raw), LucideIcons.stethoscope);
+  return SubjectVisual(_initials(raw), Icons.medical_services_outlined);
 }
 
 /// Sigla de urgencia para una asignatura desconocida: iniciales de sus dos
