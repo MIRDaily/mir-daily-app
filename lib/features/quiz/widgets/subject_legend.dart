@@ -8,7 +8,7 @@ import '../../../shared/sticker/sticker.dart';
 /// (`CD · Cardiología`). Solo las asignaturas del sobre de hoy, sin repetir.
 ///
 /// Entra y sale con un fundido corto: la monta y desmonta el propio juego
-/// (`PackGameBase.legendOverlay`) al revelar y al recoger las cartas.
+/// (`PackGameBase.legendVisible`) al revelar y al recoger las cartas.
 class SubjectLegend extends StatefulWidget {
   final List<String> specialties;
 
@@ -51,60 +51,62 @@ class _SubjectLegendState extends State<SubjectLegend>
 
     final fade = CurvedAnimation(parent: _in, curve: Curves.easeOut);
 
-    return Align(
-      alignment: Alignment.bottomCenter,
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 18),
-          child: FadeTransition(
-            opacity: fade,
-            child: SlideTransition(
-              position: Tween(
-                begin: const Offset(0, 0.35),
-                end: Offset.zero,
-              ).animate(fade),
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: kInk, width: 2),
-                  boxShadow: inkShadow(4),
-                ),
-                child: Wrap(
-                  alignment: WrapAlignment.center,
-                  spacing: 14,
-                  runSpacing: 6,
-                  children: [
-                    for (final e in entries)
-                      RichText(
-                        text: TextSpan(
-                          style: const TextStyle(
-                            fontSize: 12,
-                            height: 1.1,
-                            color: AppColors.textSecondary,
-                          ),
-                          children: [
-                            TextSpan(
-                              text: e.sigla,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w900,
-                                color: kInk,
-                                letterSpacing: 0.3,
-                              ),
-                            ),
-                            const TextSpan(text: '  '),
-                            TextSpan(text: e.name),
-                          ],
+    final pill = FadeTransition(
+      opacity: fade,
+      child: SlideTransition(
+        position: Tween(
+          begin: const Offset(0, 0.35),
+          end: Offset.zero,
+        ).animate(fade),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: kInk, width: 2),
+            boxShadow: inkShadow(4),
+          ),
+          child: Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 14,
+            runSpacing: 6,
+            children: [
+              for (final e in entries)
+                RichText(
+                  text: TextSpan(
+                    style: const TextStyle(
+                      fontSize: 12,
+                      height: 1.1,
+                      color: AppColors.textSecondary,
+                    ),
+                    children: [
+                      TextSpan(
+                        text: e.sigla,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w900,
+                          color: kInk,
+                          letterSpacing: 0.3,
                         ),
                       ),
-                  ],
+                      const TextSpan(text: '  '),
+                      TextSpan(text: e.name),
+                    ],
+                  ),
                 ),
-              ),
-            ),
+            ],
           ),
         ),
+      ),
+    );
+
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: Padding(
+        // Deja libre la barra de navegación flotante, que se pinta ENCIMA del
+        // contenido (~90-100 px, ver main_navigation.dart). Sin esto la leyenda
+        // se colaba medio tapada por detrás del navbar.
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 104),
+        child: pill,
       ),
     );
   }
