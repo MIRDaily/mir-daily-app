@@ -526,12 +526,13 @@ class _ResultsScreenState extends State<ResultsScreen>
     List<Widget> children, {
     CrossAxisAlignment cross = CrossAxisAlignment.center,
     double maxWidth = 460,
+    double gutter = 24,
   }) {
     return LayoutBuilder(
       builder: (ctx, cons) {
         return SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(24, 92, 24, 96),
+          padding: EdgeInsets.fromLTRB(gutter, 92, gutter, 96),
           child: ConstrainedBox(
             constraints: BoxConstraints(
                 minHeight: (cons.maxHeight - 188).clamp(0, double.infinity)),
@@ -1192,7 +1193,7 @@ class _ResultsScreenState extends State<ResultsScreen>
                 border: Border.all(color: const Color(0xFFF0EBE8)),
               ),
               child: AspectRatio(
-                aspectRatio: wide ? 5 / 1.85 : 5 / 2.75,
+                aspectRatio: wide ? 5 / 1.7 : 5 / 3.3,
                 child: _KdeDistributionChart(
                   scores: d.scores,
                   mean: d.mean,
@@ -1265,7 +1266,7 @@ class _ResultsScreenState extends State<ResultsScreen>
               ),
             ),
           ],
-        ], maxWidth: wide ? 760.0 : 460.0);
+        ], maxWidth: wide ? 880.0 : 460.0, gutter: wide ? 24.0 : 14.0);
       },
     );
   }
@@ -3359,12 +3360,14 @@ class _KdeDistributionPainter extends CustomPainter {
     final maxD = densities.reduce(math.max);
     final peak = maxD <= 0 ? 1.0 : maxD;
 
+    // La curva se pinta SIEMPRE a su altura real: lo que anima la entrada es
+    // cuánto de su recorrido está dibujado (como el `stroke-dashoffset` de la
+    // web), no su altura.
     double yForDensity(double d) {
       final norm = (d / peak).clamp(0.0, 1.0);
-      return bottom - math.pow(norm, _verticalScale).toDouble() * chartH * reveal;
+      return bottom - math.pow(norm, _verticalScale).toDouble() * chartH;
     }
 
-    // Curva y área bajo ella.
     final curve = Path();
     for (var i = 0; i < _samples; i++) {
       final x = xForScore(domMin + i * step);
@@ -3376,59 +3379,90 @@ class _KdeDistributionPainter extends CustomPainter {
       ..lineTo(left, bottom)
       ..close();
 
-    canvas.drawPath(
-      area,
-      Paint()
-        ..shader = ui.Gradient.linear(
-          const Offset(0, top),
-          Offset(0, bottom),
-          [_area.withValues(alpha: 0.28), _area.withValues(alpha: 0.05)],
-        ),
-    );
-    canvas.drawPath(
-      curve,
-      Paint()
+    // Tramos de la entrada, calcados de la web:
+    //  - área: opacidad 0→1 + scaleY 0.85→1 anclado abajo (`scoreKdeFill`).
+    //  - línea: se dibuja a lo largo de su recorrido (`scoreKdeDraw`).
+    //  - marcas: se dibujan de arriba abajo, escalonadas (`scoreMarkerDraw`).
+    final areaP = _eio(((reveal - 0.08) * 1.7).clamp(0.0, 1.0));
+    final lineP = _eio((reveal * 1.6).clamp(0.0, 1.0));
+
+    if (areaP > 0) {
+      canvas.save();
+      canvas.translate(0, bottom);
+      canvas.scale(1, 0.85 + 0.15 * areaP);
+      canvas.translate(0, -bottom);
+      canvas.drawPath(
+        area,
+        Paint()
+          ..shader = ui.Gradient.linear(
+            const Offset(0, top),
+            Offset(0, bottom),
+            [
+              _area.withValues(alpha: 0.28 * areaP),
+              _area.withValues(alpha: 0.05 * areaP),
+            ],
+          ),
+      );
+      canvas.restore();
+    }
+
+    if (lineP > 0) {
+      final linePaint = Paint()
         ..color = _line
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2.4
         ..strokeJoin = StrokeJoin.round
-        ..strokeCap = StrokeCap.round,
-    );
-
-    // Marcas verticales. Entran en la segunda mitad del reveal.
-    final markOp = ((reveal - 0.35) / 0.65).clamp(0.0, 1.0);
-    if (markOp > 0) {
-      if (mean != null) {
-        _vline(canvas, xForScore(mean!), top, bottom,
-            _meanColor.withValues(alpha: markOp), 1.75);
-      }
-      if (median != null) {
-        _vline(canvas, xForScore(median!), top, bottom,
-            _medianColor.withValues(alpha: markOp), 1.75);
-      }
-      if (userScore != null) {
-        final ux = xForScore(userScore!.toDouble());
-        _dashedVline(canvas, ux, top, bottom,
-            _userColor.withValues(alpha: markOp), 1.25);
-        final uy = yForDensity(densityAt(userScore!.toDouble()));
-        canvas.drawCircle(Offset(ux, uy), 5.5,
-            Paint()..color = Colors.white.withValues(alpha: markOp));
-        canvas.drawCircle(Offset(ux, uy), 4.6,
-            Paint()..color = _userColor.withValues(alpha: markOp));
+        ..strokeCap = StrokeCap.round;
+      if (lineP >= 1) {
+        canvas.drawPath(curve, linePaint);
+      } else {
+        for (final metric in curve.computeMetrics()) {
+          canvas.drawPath(
+            metric.extractPath(0, metric.length * lineP),
+            linePaint,
+          );
+        }
       }
     }
-  }
 
-  void _vline(Canvas c, double x, double y1, double y2, Color color, double w) {
-    c.drawLine(Offset(x, y1), Offset(x, y2),
-        Paint()..color = color..strokeWidth = w);
-  }
+    // Cada marca se "dibuja" de `top` hacia abajo hasta su altura, con un
+    // pequeño retardo entre ellas (media → mediana → tú).
+    void marker(double? v, Color color, double startAt,
+        {bool dashed = false, double width = 1.75}) {
+      if (v == null) return;
+      final p = _eio(((reveal - startAt) * 2.6).clamp(0.0, 1.0));
+      if (p <= 0) return;
+      final x = xForScore(v);
+      final y2 = top + chartH * p;
+      final paint = Paint()
+        ..color = color
+        ..strokeWidth = width;
+      if (dashed) {
+        for (var y = top; y < y2; y += 8) {
+          canvas.drawLine(Offset(x, y), Offset(x, math.min(y + 4, y2)), paint);
+        }
+      } else {
+        canvas.drawLine(Offset(x, top), Offset(x, y2), paint);
+      }
+    }
 
-  void _dashedVline(
-      Canvas c, double x, double y1, double y2, Color color, double w) {
-    final p = Paint()..color = color..strokeWidth = w;
-    for (var y = y1; y < y2; y += 8) {
-      c.drawLine(Offset(x, y), Offset(x, math.min(y + 4, y2)), p);
+    marker(mean, _meanColor, 0.30);
+    marker(median, _medianColor, 0.38);
+    marker(userScore?.toDouble(), _userColor, 0.46,
+        dashed: true, width: 1.25);
+
+    if (userScore != null) {
+      final p = Curves.easeOutBack.transform(
+        ((reveal - 0.46) * 2.6).clamp(0.0, 1.0),
+      );
+      if (p > 0) {
+        final ux = xForScore(userScore!.toDouble());
+        final uy = yForDensity(densityAt(userScore!.toDouble()));
+        final r = 5.5 * p.clamp(0.0, 1.0);
+        canvas.drawCircle(
+            Offset(ux, uy), r + 1.3, Paint()..color = Colors.white);
+        canvas.drawCircle(Offset(ux, uy), r, Paint()..color = _userColor);
+      }
     }
   }
 
