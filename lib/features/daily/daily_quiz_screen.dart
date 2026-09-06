@@ -12,6 +12,7 @@ import '../decks/widgets/save_to_deck.dart';
 import '../../shared/widgets/goo_fission_loader.dart';
 import '../../shared/widgets/misc_widgets.dart';
 import '../../shared/widgets/pressable.dart';
+import '../../shared/widgets/results_backdrop.dart';
 import '../../shared/widgets/zoomable_image.dart';
 import '../results/results_screen.dart';
 
@@ -144,12 +145,9 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> with SilencesBackgrou
     final question = daily.currentQuestion;
 
     if (daily.status == DailyStatus.submitting) {
-      return const Scaffold(
-        backgroundColor: AppColors.background,
-        body: Center(
-          child: GooFissionLoader(size: 170, label: 'Corrigiendo tu daily...'),
-        ),
-      );
+      // El mismo fondo vivo + loader que la revisión: al pasar de aquí a
+      // ResultsScreen es un fundido, no un salto entre dos pantallas distintas.
+      return const ResultsLoader(label: 'Corrigiendo tu daily…');
     }
 
     if (question == null) {

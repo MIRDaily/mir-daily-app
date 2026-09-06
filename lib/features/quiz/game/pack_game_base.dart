@@ -649,8 +649,10 @@ abstract class PackGameBase extends FlameGame {
     if (_isRevealing) return;
     _isRevealing = true;
 
+    const revealStagger = 220;
+
     for (int i = 0; i < cards.length; i++) {
-      final delayMs = i * 300;
+      final delayMs = i * revealStagger;
 
       Future.delayed(Duration(milliseconds: delayMs), () {
         if (i < cards.length) {
@@ -659,9 +661,12 @@ abstract class PackGameBase extends FlameGame {
       });
     }
 
-    final lastRevealTime = (cards.length - 1) * 300;
-    const waitAfterFirst = 6000;
-    final waitAfterLast = lastRevealTime + 2000;
+    // Con 5 cartas el volteo termina sobre el segundo; a partir de ahí se
+    // sostienen quietas lo justo para leer de un vistazo qué asignaturas han
+    // tocado, no para estudiarlas. Antes eran 6 s fijos y se hacía eterno.
+    final lastRevealTime = (cards.length - 1) * revealStagger;
+    const waitAfterFirst = 2600;
+    final waitAfterLast = lastRevealTime + 1200;
     final totalWait = max(waitAfterFirst, waitAfterLast);
 
     Future.delayed(Duration(milliseconds: totalWait), () {
@@ -708,7 +713,7 @@ abstract class PackGameBase extends FlameGame {
 
     await _performShuffleAnimation(centerPos);
 
-    await Future.delayed(const Duration(milliseconds: 300));
+    await Future.delayed(const Duration(milliseconds: 150));
     _exitAnimation();
   }
 
@@ -717,12 +722,14 @@ abstract class PackGameBase extends FlameGame {
       cards[i].fadeToOpacity(0, duration: 0.2);
     }
 
-    await Future.delayed(const Duration(milliseconds: 250));
+    await Future.delayed(const Duration(milliseconds: 180));
 
     final shuffleCards = cards.take(3).toList();
 
-    for (int shuffle = 0; shuffle < 4; shuffle++) {
-      await Future.delayed(const Duration(milliseconds: 150));
+    // Dos pasadas bastan para leerse como "baraja"; cuatro alargaban el trámite
+    // entre el sobre y el quiz sin aportar nada.
+    for (int shuffle = 0; shuffle < 2; shuffle++) {
+      await Future.delayed(const Duration(milliseconds: 130));
 
       for (int i = 0; i < shuffleCards.length; i++) {
         final card = shuffleCards[i];
@@ -742,7 +749,7 @@ abstract class PackGameBase extends FlameGame {
       }
     }
 
-    await Future.delayed(const Duration(milliseconds: 200));
+    await Future.delayed(const Duration(milliseconds: 150));
 
     for (int i = 0; i < shuffleCards.length; i++) {
       final card = shuffleCards[i];
@@ -755,7 +762,7 @@ abstract class PackGameBase extends FlameGame {
       card.add(RotateEffect.to(0, EffectController(duration: 0.2)));
     }
 
-    await Future.delayed(const Duration(milliseconds: 300));
+    await Future.delayed(const Duration(milliseconds: 200));
   }
 
   void _exitAnimation() {

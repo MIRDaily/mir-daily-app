@@ -171,17 +171,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       onTap: _openNavBarStyleSettings,
                     ),
                     _MenuItemData(
-                      icon: Icons.dark_mode_outlined,
-                      color: const Color(0xFF34495E),
-                      title: 'Modo oscuro',
-                      trailing: Switch(
-                        value: false,
-                        onChanged: (_) {},
-                        activeColor: AppColors.primary,
-                      ),
-                      onTap: () {},
-                    ),
-                    _MenuItemData(
                       icon: Icons.new_releases_outlined,
                       color: AppColors.secondary,
                       title: 'Novedades',

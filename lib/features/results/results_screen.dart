@@ -16,8 +16,10 @@ import '../../core/services/haptics_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../decks/widgets/save_to_deck.dart';
 import '../../shared/widgets/confetti_overlay.dart';
+import '../../shared/widgets/goo_fission_loader.dart';
 import '../../shared/widgets/misc_widgets.dart';
 import '../../shared/widgets/pressable.dart';
+import '../../shared/widgets/results_backdrop.dart';
 import '../../shared/widgets/zoomable_image.dart';
 
 const Color _ink = Color(0xFF374151);
@@ -312,9 +314,16 @@ class _ResultsScreenState extends State<ResultsScreen>
         backgroundColor: AppColors.background,
         body: Stack(
           children: [
-            Positioned.fill(child: _LivingBackground(accent: accent)),
+            Positioned.fill(child: ResultsBackdrop(accent: accent)),
             if (!_ready)
-              const Positioned.fill(child: _PreparingView())
+              const Positioned.fill(
+                child: Center(
+                  child: GooFissionLoader(
+                    size: 168,
+                    label: 'Preparando tus resultados…',
+                  ),
+                ),
+              )
             else ...[
               Positioned.fill(
                 child: PageView.builder(
@@ -1500,181 +1509,10 @@ class _SegmentBar extends StatelessWidget {
 }
 
 // ============================================================
-// FONDO VIVO + LOADING + PISTAS
+// PISTAS
 // ============================================================
-
-/// Fondo animado: degradado cálido con orbes difuminados que derivan
-/// suavemente, tintados por el color de acento del slide actual.
-class _LivingBackground extends StatefulWidget {
-  final Color accent;
-  const _LivingBackground({required this.accent});
-
-  @override
-  State<_LivingBackground> createState() => _LivingBackgroundState();
-}
-
-class _LivingBackgroundState extends State<_LivingBackground>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _c;
-
-  @override
-  void initState() {
-    super.initState();
-    _c = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 16),
-    )..repeat();
-  }
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return TweenAnimationBuilder<Color?>(
-      tween: ColorTween(end: widget.accent),
-      duration: const Duration(milliseconds: 700),
-      builder: (context, color, _) {
-        final accent = color ?? widget.accent;
-        return AnimatedBuilder(
-          animation: _c,
-          builder: (context, __) {
-            return CustomPaint(
-              painter: _BackgroundPainter(accent: accent, t: _c.value),
-              size: Size.infinite,
-            );
-          },
-        );
-      },
-    );
-  }
-}
-
-class _BackgroundPainter extends CustomPainter {
-  final Color accent;
-  final double t;
-
-  _BackgroundPainter({required this.accent, required this.t});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rect = Offset.zero & size;
-
-    // Degradado base cálido con un ligero tinte del acento.
-    final base = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [
-          Color.lerp(AppColors.background, accent, 0.06)!,
-          AppColors.background,
-          Color.lerp(AppColors.background, accent, 0.10)!,
-        ],
-        stops: const [0, 0.5, 1],
-      ).createShader(rect);
-    canvas.drawRect(rect, base);
-
-    void orb(double baseX, double baseY, double r, Color c, double phase) {
-      final angle = 2 * math.pi * (t + phase);
-      final dx = math.cos(angle) * size.width * 0.08;
-      final dy = math.sin(angle * 0.8) * size.height * 0.05;
-      final paint = Paint()
-        ..color = c
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 60);
-      canvas.drawCircle(
-        Offset(baseX * size.width + dx, baseY * size.height + dy),
-        r,
-        paint,
-      );
-    }
-
-    orb(0.18, 0.16, size.width * 0.34,
-        accent.withValues(alpha: 0.22), 0.0);
-    orb(0.85, 0.28, size.width * 0.30,
-        AppColors.gold.withValues(alpha: 0.16), 0.33);
-    orb(0.72, 0.82, size.width * 0.38,
-        accent.withValues(alpha: 0.16), 0.66);
-    orb(0.12, 0.78, size.width * 0.26,
-        AppColors.success.withValues(alpha: 0.12), 0.5);
-  }
-
-  @override
-  bool shouldRepaint(covariant _BackgroundPainter old) =>
-      old.t != t || old.accent != accent;
-}
-
-/// Pantalla breve mientras se preparan los datos de resultados.
-class _PreparingView extends StatefulWidget {
-  const _PreparingView();
-
-  @override
-  State<_PreparingView> createState() => _PreparingViewState();
-}
-
-class _PreparingViewState extends State<_PreparingView>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _c;
-
-  @override
-  void initState() {
-    super.initState();
-    _c = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1300),
-    )..repeat(reverse: true);
-  }
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ScaleTransition(
-            scale: Tween(begin: 0.9, end: 1.06).animate(
-              CurvedAnimation(parent: _c, curve: Curves.easeInOut),
-            ),
-            child: Container(
-              width: 70,
-              height: 70,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.primary.withValues(alpha: 0.28),
-                    blurRadius: 24,
-                    offset: const Offset(0, 10),
-                  ),
-                ],
-              ),
-              child: const Icon(Icons.emoji_events_rounded,
-                  color: AppColors.primary, size: 34),
-            ),
-          ),
-          const SizedBox(height: 22),
-          const Text(
-            'Preparando tus resultados…',
-            style: TextStyle(
-              color: _ink,
-              fontWeight: FontWeight.w700,
-              fontSize: 16,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
+// El fondo vivo y el loader viven en shared/widgets/results_backdrop.dart:
+// los comparte la pantalla de "Corrigiendo tu daily…" del envío.
 
 /// Pista animada "Desliza" con chevrones que laten hacia la derecha.
 class _SwipeHint extends StatefulWidget {
