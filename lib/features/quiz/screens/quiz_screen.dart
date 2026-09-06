@@ -8,7 +8,6 @@ import '../../../core/providers/daily_provider.dart';
 import '../../../core/providers/settings_provider.dart';
 import '../../daily/daily_quiz_screen.dart';
 import '../../results/results_screen.dart';
-import '../../../shared/widgets/goo_fission_loader.dart';
 import '../game/pack_burst_game.dart';
 import '../game/pack_game_base.dart';
 import '../game/pack_opening_game.dart';
@@ -49,8 +48,6 @@ class _QuizScreenState extends State<QuizScreen>
 
   bool _fetchTriggered = false;
   bool _quizPushed = false;
-  bool _opening = false; // mostrando el goo a pantalla completa
-  bool _examinedGoo = false; // ya se mostró la ventana del goo esta sesión
   bool? _lastPackState;
 
   @override
@@ -140,8 +137,9 @@ class _QuizScreenState extends State<QuizScreen>
       MaterialPageRoute(builder: (_) => const DailyQuizScreen()),
     );
 
-    // De vuelta del quiz: el estado pasa a "completed" y la propia pantalla
-    // de completado lanza la ventana del goo antes de "¡Daily completado!".
+    // De vuelta del quiz: el estado pasa a "completed" y se muestra
+    // "¡Daily completado!" directamente. Ya se han visto el sobre, el quiz y
+    // el carrusel de resultados; no hace falta una espera más.
     if (mounted) {
       setState(() {
         _game = null;
@@ -149,12 +147,6 @@ class _QuizScreenState extends State<QuizScreen>
         _quizPushed = false;
       });
     }
-  }
-
-  /// Cierra la ventana del goo tras 10s y muestra "¡Daily completado!".
-  Future<void> _closeGooAfterDelay() async {
-    await Future.delayed(const Duration(seconds: 10));
-    if (mounted) setState(() => _opening = false);
   }
 
   @override
@@ -190,12 +182,6 @@ class _QuizScreenState extends State<QuizScreen>
   }
 
   Widget _buildCurrent(BuildContext context) {
-    // Transición tras abrir el sobre: goo a pantalla completa.
-    if (_opening) {
-      _setPackState(false);
-      return _buildGooScreen();
-    }
-
     final daily = context.watch<DailyProvider>();
 
     switch (daily.status) {
@@ -210,16 +196,8 @@ class _QuizScreenState extends State<QuizScreen>
 
       case DailyStatus.completed:
         _setPackState(false);
-        // Antes de "¡Daily completado!" mostramos el goo 10s (una sola vez).
-        // Marcamos _opening de forma síncrona para que ningún rebuild
-        // intermedio cuele la pantalla de completado.
-        if (!_examinedGoo) {
-          _examinedGoo = true;
-          _opening = true;
-          WidgetsBinding.instance
-              .addPostFrameCallback((_) => _closeGooAfterDelay());
-          return _buildGooScreen();
-        }
+        // Directo a "¡Daily completado!": no hay nada que cargar, y el sobre,
+        // el quiz y el carrusel de resultados ya se han visto.
         return _buildCompleted();
 
       case DailyStatus.ready:
@@ -258,17 +236,6 @@ class _QuizScreenState extends State<QuizScreen>
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  /// Pantalla del efecto goo, mostrada al volver del quiz (ventana de 10s
-  /// para examinar la animación) antes de "¡Daily completado!".
-  Widget _buildGooScreen() {
-    return const Scaffold(
-      backgroundColor: AppColors.background,
-      body: Center(
-        child: GooFissionLoader(size: 200, label: 'Guardando tu resultado...'),
       ),
     );
   }
