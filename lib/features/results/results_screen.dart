@@ -522,8 +522,11 @@ class _ResultsScreenState extends State<ResultsScreen>
 
   /// Cuerpo centrado y desplazable: se centra cuando el contenido cabe y
   /// permite scroll vertical cuando es más alto que la pantalla.
-  Widget _centered(List<Widget> children,
-      {CrossAxisAlignment cross = CrossAxisAlignment.center}) {
+  Widget _centered(
+    List<Widget> children, {
+    CrossAxisAlignment cross = CrossAxisAlignment.center,
+    double maxWidth = 460,
+  }) {
     return LayoutBuilder(
       builder: (ctx, cons) {
         return SingleChildScrollView(
@@ -534,7 +537,7 @@ class _ResultsScreenState extends State<ResultsScreen>
                 minHeight: (cons.maxHeight - 188).clamp(0, double.infinity)),
             child: Center(
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 460),
+                constraints: BoxConstraints(maxWidth: maxWidth),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: cross,
@@ -1149,6 +1152,7 @@ class _ResultsScreenState extends State<ResultsScreen>
         final t = intro.value;
         final reveal = _eio(_sub(t, 0.25, 1.0));
         final hasCards = d.mean != null || d.median != null;
+        final wide = context.isWide;
 
         return _centered([
           _fadeUp(
@@ -1188,15 +1192,13 @@ class _ResultsScreenState extends State<ResultsScreen>
                 border: Border.all(color: const Color(0xFFF0EBE8)),
               ),
               child: AspectRatio(
-                aspectRatio: 5 / 2.3,
-                child: CustomPaint(
-                  painter: _KdeDistributionPainter(
-                    scores: d.scores,
-                    mean: d.mean,
-                    median: d.median,
-                    userScore: d.userScore,
-                    reveal: reveal,
-                  ),
+                aspectRatio: wide ? 5 / 2.0 : 5 / 2.35,
+                child: _KdeDistributionChart(
+                  scores: d.scores,
+                  mean: d.mean,
+                  median: d.median,
+                  userScore: d.userScore,
+                  reveal: reveal,
                 ),
               ),
             ),
@@ -1263,7 +1265,7 @@ class _ResultsScreenState extends State<ResultsScreen>
               ),
             ),
           ],
-        ]);
+        ], maxWidth: wide ? 640.0 : 460.0);
       },
     );
   }
@@ -3212,7 +3214,58 @@ class _ZScoreCurvePainter extends CustomPainter {
       oldDelegate.reveal != reveal || oldDelegate.zScore != zScore;
 }
 
-/// Histograma de la distribución de puntuaciones de hoy.
+/// La campana de la web con su fondo de puntitos a la deriva. El bucle de la
+/// deriva (10 s) lo lleva este widget; la forma la pinta [_KdeDistributionPainter].
+class _KdeDistributionChart extends StatefulWidget {
+  final List<int> scores;
+  final double? mean;
+  final double? median;
+  final int? userScore;
+  final double reveal;
+
+  const _KdeDistributionChart({
+    required this.scores,
+    required this.mean,
+    required this.median,
+    required this.userScore,
+    required this.reveal,
+  });
+
+  @override
+  State<_KdeDistributionChart> createState() => _KdeDistributionChartState();
+}
+
+class _KdeDistributionChartState extends State<_KdeDistributionChart>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _drift = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 10),
+  )..repeat();
+
+  @override
+  void dispose() {
+    _drift.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _drift,
+      builder: (_, __) => CustomPaint(
+        painter: _KdeDistributionPainter(
+          scores: widget.scores,
+          mean: widget.mean,
+          median: widget.median,
+          userScore: widget.userScore,
+          reveal: widget.reveal,
+          drift: _drift.value,
+        ),
+      ),
+    );
+  }
+}
+
 /// La campana de la web (dashboard `/panel`): una estimación de densidad
 /// gaussiana (KDE) de las puntuaciones de hoy, con las verticales de media
 /// (azul) y mediana (naranja) y tu marca (roja) sobre la curva.
@@ -3226,12 +3279,16 @@ class _KdeDistributionPainter extends CustomPainter {
   final int? userScore;
   final double reveal;
 
+  /// Fase del bucle de la deriva de los puntitos, 0..1.
+  final double drift;
+
   _KdeDistributionPainter({
     required this.scores,
     required this.mean,
     required this.median,
     required this.userScore,
     required this.reveal,
+    required this.drift,
   });
 
   static const _samples = 60;
@@ -3263,13 +3320,21 @@ class _KdeDistributionPainter extends CustomPainter {
     double xForScore(double v) =>
         left + ((v - domMin) / domSpan).clamp(0.0, 1.0) * (right - left);
 
-    // Fondo de puntitos, como en la web.
-    final grid = Paint()..color = const Color(0xFF0F172A).withValues(alpha: 0.05);
-    for (var gy = top; gy <= bottom; gy += 11) {
-      for (var gx = left; gx <= right; gx += 11) {
-        canvas.drawCircle(Offset(gx, gy), 0.7, grid);
+    // Fondo de puntitos a la deriva hacia la izquierda, como en la web
+    // (14 px de paso, bucle cada 10 s). El desfase es < un paso, así que al
+    // reiniciarse el controlador no se nota el salto.
+    const dotGap = 14.0;
+    final phase = (drift * dotGap) % dotGap;
+    final grid = Paint()
+      ..color = const Color(0xFF111827).withValues(alpha: 0.12);
+    canvas.save();
+    canvas.clipRect(Rect.fromLTRB(left, top, right, bottom));
+    for (var gy = top + 3; gy <= bottom; gy += dotGap) {
+      for (var gx = left - dotGap - phase; gx <= right; gx += dotGap) {
+        canvas.drawCircle(Offset(gx, gy), 1.1, grid);
       }
     }
+    canvas.restore();
 
     final bandwidth = math.max(domSpan / 10, 1.0);
     final step = domSpan / (_samples - 1);
@@ -3365,6 +3430,7 @@ class _KdeDistributionPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _KdeDistributionPainter old) =>
+      old.drift != drift ||
       old.reveal != reveal ||
       old.userScore != userScore ||
       old.mean != mean ||

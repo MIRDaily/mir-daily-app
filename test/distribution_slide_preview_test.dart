@@ -1,5 +1,6 @@
 // Cómo queda la slide "Distribución de hoy" de la revisión del daily: la
-// campana KDE (media azul, mediana naranja, tu marca roja) portada de la web.
+// campana KDE (media azul, mediana naranja, tu marca roja) portada de la web,
+// con su fondo de puntitos a la deriva. En tablet va más grande.
 //
 //   flutter test test/distribution_slide_preview_test.dart --update-goldens
 import 'dart:math';
@@ -74,66 +75,71 @@ class _FakeApi extends ApiService {
 }
 
 void main() {
-  testWidgets('la campana de la distribución', (tester) async {
-    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-      const MethodChannel('com.llfbandit.app_links/messages'),
-      (call) async => null,
-    );
-    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-      const MethodChannel('com.llfbandit.app_links/events'),
-      (call) async => null,
-    );
+  for (final (slug, size, dpr) in [
+    ('movil', const Size(1080, 2160), 3.0),
+    ('tablet', const Size(1700, 2200), 2.0),
+  ]) {
+    testWidgets('la campana de la distribución · $slug', (tester) async {
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        const MethodChannel('com.llfbandit.app_links/messages'),
+        (call) async => null,
+      );
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        const MethodChannel('com.llfbandit.app_links/events'),
+        (call) async => null,
+      );
 
-    tester.view.physicalSize = const Size(1080, 2160);
-    tester.view.devicePixelRatio = 3.0;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
+      tester.view.physicalSize = size;
+      tester.view.devicePixelRatio = dpr;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
 
-    final authService = AuthService();
-    final api = _FakeApi();
-    await tester.pumpWidget(
-      MultiProvider(
-        providers: [
-          Provider<ApiService>.value(value: api),
-          ChangeNotifierProvider(create: (_) => SavedQuestionsProvider()),
-          ChangeNotifierProvider<DailyProvider>(
-              create: (_) => DailyProvider(api)),
-          ChangeNotifierProvider<AuthProvider>(
-            create: (_) =>
-                AuthProvider(authService: authService, apiService: api),
-          ),
-        ],
-        child: const MaterialApp(home: ResultsScreen()),
-      ),
-    );
+      final authService = AuthService();
+      final api = _FakeApi();
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            Provider<ApiService>.value(value: api),
+            ChangeNotifierProvider(create: (_) => SavedQuestionsProvider()),
+            ChangeNotifierProvider<DailyProvider>(
+                create: (_) => DailyProvider(api)),
+            ChangeNotifierProvider<AuthProvider>(
+              create: (_) =>
+                  AuthProvider(authService: authService, apiService: api),
+            ),
+          ],
+          child: const MaterialApp(home: ResultsScreen()),
+        ),
+      );
 
-    for (var i = 0; i < 8; i++) {
-      await tester.pump(const Duration(milliseconds: 90));
-    }
-
-    // hero → desglose → comparativo → distribución (no hay ranking/progreso).
-    var waited = 0;
-    while (waited < 12000 &&
-        find.text('Distribución de hoy').evaluate().isEmpty) {
-      await tester.tap(find.text('Siguiente'), warnIfMissed: false);
       for (var i = 0; i < 8; i++) {
         await tester.pump(const Duration(milliseconds: 90));
       }
-      waited += 800;
-    }
-    expect(find.text('Distribución de hoy'), findsWidgets);
 
-    // Deja terminar la animación de entrada de la curva.
-    for (var i = 0; i < 20; i++) {
-      await tester.pump(const Duration(milliseconds: 100));
-    }
+      // hero → desglose → comparativo → distribución (sin ranking/progreso).
+      var waited = 0;
+      while (waited < 12000 &&
+          find.text('Distribución de hoy').evaluate().isEmpty) {
+        await tester.tap(find.text('Siguiente'), warnIfMissed: false);
+        for (var i = 0; i < 8; i++) {
+          await tester.pump(const Duration(milliseconds: 90));
+        }
+        waited += 800;
+      }
+      expect(find.text('Distribución de hoy'), findsWidgets);
 
-    await expectLater(
-      find.byType(MaterialApp),
-      matchesGoldenFile('goldens/distribution_slide.png'),
-    );
+      // Deja terminar la animación de entrada de la curva.
+      for (var i = 0; i < 20; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
 
-    // Suelta los AnimationController en repeat (fondo vivo, pistas…).
-    await tester.pumpWidget(const SizedBox());
-  });
+      await expectLater(
+        find.byType(MaterialApp),
+        matchesGoldenFile('goldens/distribution_slide_$slug.png'),
+      );
+
+      // Suelta los AnimationController en repeat (fondo vivo, deriva…).
+      await tester.pumpWidget(const SizedBox());
+    });
+  }
 }
