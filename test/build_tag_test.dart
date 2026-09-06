@@ -37,4 +37,12 @@ void main() {
         '63c98b7c');
     expect(pattern.firstMatch('1.0.0')?.group(1), isNull);
   });
+
+  test('el sello va encabezado por la serie de la carpeta (v6 · ...)', () {
+    // Sin PackageInfo (los tests corren en el escritorio) el sello es solo la
+    // serie; con hash sería "v6 · <sha>". En los dos casos empieza por la
+    // serie: es el número de la carpeta viva y no debe perderse.
+    expect(BuildInfo.series, 'v6');
+    expect(BuildInfo.label, startsWith(BuildInfo.series));
+  });
 }
