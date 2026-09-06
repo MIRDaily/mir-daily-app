@@ -1192,7 +1192,7 @@ class _ResultsScreenState extends State<ResultsScreen>
                 border: Border.all(color: const Color(0xFFF0EBE8)),
               ),
               child: AspectRatio(
-                aspectRatio: wide ? 5 / 2.0 : 5 / 2.35,
+                aspectRatio: wide ? 5 / 1.85 : 5 / 2.75,
                 child: _KdeDistributionChart(
                   scores: d.scores,
                   mean: d.mean,
@@ -1265,7 +1265,7 @@ class _ResultsScreenState extends State<ResultsScreen>
               ),
             ),
           ],
-        ], maxWidth: wide ? 640.0 : 460.0);
+        ], maxWidth: wide ? 760.0 : 460.0);
       },
     );
   }
@@ -3237,9 +3237,11 @@ class _KdeDistributionChart extends StatefulWidget {
 
 class _KdeDistributionChartState extends State<_KdeDistributionChart>
     with SingleTickerProviderStateMixin {
+  // 5 s por vuelta; el painter recorre 10 celdas de puntitos en ese tiempo
+  // (~28 px/s, el doble de rápido que la web).
   late final AnimationController _drift = AnimationController(
     vsync: this,
-    duration: const Duration(seconds: 10),
+    duration: const Duration(seconds: 5),
   )..repeat();
 
   @override
@@ -3324,7 +3326,9 @@ class _KdeDistributionPainter extends CustomPainter {
     // (14 px de paso, bucle cada 10 s). El desfase es < un paso, así que al
     // reiniciarse el controlador no se nota el salto.
     const dotGap = 14.0;
-    final phase = (drift * dotGap) % dotGap;
+    // 10 celdas por vuelta del controlador: múltiplo entero de `dotGap`, así
+    // que al reiniciarse no da tirón.
+    final phase = (drift * dotGap * 10) % dotGap;
     final grid = Paint()
       ..color = const Color(0xFF111827).withValues(alpha: 0.12);
     canvas.save();
