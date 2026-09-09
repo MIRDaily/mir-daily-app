@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/audio/background_music.dart';
 import '../../core/models/models.dart';
+import '../../core/providers/progress_provider.dart';
 import '../../core/services/api_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../shared/sticker/sticker.dart';
@@ -98,6 +99,13 @@ class _FlashcardStudyScreenState extends State<FlashcardStudyScreen> with Silenc
           _finished = res.kind;
         }
       });
+      if (_finished != null) {
+        // Se acabó el repaso: el servidor ya ha sumado lo que tocaba, así que
+        // se relee el progreso y se abre el permiso de celebrar. Nunca antes:
+        // a mitad de una tarjeta el usuario está estudiando.
+        final progreso = context.read<ProgressProvider>();
+        progreso.refresh().whenComplete(progreso.permitirCelebracion);
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() {

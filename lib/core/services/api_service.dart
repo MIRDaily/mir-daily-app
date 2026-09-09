@@ -7,6 +7,7 @@ import '../config/app_config.dart';
 import '../models/analytics.dart';
 import '../data/mir_weights.dart';
 import '../models/models.dart';
+import '../models/progress.dart';
 import 'auth_service.dart';
 
 class ApiException implements Exception {
@@ -320,6 +321,32 @@ class ApiService {
   Future<ActivityHeatmap> getActivityHeatmap() async {
     final json = await _request('GET', '/api/stats/activity-heatmap');
     return ActivityHeatmap.fromJson(json);
+  }
+
+  // ==========================
+  // NIVEL, XP, RACHA Y DESAFÍOS
+  // ==========================
+
+  /// Estado completo del sistema de niveles: nivel, XP, racha y los desafíos
+  /// del día y de la semana.
+  ///
+  /// Es solo lectura, y es la ÚNICA llamada que hace falta para pintar toda la
+  /// pantalla de progreso. No existe ningún endpoint para sumar XP: lo concede
+  /// el servidor por su cuenta al responder preguntas o cerrar una sesión, así
+  /// que después de terminar un daily, un simulacro o un mazo basta con volver
+  /// a leer esto.
+  Future<ProgressSnapshot> getProgress() async {
+    final json = await _request('GET', '/api/progress');
+    return ProgressSnapshot.fromJson(json);
+  }
+
+  /// Serie diaria de XP de los últimos 30 días, desglosada por origen.
+  Future<List<XpHistoryDay>> getXpHistory() async {
+    final json = await _request('GET', '/api/progress/history');
+    return ((json['days'] ?? []) as List)
+        .whereType<Map>()
+        .map((e) => XpHistoryDay.fromJson(Map<String, dynamic>.from(e)))
+        .toList();
   }
 
   // ==========================

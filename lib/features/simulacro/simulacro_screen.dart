@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/models/models.dart';
 import '../../core/audio/background_music.dart';
+import '../../core/providers/progress_provider.dart';
 import '../../core/responsive/adaptive_modal.dart';
 import '../../core/responsive/breakpoints.dart';
 import '../../core/responsive/content_shell.dart';
@@ -244,6 +245,15 @@ class _SimulacroScreenState extends State<SimulacroScreen> {
     final sessionId = _sessionId;
     if (sessionId != null) {
       _api.finishSimulacro(sessionId, _mode).catchError((_) {});
+    }
+
+    // El servidor ya ha sumado el XP del simulacro dentro de esas llamadas:
+    // basta con releer el progreso. Y aquí se acaba la actividad, así que aquí
+    // se abre el permiso de celebrar: si el usuario ha subido de nivel a mitad
+    // del test, la tarjeta ha esperado hasta ahora.
+    if (mounted) {
+      final progreso = context.read<ProgressProvider>();
+      progreso.refresh().whenComplete(progreso.permitirCelebracion);
     }
   }
 

@@ -4,9 +4,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
 import 'package:mirdaily_app/core/models/models.dart';
+import 'package:mirdaily_app/core/models/progress.dart';
 import 'package:mirdaily_app/core/providers/saved_questions_provider.dart';
 import 'package:mirdaily_app/core/providers/auth_provider.dart';
 import 'package:mirdaily_app/core/providers/daily_provider.dart';
+import 'package:mirdaily_app/core/providers/progress_provider.dart';
 import 'package:mirdaily_app/core/services/api_service.dart';
 import 'package:mirdaily_app/core/services/auth_service.dart';
 import 'package:mirdaily_app/features/results/results_screen.dart';
@@ -79,6 +81,40 @@ class _FakeApi extends ApiService {
       );
 
   @override
+  Future<ProgressSnapshot> getProgress() async => ProgressSnapshot.fromJson({
+        'progress': {
+          'level': 12,
+          'maxLevel': 100,
+          'xpTotal': 3665,
+          'xpIntoLevel': 90,
+          'xpForNext': 475,
+          'currentStreak': 6,
+          'longestStreak': 12,
+          'streakFreezes': 2,
+          'streakMultiplier': 1.10,
+          'lastActiveDay': '2026-09-08',
+          'xpToday': 121,
+          'xpTodayTotal': 121,
+          'dailyCap': 300,
+        },
+        'daily': [
+          {
+            'code': 'daily_do',
+            'scope': 'daily',
+            'metric': 'daily_done',
+            'title': 'Haz el Daily',
+            'description': 'Completa el sobre de hoy',
+            'progress': 1,
+            'target': 1,
+            'xpReward': 30,
+            'completed': true,
+            'sortOrder': 10,
+          },
+        ],
+        'weekly': const [],
+      });
+
+  @override
   Future<ActivityHeatmap> getActivityHeatmap() async => ActivityHeatmap(
         days: List.generate(
             30, (i) => HeatDay(date: '2026-07-${i + 1}', level: i % 3)),
@@ -99,6 +135,7 @@ void main() {
         Provider<ApiService>.value(value: api),
         ChangeNotifierProvider(create: (_) => SavedQuestionsProvider()),
         ChangeNotifierProvider<DailyProvider>(create: (_) => DailyProvider(api)),
+        ChangeNotifierProvider(create: (_) => ProgressProvider(api)),
         ChangeNotifierProvider<AuthProvider>(
           create: (_) =>
               AuthProvider(authService: authService, apiService: api),
@@ -162,8 +199,11 @@ void main() {
           reason: 'No se encontró el slide "$expectText"');
     }
 
-    // hero → desglose → comparativo → progreso → distribución.
+    // hero → desglose → XP → comparativo → progreso → distribución.
     await advance('Desglose de puntuación');
+    // La banda de recompensa: XP, nivel y racha, en su propio slide y lejos de
+    // los puntos del daily, que son otra moneda.
+    await advance('Tu constancia');
     await advance('Rendimiento comparativo');
     await advance('Progreso');
     await advance('Distribución de hoy');

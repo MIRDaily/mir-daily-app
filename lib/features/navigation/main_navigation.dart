@@ -13,6 +13,7 @@ import '../quiz/screens/quiz_screen.dart';
 import '../focus/providers/focus_provider.dart';
 import '../premium/screens/premium_screen.dart';
 import '../profile/screens/profile_screen.dart';
+import '../progress/widgets/anillo_nivel.dart';
 import '../versus/screens/versus_screen.dart';
 
 class MainNavigation extends StatefulWidget {
@@ -127,7 +128,7 @@ class _MainNavigationState extends State<MainNavigation>
     NavItem(icon: Icons.bolt_outlined, activeIcon: Icons.bolt, label: 'Versus'),
     NavItem(icon: Icons.quiz_outlined, activeIcon: Icons.quiz, label: 'Quiz'),
     NavItem(icon: Icons.workspace_premium_outlined, activeIcon: Icons.workspace_premium, label: 'Premium'),
-    NavItem(icon: Icons.person_outline, activeIcon: Icons.person, label: 'Perfil'),
+    NavItem(icon: Icons.person_outline, activeIcon: Icons.person, label: 'Perfil', anilloNivel: true),
   ];
 
   /// Último ancho del área de páginas, para detectar rotaciones / cambios de
@@ -638,10 +639,15 @@ class NavItem {
   final IconData activeIcon;
   final String label;
 
+  /// Rodea el icono con el aro del nivel. Lo lleva Perfil: es el equivalente
+  /// del aro sobre el avatar de la cabecera de la web.
+  final bool anilloNivel;
+
   const NavItem({
     required this.icon,
     required this.activeIcon,
     required this.label,
+    this.anilloNivel = false,
   });
 }
 
@@ -680,11 +686,18 @@ class _NavItem extends StatelessWidget {
         children: [
           Transform.scale(
             scale: 1.0 + (0.12 * selectedness) + (0.28 * wave),
-            child: Icon(
-              selectedness > 0.5 ? item.activeIcon : item.icon,
-              color: color,
-              size: 22,
-            ),
+            child: Builder(builder: (context) {
+              final icono = Icon(
+                selectedness > 0.5 ? item.activeIcon : item.icon,
+                color: color,
+                size: 22,
+              );
+              // El aro cabe DENTRO del hueco del icono, encogiéndolo: si
+              // creciera por fuera subiría el alto de toda la barra.
+              return item.anilloNivel
+                  ? AnilloNivel(lado: 26, child: icono)
+                  : icono;
+            }),
           ),
           const SizedBox(height: 3),
           Text(

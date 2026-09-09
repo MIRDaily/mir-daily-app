@@ -16,12 +16,14 @@ import 'core/providers/settings_provider.dart';
 import 'core/providers/user_provider.dart';
 import 'core/providers/auth_provider.dart';
 import 'core/providers/daily_provider.dart';
+import 'core/providers/progress_provider.dart';
 import 'core/services/api_service.dart';
 import 'core/services/app_warmup.dart';
 import 'core/services/auth_service.dart';
 import 'core/services/notification_service.dart';
 import 'features/focus/providers/focus_provider.dart';
 import 'features/navigation/main_navigation.dart';
+import 'features/progress/celebracion_logros.dart';
 import 'features/splash/intro_music.dart';
 import 'features/versus/services/versus_links.dart';
 import 'features/onboarding/screens/onboarding_screen.dart';
@@ -100,6 +102,14 @@ class MIRDailyApp extends StatelessWidget {
           ),
         ),
         ChangeNotifierProvider(create: (_) => DailyProvider(apiService)),
+        // Nivel, XP, racha y desafíos. Va detrás de AuthProvider porque se
+        // enciende y se apaga con la sesión: sin sesión NO pide nada, que en
+        // la web era un 401 en cada visita a la portada.
+        ChangeNotifierProxyProvider<AuthProvider, ProgressProvider>(
+          create: (_) => ProgressProvider(apiService),
+          update: (_, auth, progreso) => progreso!
+            ..setAutenticado(auth.status == AuthStatus.authenticated),
+        ),
         ChangeNotifierProvider(create: (_) => SettingsProvider()),
         ChangeNotifierProvider(create: (_) => SavedQuestionsProvider()),
         // MOCKUP de música de fondo. Ver `core/audio/background_music.dart`.
@@ -125,7 +135,19 @@ class MIRDailyApp extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
         home: const StartupGate(),
-        builder: (context, child) => BuildTag(child: child ?? const SizedBox()),
+        // La celebración se monta por ENCIMA del Navigator, no dentro de una
+        // pantalla: una meta se puede cumplir en cualquier sitio y no debe
+        // depender de quién esté arriba en ese momento. Que no interrumpa lo
+        // garantiza el permiso explícito del provider, no dónde vive.
+        builder: (context, child) => BuildTag(
+          child: Stack(
+            textDirection: TextDirection.ltr,
+            children: [
+              child ?? const SizedBox(),
+              const Positioned.fill(child: CelebracionLogros()),
+            ],
+          ),
+        ),
       ),
     );
   }

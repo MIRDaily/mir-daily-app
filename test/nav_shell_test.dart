@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:mirdaily_app/core/providers/auth_provider.dart';
 import 'package:mirdaily_app/core/providers/daily_provider.dart';
+import 'package:mirdaily_app/core/providers/progress_provider.dart';
 import 'package:mirdaily_app/core/providers/settings_provider.dart';
 import 'package:mirdaily_app/core/services/api_service.dart';
 import 'package:mirdaily_app/core/services/auth_service.dart';
@@ -41,6 +42,7 @@ void main() {
             create: (_) => AuthProvider(authService: auth, apiService: api),
           ),
           ChangeNotifierProvider(create: (_) => DailyProvider(api)),
+          ChangeNotifierProvider(create: (_) => ProgressProvider(api)),
           ChangeNotifierProvider(create: (_) => FocusProvider()),
           ChangeNotifierProvider<SettingsProvider>.value(value: settings),
         ],

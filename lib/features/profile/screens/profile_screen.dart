@@ -4,6 +4,7 @@ import '../../../core/config/app_config.dart';
 import '../../../core/models/models.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/daily_provider.dart';
+import '../../../core/providers/progress_provider.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/build_info.dart';
 import '../../../core/providers/settings_provider.dart';
@@ -16,6 +17,7 @@ import '../../../shared/sticker/sticker.dart';
 import '../../onboarding/screens/onboarding_screen.dart';
 import '../../quiz/widgets/pack_style_selector.dart';
 import '../widgets/profile_card.dart';
+import '../widgets/progress_section.dart';
 import '../widgets/profile_card_fields.dart';
 import '../widgets/profile_editor_sheet.dart';
 
@@ -51,6 +53,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (mounted) setState(() => _campos = c);
     });
     context.read<AuthProvider>().refreshProfile();
+    // El progreso también entra en el gesto de "tirar para recargar": es la
+    // pantalla donde vive y es lo que el usuario espera al arrastrar.
+    context.read<ProgressProvider>().refresh();
     try {
       final heatmap = await context.read<ApiService>().getActivityHeatmap();
       if (mounted) setState(() => _heatmap = heatmap);
@@ -101,7 +106,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   _buildHeader(name, handle, avatarId, isPremium, chips),
                   const SizedBox(height: 22),
                   _buildStatsRow(),
-                  const SizedBox(height: 22),
+                  const SizedBox(height: 30),
+                  const ProgressSection(),
                   _buildPremiumCard(isPremium),
                   const SizedBox(height: 30),
                   _buildSectionTitle('Cuenta'),
@@ -253,6 +259,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   if (context.watch<SettingsProvider>().backgroundMusic) ...[
                     const SizedBox(height: 12),
                     const _BackgroundMusicVolume(),
+                  ],
+
+                  // ---- Pruebas de desarrollo ----
+                  // Mismo interruptor que el sello de build de la esquina: se
+                  // ve en los builds de prueba y desaparece en los de Play.
+                  if (BuildInfo.visible) ...[
+                    const SizedBox(height: 26),
+                    _buildSectionTitle('Pruebas de desarrollo'),
+                    const SizedBox(height: 12),
+                    _buildGroup([
+                      _MenuItemData(
+                        icon: Icons.celebration_outlined,
+                        color: AppColors.gold,
+                        title: 'Simular metas cumplidas',
+                        subtitle: 'Ver las animaciones sin conseguirlas',
+                        onTap: _openSimuladorDeLogros,
+                      ),
+                    ]),
                   ],
 
                   const SizedBox(height: 30),
@@ -745,6 +769,125 @@ class _ProfileScreenState extends State<ProfileScreen> {
           'Gira el dedo alrededor del sobre, en cualquier sentido. Se '
               'retuerce como un caramelo hasta romperse por el cuello.',
       };
+
+  /// Disparador de metas de mentira, para poder mirar las animaciones.
+  ///
+  /// No existe forma razonable de ver un salto de dos peldaños o la tarjeta de
+  /// rango de otra manera: harían falta semanas de racha real. Nada de esto
+  /// toca el servidor ni el XP — solo mete las metas en la cola, igual que
+  /// haría la detección normal al recargar.
+  void _openSimuladorDeLogros() {
+    final progreso = context.read<ProgressProvider>();
+
+    showAdaptiveModal<void>(
+      context: context,
+      builder: (sheetCtx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Simular metas cumplidas',
+                style: TextStyle(
+                    fontWeight: FontWeight.w900, fontSize: 19, color: kInk),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'No suma XP ni toca el servidor: solo dispara la celebración '
+                'para poder verla. La hoja se cierra y sale encima.',
+                style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 16),
+              for (final opcion in const [
+                (
+                  SimulacionLogro.desafio,
+                  'Un desafío',
+                  'Aviso arriba, se va solo a los 4,6 s',
+                  Icons.task_alt_rounded,
+                ),
+                (
+                  SimulacionLogro.desafiosAMontones,
+                  'Tres desafíos de golpe',
+                  'Para ver cómo se apilan los avisos',
+                  Icons.layers_outlined,
+                ),
+                (
+                  SimulacionLogro.nivel,
+                  'Subir de nivel',
+                  'Un peldaño: barra, insignia y chispas',
+                  Icons.trending_up_rounded,
+                ),
+                (
+                  SimulacionLogro.rango,
+                  'Cambiar de rango',
+                  'Dos peldaños encadenados, hasta Residente R1',
+                  Icons.military_tech_outlined,
+                ),
+                (
+                  SimulacionLogro.racha,
+                  'Hito de racha',
+                  '30 días: la llama en su color final',
+                  Icons.local_fire_department_rounded,
+                ),
+                (
+                  SimulacionLogro.todo,
+                  'Todo a la vez',
+                  'Tarjeta primero y avisos después: el relevo',
+                  Icons.auto_awesome_rounded,
+                ),
+              ])
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: StickerCard(
+                    depth: 3,
+                    radius: 14,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 12),
+                    onTap: () {
+                      // Se cierra ANTES de disparar: si no, la hoja se queda
+                      // por delante de la celebración y no se ve nada.
+                      Navigator.of(sheetCtx).pop();
+                      progreso.simularLogro(opcion.$1);
+                    },
+                    child: Row(
+                      children: [
+                        Icon(opcion.$4, size: 20, color: AppColors.primaryDark),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                opcion.$2,
+                                style: const TextStyle(
+                                  fontSize: 14.5,
+                                  fontWeight: FontWeight.w900,
+                                  color: kInk,
+                                ),
+                              ),
+                              const SizedBox(height: 1),
+                              Text(
+                                opcion.$3,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   void _openPackStyleSettings() {
     final settings = context.read<SettingsProvider>();

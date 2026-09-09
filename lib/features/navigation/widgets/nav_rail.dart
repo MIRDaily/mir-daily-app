@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../main_navigation.dart' show NavItem;
+import '../../progress/widgets/anillo_nivel.dart';
 
 /// Ancho del raíl. Estrecho a propósito: icono + etiqueta pequeña debajo,
 /// como los ítems de la barra inferior pero en vertical.
@@ -146,11 +147,18 @@ class _RailPip extends StatelessWidget {
         children: [
           Transform.scale(
             scale: 1.0 + (0.10 * selectedness) + (0.16 * wave),
-            child: Icon(
-              selectedness > 0.5 ? item.activeIcon : item.icon,
-              color: color,
-              size: 23,
-            ),
+            child: Builder(builder: (context) {
+              final icono = Icon(
+                selectedness > 0.5 ? item.activeIcon : item.icon,
+                color: color,
+                size: 23,
+              );
+              // Igual que en la barra inferior: el aro cabe dentro del hueco
+              // que ya ocupaba el icono, no crece por fuera.
+              return item.anilloNivel
+                  ? AnilloNivel(lado: 27, child: icono)
+                  : icono;
+            }),
           ),
           const SizedBox(height: 3),
           Text(

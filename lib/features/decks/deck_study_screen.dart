@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/audio/background_music.dart';
 import '../../core/models/models.dart';
+import '../../core/providers/progress_provider.dart';
 import '../../core/services/api_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../shared/sticker/sticker.dart';
@@ -143,7 +144,13 @@ class _DeckStudyScreenState extends State<DeckStudyScreen> with SilencesBackgrou
     try {
       if (_sessionId != null) await _api.endDeckSession(_sessionId!);
     } catch (_) {}
-    if (mounted) setState(() => _finished = true);
+    if (!mounted) return;
+    setState(() => _finished = true);
+
+    // La sesión de mazo se ha cerrado en el servidor y con ella el XP y los
+    // desafíos: se relee y, ya en el resumen, se abre el permiso de celebrar.
+    final progreso = context.read<ProgressProvider>();
+    progreso.refresh().whenComplete(progreso.permitirCelebracion);
   }
 
   @override

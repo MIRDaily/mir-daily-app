@@ -13,6 +13,7 @@ import 'package:provider/provider.dart';
 import 'package:mirdaily_app/core/models/models.dart';
 import 'package:mirdaily_app/core/providers/auth_provider.dart';
 import 'package:mirdaily_app/core/providers/daily_provider.dart';
+import 'package:mirdaily_app/core/providers/progress_provider.dart';
 import 'package:mirdaily_app/core/providers/saved_questions_provider.dart';
 import 'package:mirdaily_app/core/services/api_service.dart';
 import 'package:mirdaily_app/core/services/auth_service.dart';
@@ -103,6 +104,7 @@ void main() {
             ChangeNotifierProvider(create: (_) => SavedQuestionsProvider()),
             ChangeNotifierProvider<DailyProvider>(
                 create: (_) => DailyProvider(api)),
+            ChangeNotifierProvider(create: (_) => ProgressProvider(api)),
             ChangeNotifierProvider<AuthProvider>(
               create: (_) =>
                   AuthProvider(authService: authService, apiService: api),

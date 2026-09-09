@@ -10,11 +10,16 @@ import '../../core/config/app_config.dart';
 import '../../core/models/models.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/providers/daily_provider.dart';
+import '../../core/providers/progress_provider.dart';
 import '../../core/responsive/breakpoints.dart';
 import '../../core/services/api_service.dart';
 import '../../core/services/haptics_service.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/levels.dart';
 import '../decks/widgets/save_to_deck.dart';
+import '../progress/widgets/llama_racha.dart';
+import '../progress/widgets/marco_nivel.dart';
+import '../progress/widgets/tarjeta_nivel.dart' show miles;
 import '../../shared/widgets/confetti_overlay.dart';
 import '../../shared/widgets/goo_fission_loader.dart';
 import '../../shared/widgets/misc_widgets.dart';
@@ -85,6 +90,11 @@ class _ResultsScreenState extends State<ResultsScreen>
 
   Future<void> _prepare() async {
     final daily = context.read<DailyProvider>();
+    // El daily acaba de sumar XP, cerrar desafíos y tocar la racha en el
+    // servidor: basta con volver a leer el progreso, no hay nada que enviar.
+    // Va sin await, en paralelo a los resultados: la banda de XP se rellena
+    // cuando llegue.
+    _progreso.refresh();
     // Carga secuencial (results/today, ranking, distribución, stats). El
     // provider ignora los fallos, así que siempre completa aunque falte red.
     await daily.loadResults();
@@ -94,8 +104,18 @@ class _ResultsScreenState extends State<ResultsScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) => _activate(0));
   }
 
+  /// El provider, guardado para poder darle el permiso de celebrar en
+  /// `dispose`, cuando el `context` ya no sirve para buscarlo.
+  late final ProgressProvider _progreso = context.read<ProgressProvider>();
+
   @override
   void dispose() {
+    // Aquí se acaba la actividad, así que aquí se da el permiso: la
+    // celebración sale ya sobre el hub, con el usuario libre. Va en `dispose`
+    // y no en el botón de salir para cubrir TODAS las salidas —el gesto de
+    // atrás incluido—, y así una meta no se queda sin enseñar por haber
+    // salido por otra puerta.
+    _progreso.permitirCelebracion();
     _segCtrl.dispose();
     _pageController.dispose();
     super.dispose();
@@ -219,6 +239,20 @@ class _ResultsScreenState extends State<ResultsScreen>
             intro, breakdown, correct, total, score, review),
       ),
     ];
+
+    // El momento de recompensa: XP del día, nivel, racha y desafíos.
+    //
+    // VA EN SU PROPIO SLIDE, y no dentro del hero. El daily tiene su
+    // puntuación en PUNTOS, que compite contra los demás usuarios; el XP es
+    // otra cosa y mide constancia. Enseñarlos en la misma tarjeta confundiría
+    // al usuario sobre qué significa cada número, así que en la web se
+    // mantienen separados a propósito y aquí también.
+    slides.add(_StorySlide(
+      id: 'xp',
+      accent: AppColors.gold,
+      duration: const Duration(milliseconds: 6400),
+      content: (ctx, intro) => _xpSlide(intro),
+    ));
 
     if (results != null) {
       slides.add(_StorySlide(
@@ -1020,6 +1054,153 @@ class _ResultsScreenState extends State<ResultsScreen>
 
   // ---------- SLIDE 4: PROGRESO ----------
 
+  // ---------- SLIDE: XP, NIVEL Y RACHA ----------
+
+  /// La banda de recompensa. Es el punto con más carga motivadora del
+  /// producto: el usuario acaba de terminar y está mirando.
+  ///
+  /// Ni un porcentaje de acierto ni los puntos del daily entran aquí: el nivel
+  /// mide constancia y la precisión dice si vas a aprobar, y juntarlos haría
+  /// creer que un nivel alto significa aprobar.
+  Widget _xpSlide(Animation<double> intro) {
+    return Consumer<ProgressProvider>(
+      builder: (context, progreso, _) {
+        final snap = progreso.data;
+        final p = snap?.progress;
+
+        return AnimatedBuilder(
+          animation: intro,
+          builder: (context, _) {
+            final t = intro.value;
+
+            if (p == null) {
+              return _centered([
+                _fadeUp(
+                  _eio(_sub(t, 0, 0.5)),
+                  _slideHeader(
+                    icon: Icons.auto_awesome_rounded,
+                    title: 'Tu constancia',
+                    subtitle: 'Nivel, XP y racha',
+                  ),
+                ),
+                const SizedBox(height: 26),
+                _fadeUp(
+                  _eio(_sub(t, 0.2, 0.8)),
+                  Text(
+                    progreso.error ?? 'Cargando tu progreso…',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 14,
+                      height: 1.5,
+                    ),
+                  ),
+                ),
+              ]);
+            }
+
+            final rango = rankForLevel(p.level);
+            final xpHoy = (p.xpTodayTotal * _eio(_sub(t, 0.35, 1.0))).round();
+            final hechos = snap!.dailyHechos;
+            final total = snap.dailyReales.length;
+
+            return _centered([
+              _fadeUp(
+                _eio(_sub(t, 0, 0.5)),
+                _slideHeader(
+                  icon: Icons.auto_awesome_rounded,
+                  title: 'Tu constancia',
+                  subtitle: 'El nivel mide los días que apareces',
+                ),
+              ),
+              const SizedBox(height: 30),
+              _fadeUp(
+                _eio(_sub(t, 0.15, 0.7)),
+                MarcoNivel(nivel: p.level, tamano: 96, color: rango.color),
+              ),
+              const SizedBox(height: 12),
+              _fadeUp(
+                _eio(_sub(t, 0.22, 0.8)),
+                Text(
+                  rango.name,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: _ink,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 20,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              // El número grande es xpTodayTotal: TODO lo ganado hoy, premios
+              // semanales incluidos. El tope solo mide xpToday, y son cosas
+              // distintas (ver UserProgress).
+              _fadeUp(
+                _eio(_sub(t, 0.3, 0.9)),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      '+${miles(xpHoy)}',
+                      style: const TextStyle(
+                        fontSize: 56,
+                        height: 1,
+                        fontWeight: FontWeight.w900,
+                        color: _ink,
+                      ),
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.only(left: 6, bottom: 7),
+                      child: Text(
+                        'XP hoy',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 22),
+              _fadeUp(
+                _eio(_sub(t, 0.42, 1.0)),
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    _ChipResumen(
+                      icono: LlamaRacha(racha: p.currentStreak, size: 22),
+                      texto: p.currentStreak == 1
+                          ? '1 día de racha'
+                          : '${p.currentStreak} días de racha',
+                    ),
+                    if (p.streakMultiplier > 1)
+                      _ChipResumen(
+                        icono: const Icon(Icons.trending_up_rounded,
+                            size: 18, color: AppColors.success),
+                        texto: '×${p.streakMultiplier.toStringAsFixed(2)
+                            .replaceAll('.', ',')} XP',
+                      ),
+                    if (total > 0)
+                      _ChipResumen(
+                        icono: const Icon(Icons.task_alt_rounded,
+                            size: 18, color: AppColors.success),
+                        texto: 'Desafíos $hechos/$total',
+                      ),
+                  ],
+                ),
+              ),
+            ]);
+          },
+        );
+      },
+    );
+  }
+
   Widget _progressSlide(Animation<double> intro, StatsSummary s) {
     final insufficient = s.insufficientData || s.avgPercentage == null;
     final avg = s.avgPercentage ?? 0;
@@ -1442,6 +1623,41 @@ class _ResultsScreenState extends State<ResultsScreen>
 // ============================================================
 // MODELO DE SLIDE + PÁGINA + GESTOS
 // ============================================================
+
+/// Pastilla de icono + texto para la banda de XP.
+class _ChipResumen extends StatelessWidget {
+  final Widget icono;
+  final String texto;
+
+  const _ChipResumen({required this.icono, required this.texto});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(99),
+        border: Border.all(color: AppColors.hairline, width: 2),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          icono,
+          const SizedBox(width: 7),
+          Text(
+            texto,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: _ink,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class _StorySlide {
   final String id;
