@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:lottie/lottie.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/services/app_warmup.dart';
@@ -477,6 +478,18 @@ class LoadingScreenImages {
     'assets/images/Bacteriofago.png',
   ];
 
+  /// Los bichos animados del fondo. Un .lottie es un zip con el JSON dentro (y
+  /// con sus PNG, en el caso de la bacteria) que el paquete abre solo, sin
+  /// tener que descomprimir nada a mano. A diferencia de las células, no son
+  /// imágenes: se pintan con [Lottie].
+  static const String bacteria = 'assets/animations/bacteria.lottie';
+  static const String covid = 'assets/animations/covid.lottie';
+
+  /// Lo que hay que precargar de los bichos. Sale del catálogo de [Bicho] para
+  /// no llevar la misma lista en dos sitios.
+  static List<String> get animaciones =>
+      [for (final bicho in Bicho.todos) bicho.asset];
+
   /// Ancho al que se decodifican las células. Da de sobra para la capa nítida
   /// (110 puntos a densidad 3) y las capas grandes ya van desenfocadas, así que
   /// no se les nota. Los archivos que ya son menores se quedan como están.
@@ -496,7 +509,19 @@ class LoadingScreenImages {
       // El logo se pinta casi al tamaño del archivo, así que no se acota: solo
       // se adelanta su carga.
       _resolve(const AssetImage(logo)),
+      ...animaciones.map(_precacheLottie),
     ]);
+  }
+
+  /// Deja un bicho montado en la caché de Lottie (`Lottie.cache`), que es la
+  /// misma de la que tira `Lottie.asset`. Abrir el zip y decodificar lo que
+  /// traiga dentro (la bacteria son 21 PNG) cuesta lo suyo, y hacerlo cuando le
+  /// toca aparecer sería justo en medio de la caída: o llega tarde o da un
+  /// tirón.
+  static Future<void> _precacheLottie(String asset) {
+    // Que falte un bicho no puede tumbar el arranque (igual que las células):
+    // si no carga, el fondo se queda sin él y ya está.
+    return AssetLottie(asset).load().then<void>((_) {}, onError: (_, __) {});
   }
 
   static Future<void> _resolve(ImageProvider provider) {
@@ -541,8 +566,13 @@ class ParticlesBackground extends StatefulWidget {
 }
 
 class _ParticlesBackgroundState extends State<ParticlesBackground>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late AnimationController _controller;
+
+  /// El reloj de cada bicho, aparte del de la caída: cada uno se mueve a su
+  /// ritmo (su [Bicho.speed]), no al de las células. La duración se les pone
+  /// al cargar el .lottie, que es cuando se sabe cuánto dura una vuelta.
+  final Map<Bicho, AnimationController> _relojes = {};
   final List<Particle> _particles = [];
   final Random _random = Random();
   DateTime _lastUpdate = DateTime.now();
@@ -555,6 +585,17 @@ class _ParticlesBackgroundState extends State<ParticlesBackground>
   ];
 
   final String _rareImage = 'assets/images/Bacteriofago.png';
+
+  /// Cada bicho tiene sus plazas ([Bicho.max]) y cada plaza se juega a cara o
+  /// cruz. Medido sobre 200 arranques: caen 1,4 bacterias y 2 viriones de
+  /// media, hay 7 como mucho, y todavía queda un 16% de arranques sin bacteria
+  /// y un 6% sin virión. Bajarlo a 1 llena todas las plazas siempre, que es la
+  /// forma de verlos mientras se afinan.
+  static const int _bichoOdds = 2;
+
+  /// Lo que giran las células sobre sí mismas mientras caen. Es la vara de
+  /// medir del giro de los bichos, que cada uno lleva el suyo ([Bicho.spin]).
+  static const double _spinCelulas = 0.03;
 
   final Map<int, LayerConfig> _layerConfigs = {
     0: LayerConfig(
@@ -577,6 +618,26 @@ class _ParticlesBackgroundState extends State<ParticlesBackground>
         opacity: 0.6),
   };
 
+  /// Con qué peso cae un bicho en cada capa. Las células se reparten 3/3/2,
+  /// pero los bichos tiran a la nítida a propósito: en las otras dos salen
+  /// desenfocados y ahí no se les aprecia la animación, que es lo que se ha
+  /// venido a ver. Peor aún, el tamaño de la capa los lleva a los extremos —
+  /// en la del fondo el virión es una mota de 15 puntos y en la de delante la
+  /// bacteria es un borrón de 120. Siguen cayendo en las tres para que también
+  /// tengan profundidad, pero de guarnición: dos de cada tres van a la nítida.
+  static const Map<int, int> _pesoDeCapa = {0: 1, 1: 4, 2: 1};
+
+  /// La capa que le toca a un bicho, según [_pesoDeCapa].
+  int _sorteaCapa() {
+    final total = _pesoDeCapa.values.fold<int>(0, (suma, peso) => suma + peso);
+    var dado = _random.nextInt(total);
+    for (final capa in _pesoDeCapa.entries) {
+      dado -= capa.value;
+      if (dado < 0) return capa.key;
+    }
+    return _pesoDeCapa.keys.last;
+  }
+
   String _getRandomImage() {
     if (_random.nextInt(15) == 0) {
       return _rareImage;
@@ -594,11 +655,31 @@ class _ParticlesBackgroundState extends State<ParticlesBackground>
     );
     if (widget.animate) _controller.repeat();
 
+    // Sin duración todavía: se la pone _onBichoLoaded, y hasta entonces no hay
+    // ningún bicho en pantalla al que mover.
+    for (final bicho in Bicho.todos) {
+      _relojes[bicho] = AnimationController(vsync: this);
+    }
+
     _layerConfigs.forEach((layer, config) {
       for (int i = 0; i < config.count; i++) {
         _particles.add(_createParticle(layer, config));
       }
     });
+
+    // Los bichos van con plazas propias, aparte del cupo de células: así subir
+    // su número no vacía de células el fondo. Por lo demás son unas células
+    // más: caen en las mismas capas (con su propio reparto, ver [_pesoDeCapa])
+    // y se llevan de la suya lo mismo que ellas — el tamaño, la velocidad, el
+    // desenfoque y la transparencia.
+    for (final bicho in Bicho.todos) {
+      for (var plaza = 0; plaza < bicho.max; plaza++) {
+        if (_random.nextInt(_bichoOdds) != 0) continue;
+        final capa = _sorteaCapa();
+        _particles
+            .add(_createParticle(capa, _layerConfigs[capa]!, bicho: bicho));
+      }
+    }
 
     _particles.sort((a, b) => a.layer.compareTo(b.layer));
   }
@@ -612,19 +693,45 @@ class _ParticlesBackgroundState extends State<ParticlesBackground>
       // las partículas en el primer frame.
       _lastUpdate = DateTime.now();
       _controller.repeat();
+      for (final reloj in _relojes.values) {
+        if (reloj.duration != null) reloj.repeat();
+      }
     } else {
       _controller.stop();
+      for (final reloj in _relojes.values) {
+        reloj.stop();
+      }
     }
   }
 
+  /// El .lottie ya está montado y dice cuánto dura de verdad una vuelta. Aquí
+  /// es donde se le aplica su [Bicho.speed]: el reloj del bicho se ajusta a
+  /// esa fracción y empieza a girar.
+  void _onBichoLoaded(Bicho bicho, LottieComposition composition) {
+    // El .lottie puede acabar de cargar cuando la pantalla ya se ha ido (la
+    // cascada de salida, o volver al login): entonces los relojes están
+    // sueltos y tocarlos revienta.
+    if (!mounted) return;
+    final reloj = _relojes[bicho]!;
+    final vuelta = composition.duration * (1 / bicho.speed);
+    // Salta cada vez que aparece ese bicho, pero su composición es siempre la
+    // misma: a partir de la primera no hay nada que cambiar ni que reiniciar.
+    if (reloj.duration == vuelta) return;
+    reloj.duration = vuelta;
+    if (widget.animate) reloj.repeat();
+  }
+
+  /// Una célula (o, con [bicho], uno de los animados) de la capa [layer].
   Particle _createParticle(int layer, LayerConfig config,
-      {bool startOffScreen = false}) {
+      {bool startOffScreen = false, Bicho? bicho}) {
     final speed = config.speedRange[0] +
         _random.nextDouble() * (config.speedRange[1] - config.speedRange[0]);
-    final size = config.sizeRange[0] +
+    var size = config.sizeRange[0] +
         _random.nextDouble() * (config.sizeRange[1] - config.sizeRange[0]);
 
     final x = 0.2 + _random.nextDouble() * 0.6;
+
+    if (bicho != null) size = bicho.boxFor(size);
 
     return Particle(
       x: x,
@@ -632,10 +739,14 @@ class _ParticlesBackgroundState extends State<ParticlesBackground>
       size: size,
       speed: speed,
       rotation: _random.nextDouble() * 2 * pi,
-      rotationSpeed: (_random.nextDouble() - 0.5) * 0.03,
+      // Cada uno a lo suyo: las células dan vueltas al caer y los bichos tienen
+      // el giro que les pega (ver [Bicho.spin]).
+      rotationSpeed:
+          (_random.nextDouble() - 0.5) * (bicho?.spin ?? _spinCelulas),
       drift: (_random.nextDouble() - 0.5) * 0.001,
       layer: layer,
-      imagePath: _getRandomImage(),
+      imagePath: bicho?.asset ?? _getRandomImage(),
+      bicho: bicho,
       blur: config.blur,
       opacity: config.opacity,
     );
@@ -644,6 +755,9 @@ class _ParticlesBackgroundState extends State<ParticlesBackground>
   @override
   void dispose() {
     _controller.dispose();
+    for (final reloj in _relojes.values) {
+      reloj.dispose();
+    }
     super.dispose();
   }
 
@@ -667,8 +781,11 @@ class _ParticlesBackgroundState extends State<ParticlesBackground>
             // limpia para que la app entre sobre un fondo vacío.
             if (widget.fallBoost > 0) continue;
             final config = _layerConfigs[p.layer]!;
-            _particles[i] =
-                _createParticle(p.layer, config, startOffScreen: true);
+            // La plaza se repone con lo que era: un bicho vuelve a ser ese
+            // bicho y una célula, una célula. Si no, el número de bichos del
+            // fondo iría cambiando solo según quién se cayera antes.
+            _particles[i] = _createParticle(p.layer, config,
+                startOffScreen: true, bicho: p.bicho);
           }
         }
 
@@ -688,7 +805,9 @@ class _ParticlesBackgroundState extends State<ParticlesBackground>
       child: Transform.rotate(
         angle: p.rotation,
         child: Opacity(
-          opacity: p.opacity,
+          // Los bichos llevan velo propio encima del de su capa (ver
+          // [Bicho.opacity]); las células se quedan con el de la capa y ya.
+          opacity: p.opacity * (p.bicho?.opacity ?? 1),
           child: p.blur > 0
               ? ImageFiltered(
                   imageFilter: ImageFilter.blur(sigmaX: p.blur, sigmaY: p.blur),
@@ -700,7 +819,31 @@ class _ParticlesBackgroundState extends State<ParticlesBackground>
     );
   }
 
+  /// Un bicho animado: el mismo hueco que una célula, pero pintado con Lottie.
+  ///
+  /// Sale de `Lottie.cache` (la llenó la precarga de main), así que aquí no hay
+  /// zip que abrir ni PNG que decodificar. Quien lo mueve es su reloj de
+  /// [_relojes], no el `animate` del widget: con un controlador propio es donde
+  /// se le puede cambiar la velocidad.
+  Widget _buildBicho(Particle p, Bicho bicho) {
+    return Lottie.asset(
+      bicho.asset,
+      controller: _relojes[bicho],
+      onLoaded: (composition) => _onBichoLoaded(bicho, composition),
+      width: p.size,
+      height: p.size,
+      fit: BoxFit.contain,
+      frameRate: bicho.frameRate,
+      delegates: bicho.delegates,
+      // Si el .lottie no llegase a cargar, el fondo sigue con sus células.
+      errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
+    );
+  }
+
   Widget _buildParticleImage(Particle p) {
+    final bicho = p.bicho;
+    if (bicho != null) return _buildBicho(p, bicho);
+
     return Image(
       image: LoadingScreenImages.particle(p.imagePath),
       width: p.size,
@@ -735,6 +878,11 @@ class Particle {
   double blur;
   double opacity;
 
+  /// Las raras del fondo: en vez de un PNG se pintan con Lottie. Caen igual que
+  /// las demás (misma capa, misma velocidad, misma cascada de salida). A null,
+  /// esta partícula es una célula normal.
+  final Bicho? bicho;
+
   Particle({
     required this.x,
     required this.y,
@@ -747,7 +895,132 @@ class Particle {
     required this.imagePath,
     required this.blur,
     required this.opacity,
+    this.bicho,
   });
+}
+
+/// Uno de los bichos animados del fondo: cae como una célula más, pero en vez
+/// de un PNG es un .lottie.
+class Bicho {
+  const Bicho({
+    required this.asset,
+    required this.fill,
+    required this.scale,
+    required this.max,
+    required this.spin,
+    required this.speed,
+    required this.opacity,
+    this.delegates,
+  });
+
+  /// Los que pueden salir entre las células. Cada uno se juega su aparición por
+  /// separado, así que el fondo no lleva siempre los mismos ni los mismos
+  /// cuántos.
+  static final List<Bicho> todos = [
+    const Bicho(
+      asset: LoadingScreenImages.bacteria,
+      // Lienzo de 596x842 con mucho aire: el bacilo pinta el ~48% central,
+      // medido frame a frame.
+      fill: 0.48,
+      // Un 60% de la célula: unos 45-65 puntos. Es alargado y con flagelo, así
+      // que por debajo de ahí deja de leerse como un bicho y pasa a ser una
+      // mota.
+      scale: 0.6,
+      max: 3,
+      // Casi sin girar: es un bicho con cabeza y cola, y dando vueltas dejaría
+      // de parecer que nada para parecer que lo han tirado.
+      spin: 0.008,
+      // Viene a 5 s por vuelta y a esa velocidad parece un dibujo quieto: su
+      // movimiento es sutil (se ladea, tiemblan los pili) y la pantalla dura
+      // unos segundos, así que no da tiempo a verlo.
+      speed: 4,
+      // Azules y morados de saturación media, sin contorno duro: con un velo
+      // suave ya cae dentro del fondo en vez de ir por delante.
+      opacity: 0.8,
+    ),
+    Bicho(
+      asset: LoadingScreenImages.covid,
+      // Lienzo de 500x500 bastante lleno: el virión pinta el ~73%.
+      fill: 0.73,
+      // La mitad que la bacteria: ~25-33 puntos. Es compacto y redondo, así que
+      // a ese tamaño se sigue leyendo, y en pequeño puede ir en grupo sin
+      // comerse el fondo.
+      scale: 0.3,
+      max: 4,
+      // Rodando como una célula más: es redondo y sin arriba ni abajo, así que
+      // el giro se le ve en las espículas y no desorienta nada.
+      spin: 0.03,
+      // Su bucle de 5 s da ya dos vueltas al virión, o sea una cada 2,5 s. A 2x
+      // queda en 1,25 s, el mismo pulso que la bacteria.
+      speed: 2,
+      // El que más velo necesita: rojo saturado y contorno negro grueso, que es
+      // justo lo que salta a la vista sobre un fondo de pasteles.
+      opacity: 0.65,
+      // El virión viene con dos meneos de más en su capa raíz ("Main", de la
+      // que cuelga todo lo demás): sube y baja 60 de sus 500 puntos de lienzo,
+      // y se ladea de +7° a -7°. Cayendo ya se mueve, y los dos peleaban con la
+      // caída. Se le clava esa capa: quieta en el centro y sin ángulo. Lo que
+      // sigue vivo es lo de dentro, las espículas. El .lottie no se toca; esto
+      // es un retoque en caliente.
+      delegates: LottieDelegates(
+        values: [
+          ValueDelegate.transformPosition(
+            const ['Main'],
+            value: const Offset(250, 250),
+          ),
+          ValueDelegate.transformRotation(const ['Main'], value: 0),
+        ],
+      ),
+    ),
+  ];
+
+  /// El .lottie, tal cual está en assets.
+  final String asset;
+
+  /// Cuánto del lienzo del .lottie pinta de verdad el dibujo. Los lienzos
+  /// vienen con aire alrededor, y el tamaño que se le pasa al widget es el del
+  /// lienzo: sin descontarlo, el bicho saldría más pequeño de lo que se pide.
+  final double fill;
+
+  /// Cuánto se acelera respecto a la velocidad con la que viene animado.
+  final double speed;
+
+  /// Retoques sobre la animación tal cual viene, sin tocar el archivo. Aquí se
+  /// usan para clavar en su sitio a los que se menean dentro de su lienzo: el
+  /// bicho ya se mueve cayendo, y ese meneo pelea con la caída.
+  final LottieDelegates? delegates;
+
+  /// Velo propio, que multiplica al de su capa (0,5 el fondo, 0,8 el medio,
+  /// 0,6 el de delante). Los bichos vienen con colores más saturados y contorno
+  /// negro que las células, que son pasteles pálidos: con la opacidad de la
+  /// capa a secas se plantaban delante del fondo en vez de caer dentro de él.
+  final double opacity;
+
+  /// Lo que se ve del bicho respecto a una célula de su misma capa. Pequeños al
+  /// lado de ellas, que es el contraste que se busca; cuánto, depende de la
+  /// forma de cada uno. Como se mide contra la capa, un bicho de la capa del
+  /// fondo sale pequeño y uno de la de delante, grande, igual que las células.
+  final double scale;
+
+  /// Cuántos caen a la vez como mucho. Cada plaza se juega su aparición por
+  /// separado (ver `_bichoOdds`), así que este es el techo, no la cuenta.
+  final int max;
+
+  /// Cuánto gira sobre sí mismo mientras cae, en la misma escala que las
+  /// células (que van a 0,03). No tiene nada que ver con lo que haga la
+  /// animación por dentro: esto es la partícula dando vueltas.
+  final double spin;
+
+  /// El tamaño que hay que darle al widget para que el dibujo se vea a [scale]
+  /// de una célula de [celula] puntos.
+  double boxFor(double celula) => celula * scale / fill;
+
+  /// Techo de 30 repintados por segundo de reloj: son bichos de 50 puntos en un
+  /// fondo, y a 60 no se nota la diferencia pero sí el doble de trabajo en la
+  /// CPU justo mientras se carga la app. Lottie cuenta la tasa en fotogramas de
+  /// la propia animación, así que al ir [speed] veces más rápido hay que
+  /// pedirla otras tantas veces más baja para que salgan esos 30.
+  FrameRate get frameRate => FrameRate(30 / speed);
 }
 
 class LayerConfig {

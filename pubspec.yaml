@@ -31,6 +31,9 @@ dependencies:
   
   # Animaciones
   flip_card: ^0.7.0
+  # Lottie: la bacteria animada del fondo de la pantalla de carga
+  # (.lottie = zip con el JSON y sus PNG dentro; el paquete lo abre solo).
+  lottie: ^3.5.1
   
   # Game Engine
   flame: ^1.18.0
@@ -86,6 +89,7 @@ flutter:
     - assets/electros/simulador/
     - assets/electros/academia/
     - assets/audio/
+    - assets/animations/
 
   # Lexend: la tipografia de la web (mismos ficheros que public/fonts/lexend).
   # El peso 900 apunta a Bold.ttf igual que en layout.tsx, para que el
