@@ -65,7 +65,26 @@ class AuthProvider extends ChangeNotifier {
   String? _info;
   String? get info => _info;
 
+  /// Arrancó sin poder hablar con el servidor: la sesión guardada sigue en pie
+  /// pero no se ha podido comprobar.
+  bool _sinConexion = false;
+  bool get sinConexion => _sinConexion;
+
+  /// El id de quien tiene la sesión abierta, o null.
+  ///
+  /// Sale de la propia sesión y no del perfil porque el perfil se carga
+  /// después y puede fallar: el progreso necesita saber DE QUIÉN son la
+  /// referencia y la cola de celebraciones desde el primer momento.
+  String? get userId => apiService.session?.userId;
+
   /// Restaura la sesión guardada al arrancar la app.
+  ///
+  /// Distingue dos cosas que antes iban por el mismo `catch`: que el servidor
+  /// diga que no (sesión inválida) y que no haya servidor al que preguntar
+  /// (sin red, timeout, portal cautivo). Lo segundo NO es motivo para echar a
+  /// nadie de su cuenta: arrancar la app en el metro te sacaba de la sesión y
+  /// —cuando la referencia de logros era global y se borraba al salir— se
+  /// llevaba por delante lo que estuviera pendiente de celebrar.
   Future<void> bootstrap() async {
     final session = await authService.loadSession();
     if (session == null) {
@@ -79,13 +98,28 @@ class AuthProvider extends ChangeNotifier {
       if (session.isExpired) {
         apiService.session = await authService.refresh(session);
       }
+      _sinConexion = false;
       _status = AuthStatus.authenticated;
       notifyListeners();
       _loadProfileSilently();
-    } catch (_) {
+    } on AuthException catch (e) {
+      // El servidor ha contestado y ha dicho que no. Aquí sí se cierra:
+      // `authService.refresh` ya ha borrado la sesión del disco.
       apiService.session = null;
+      _error = e.message;
       _status = AuthStatus.unauthenticated;
       notifyListeners();
+    } catch (_) {
+      // No hemos podido ni preguntar. Se mantiene la sesión local: el token
+      // sigue guardado y `ApiService._validToken` volverá a intentar
+      // renovarlo en cuanto haya red. Mientras tanto, la app funciona con lo
+      // que tenga en memoria y cada petición fallará por su cuenta, que es
+      // mucho mejor que una pantalla de login.
+      apiService.session = session;
+      _sinConexion = true;
+      _status = AuthStatus.authenticated;
+      notifyListeners();
+      _loadProfileSilently();
     }
   }
 
@@ -229,6 +263,7 @@ class AuthProvider extends ChangeNotifier {
 
   void _completeSignIn(AuthSession session) {
     apiService.session = session;
+    _sinConexion = false;
     _status = AuthStatus.authenticated;
     _loadProfileSilently();
   }

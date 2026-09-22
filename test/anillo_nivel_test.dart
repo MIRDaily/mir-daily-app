@@ -115,7 +115,7 @@ void main() {
     // runAsync porque la recarga toca red y disco de mentira: dentro del
     // reloj falso de testWidgets esos futuros no avanzarían solos.
     await tester.runAsync(() async {
-      p.setAutenticado(true);
+      p.setUsuario('u1');
       await p.refresh();
     });
     await tester.pump();

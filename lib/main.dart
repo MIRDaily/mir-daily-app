@@ -107,8 +107,13 @@ class MIRDailyApp extends StatelessWidget {
         // la web era un 401 en cada visita a la portada.
         ChangeNotifierProxyProvider<AuthProvider, ProgressProvider>(
           create: (_) => ProgressProvider(apiService),
+          // Va el ID, no un booleano: la referencia de logros y la cola de
+          // celebraciones son de una CUENTA, y con solo "hay sesión" el
+          // provider no podía distinguir un cambio de usuario de un refresco.
           update: (_, auth, progreso) => progreso!
-            ..setAutenticado(auth.status == AuthStatus.authenticated),
+            ..setUsuario(
+              auth.status == AuthStatus.authenticated ? auth.userId : null,
+            ),
         ),
         ChangeNotifierProvider(create: (_) => SettingsProvider()),
         ChangeNotifierProvider(create: (_) => SavedQuestionsProvider()),

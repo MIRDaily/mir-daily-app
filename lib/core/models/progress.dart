@@ -164,6 +164,18 @@ class Challenge {
   final bool completed;
   final int sortOrder;
 
+  /// A qué periodo pertenece: la fecha en Madrid si es diario, el año-semana
+  /// ISO si es semanal. Es el `period_key` de `user_challenges`.
+  ///
+  /// Hace falta para no confundir "Haz el Daily" de hoy con el de ayer: la
+  /// referencia de logros guardaba solo el código, así que un desafío que se
+  /// repite todos los días solo se celebraba el primero. Puede llegar nulo si
+  /// el backend es anterior a septiembre de 2026.
+  final String? periodKey;
+
+  /// Cómo se recuerda que este desafío ya se celebró.
+  String get claveHecho => '$code|${periodKey ?? ''}';
+
   /// Solo en el desafío personalizado: `topic_id`, `topic_name`,
   /// `subject_name` y `accuracy` del tema más flojo del usuario.
   final Map<String, dynamic>? meta;
@@ -179,6 +191,7 @@ class Challenge {
     required this.xpReward,
     required this.completed,
     required this.sortOrder,
+    required this.periodKey,
     required this.meta,
   });
 
@@ -194,6 +207,7 @@ class Challenge {
       xpReward: _int(json['xpReward']),
       completed: json['completed'] == true,
       sortOrder: _int(json['sortOrder']),
+      periodKey: json['periodKey'] as String?,
       meta: json['meta'] is Map
           ? Map<String, dynamic>.from(json['meta'] as Map)
           : null,

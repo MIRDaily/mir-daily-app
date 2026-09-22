@@ -33,28 +33,52 @@ enum SimulacionLogro {
 
    SIN SESIÓN NO PIDE NADA. En la web ese descuido provocaba un 401 en cada
    visita a la portada.
+
+   ─── Lo que cambió tras el incidente del 21/09/2026 ────────────────────
+   Entrar al perfil disparó varios avisos de subida de nivel seguidos, con el
+   servidor perfectamente sano. Las cuatro reglas que salieron de ahí (la
+   especificación completa, compartida con la web, está en `models/logros.dart`):
+
+   · El estado va atado a un USUARIO, no al aparato: [setUsuario].
+   · Una respuesta de una GENERACIÓN vieja se tira: [_generacion].
+   · Una foto anómala no se pinta ni se guarda: [fotoAnomala].
+   · El permiso de celebrar CADUCA si al concederlo no había nada.
 ═══════════════════════════════════════════════════════════════════════════ */
 
 class ProgressProvider extends ChangeNotifier with WidgetsBindingObserver {
   final ApiService api;
   final LogrosStore _store;
 
-  ProgressProvider(this.api, {LogrosStore store = const LogrosStore()})
-      : _store = store {
+  /// Cuánto se queda abierto el permiso cuando se concede sin nada que
+  /// enseñar. Ver [permitirCelebracion].
+  final Duration ventanaPermiso;
+
+  ProgressProvider(
+    this.api, {
+    LogrosStore store = const LogrosStore(),
+    this.ventanaPermiso = const Duration(seconds: 8),
+  }) : _store = store {
     WidgetsBinding.instance.addObserver(this);
-    // Lo que quedara pendiente de una sesión anterior entra ya en la cola: un
-    // logro conseguido justo antes de cerrar la app sigue ahí al volver.
-    _store.leerPendientes().then((pendientes) {
-      if (pendientes.isEmpty || _dispuesto) return;
-      _logros.insertAll(0, pendientes);
-      notifyListeners();
-    });
+    // Las claves globales de antes de que esto fuera por usuario. Se tiran una
+    // vez y para siempre: no llevan dueño y no se pueden adoptar sin arriesgar
+    // celebrarle a una cuenta lo que consiguió otra.
+    _store.purgarSinDuenno();
   }
 
   bool _dispuesto = false;
 
-  /// Hay sesión iniciada. Lo fija AuthProvider a través de main.dart.
-  bool _autenticado = false;
+  /// Quién tiene la sesión abierta. Lo fija AuthProvider a través de main.dart.
+  /// `null` = nadie.
+  String? _usuario;
+  String? get usuario => _usuario;
+
+  /// Sube con cada cambio de cuenta y con cada apagado.
+  ///
+  /// Una carga guarda la generación con la que empezó y, al volver, comprueba
+  /// que siga siendo la misma. Sin esto, una respuesta lenta de la cuenta
+  /// anterior aterrizaba en la cuenta siguiente: le pintaba su nivel y, peor,
+  /// le guardaba su referencia.
+  int _generacion = 0;
 
   ProgressSnapshot? _data;
   ProgressSnapshot? get data => _data;
@@ -75,6 +99,9 @@ class ProgressProvider extends ChangeNotifier with WidgetsBindingObserver {
 
   bool _permitido = false;
 
+  /// El temporizador de la rendija. Ver [permitirCelebracion].
+  Timer? _cierrePermiso;
+
   /// Hay algo que celebrar Y estamos en un momento en que se puede.
   bool get celebracionLista => _permitido && _logros.isNotEmpty;
 
@@ -86,32 +113,47 @@ class ProgressProvider extends ChangeNotifier with WidgetsBindingObserver {
   // Sesión
   // ---------------------------------------------------------------------
 
-  /// Enciende o apaga el provider según haya sesión.
+  /// Enciende o apaga el provider según quién tenga la sesión.
   ///
-  /// Al cerrar sesión se tira todo, referencia incluida: es de un usuario
-  /// concreto y arrastrarla a la cuenta siguiente celebraría cosas que esa
-  /// cuenta no ha conseguido.
+  /// Lo que hay en memoria se tira siempre: es de la cuenta anterior. Lo que
+  /// hay en DISCO no se toca, porque ya va bajo el id de su dueño; antes era
+  /// una clave global y había que borrarla al salir, lo que además hacía que
+  /// quedarse sin conexión —que te echaba de la sesión— se llevara por delante
+  /// las celebraciones pendientes.
   ///
   /// El trabajo se aplaza a un microtask porque lo llama `main.dart` desde el
   /// `update` del proxy, que corre DENTRO de la fase de construcción: avisar a
   /// los oyentes ahí reventaría con "markNeedsBuild called during build", y el
   /// primer arranque es justo cuando pasa.
-  void setAutenticado(bool valor) {
-    if (_autenticado == valor) return;
-    _autenticado = valor;
-    scheduleMicrotask(() {
-      if (_dispuesto || _autenticado != valor) return;
-      if (valor) {
-        refresh();
-      } else {
-        _data = null;
-        _error = null;
-        _loading = false;
-        _logros.clear();
-        _permitido = false;
-        _store.limpiar();
+  void setUsuario(String? uid) {
+    if (_usuario == uid) return;
+    _usuario = uid;
+    _generacion += 1;
+    final gen = _generacion;
+
+    _data = null;
+    _error = null;
+    _loading = false;
+    _logros.clear();
+    _permitido = false;
+    _cierrePermiso?.cancel();
+    _cierrePermiso = null;
+
+    scheduleMicrotask(() async {
+      if (_dispuesto || _generacion != gen) return;
+      notifyListeners();
+      if (uid == null) return;
+
+      // Lo que quedara pendiente de una sesión anterior DE ESTA CUENTA entra
+      // ya en la cola: un logro conseguido justo antes de cerrar la app sigue
+      // ahí al volver.
+      final pendientes = await _store.leerPendientes(uid);
+      if (_dispuesto || _generacion != gen) return;
+      if (pendientes.isNotEmpty) {
+        _logros.insertAll(0, fusionarSaltos(pendientes));
         notifyListeners();
       }
+      refresh();
     });
   }
 
@@ -124,39 +166,66 @@ class ProgressProvider extends ChangeNotifier with WidgetsBindingObserver {
   /// backend ya ha sumado el XP dentro de esas llamadas, así que basta con
   /// releer. No hace falta sondear.
   Future<void> refresh() {
-    if (!_autenticado) return Future.value();
-    return _enCurso ??= _cargar().whenComplete(() => _enCurso = null);
+    final uid = _usuario;
+    if (uid == null) return Future.value();
+    return _enCurso ??=
+        _cargar(uid, _generacion).whenComplete(() => _enCurso = null);
   }
 
-  Future<void> _cargar() async {
+  Future<void> _cargar(String usuario, int gen) async {
     _loading = true;
     _error = null;
     notifyListeners();
 
+    var vigente = true;
     try {
       final nuevo = await api.getProgress();
-      if (_dispuesto) return;
+      if (_dispuesto || _generacion != gen) {
+        vigente = false;
+        return;
+      }
+
+      final ref = await _store.leerReferencia(usuario);
+      if (_dispuesto || _generacion != gen) {
+        vigente = false;
+        return;
+      }
+
+      if (fotoAnomala(ref, nuevo)) {
+        // Ni se pinta ni se guarda. Un nivel 1 con cero XP encima de una
+        // referencia de nivel 12 es el servidor tragándose un error (o un 2xx
+        // que no era JSON), y guardarlo como referencia es exactamente lo que
+        // hacía celebrar el nivel entero en la siguiente lectura buena. Se
+        // conserva lo que ya había en pantalla: es viejo, pero es verdad.
+        _error = 'Tu progreso no está disponible ahora mismo.';
+        return;
+      }
+
       _data = nuevo;
 
       // La primera vez que se ve a este usuario no se celebra nada: solo se
       // toma la foto. Si no, entrar por primera vez dispararía un aluvión de
       // avisos por cosas que no acaba de conseguir.
-      final ref = await _store.leerReferencia();
-      if (_dispuesto) return;
       if (ref != null) {
         final nuevos = detectarLogros(ref, nuevo);
         if (nuevos.isNotEmpty) {
           _logros.addAll(nuevos);
-          await _store.guardarPendientes(_logros);
+          // Una subida de tres peldaños repartida en tres recargas es UNA
+          // subida, no tres tarjetas.
+          final fundidos = fusionarSaltos(_logros);
+          _logros
+            ..clear()
+            ..addAll(fundidos);
+          await _store.guardarPendientes(usuario, _logros);
         }
       }
-      await _store.guardarReferencia(Referencia.de(nuevo));
+      await _store.guardarReferencia(usuario, Referencia.de(nuevo));
     } on ApiException catch (e) {
       _error = e.message;
     } catch (_) {
       _error = 'No se pudo cargar tu progreso.';
     } finally {
-      if (!_dispuesto) {
+      if (!_dispuesto && vigente && _generacion == gen) {
         _loading = false;
         notifyListeners();
       }
@@ -179,10 +248,33 @@ class ProgressProvider extends ChangeNotifier with WidgetsBindingObserver {
   /// olvida de declararse, interrumpe al usuario en mitad de una pregunta.
   /// Así, lo peor que pasa si alguien olvida llamar es que la celebración
   /// espera al siguiente momento seguro.
+  ///
+  /// Y CADUCA. Antes no: quien lo concedía era `dispose` de la pantalla de
+  /// resultados, que no puede saber si hay algo que enseñar, así que un daily
+  /// sin logros dejaba el permiso abierto para siempre y lo siguiente que
+  /// detectara cualquier recarga —al entrar al perfil, por ejemplo— salía de
+  /// golpe. La rendija existe porque la recarga que dispara esa misma pantalla
+  /// suele llegar un instante DESPUÉS del permiso; cerrar el grifo del todo se
+  /// comería la celebración legítima.
   void permitirCelebracion() {
-    if (_permitido) return;
+    _cierrePermiso?.cancel();
+    _cierrePermiso = null;
+
+    final cambia = !_permitido;
     _permitido = true;
-    notifyListeners();
+
+    if (_logros.isEmpty) {
+      _cierrePermiso = Timer(ventanaPermiso, () {
+        _cierrePermiso = null;
+        // Si en la rendija llegó algo, el permiso se queda: ya hay una tanda
+        // en marcha y la cierra `descartarLogros` al vaciarse.
+        if (_dispuesto || _logros.isNotEmpty || !_permitido) return;
+        _permitido = false;
+        notifyListeners();
+      });
+    }
+
+    if (cambia) notifyListeners();
   }
 
   /// Mete logros en la cola sin pasar por el servidor.
@@ -289,10 +381,15 @@ class ProgressProvider extends ChangeNotifier with WidgetsBindingObserver {
     final antes = _logros.length;
     _logros.removeWhere((l) => fuera.contains(l.id));
     if (_logros.length == antes) return;
-    _store.guardarPendientes(_logros);
+    final uid = _usuario;
+    if (uid != null) _store.guardarPendientes(uid, _logros);
     // El permiso solo se cierra si NO queda nada. Si al cerrar la tarjeta
     // quedan desafíos, siguen teniendo vía libre para salir como avisos.
-    if (_logros.isEmpty) _permitido = false;
+    if (_logros.isEmpty) {
+      _permitido = false;
+      _cierrePermiso?.cancel();
+      _cierrePermiso = null;
+    }
     notifyListeners();
   }
 
@@ -301,14 +398,18 @@ class ProgressProvider extends ChangeNotifier with WidgetsBindingObserver {
   void cerrarCelebracion() {
     if (_logros.isEmpty && !_permitido) return;
     _logros.clear();
-    _store.guardarPendientes(const []);
+    final uid = _usuario;
+    if (uid != null) _store.guardarPendientes(uid, const []);
     _permitido = false;
+    _cierrePermiso?.cancel();
+    _cierrePermiso = null;
     notifyListeners();
   }
 
   @override
   void dispose() {
     _dispuesto = true;
+    _cierrePermiso?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }

@@ -294,8 +294,23 @@ void main() {
       expect(vuelta.xpDespues, 8200);
     });
 
-    test('una referencia vieja sin xpTotal se rellena con el nivel', () {
-      final r = Referencia.fromJson({'nivel': 12, 'racha': 3})!;
+    test('una referencia de otra versión se descarta, no se reinterpreta', () {
+      // Desde el 21/09/2026 la referencia va versionada. La v1 guardaba los
+      // desafíos SIN periodo, así que darla por buena celebraría de golpe
+      // todos los del día. Se tira y se vuelve a fotografiar en silencio: se
+      // pierde como mucho una celebración pendiente, que es el lado bueno por
+      // el que equivocarse.
+      expect(Referencia.fromJson({'nivel': 12, 'racha': 3}), isNull);
+      expect(
+        Referencia.fromJson({'v': 1, 'nivel': 12, 'racha': 3, 'hechos': ['daily_done']}),
+        isNull,
+      );
+    });
+
+    test('una referencia de esta versión sin xpTotal se rellena con el nivel',
+        () {
+      final r = Referencia.fromJson(
+          {'v': kVersionReferencia, 'nivel': 12, 'racha': 3})!;
       expect(r.xpTotal, xpParaNivel(12),
           reason: 'lo más honesto sin inventar: la barra arranca vacía');
     });

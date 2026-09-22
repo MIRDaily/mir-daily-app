@@ -37,30 +37,46 @@ class _Espia {
 }
 
 /// Referencia y cola en memoria, para no depender del disco del aparato.
+///
+/// Van por usuario, como el disco de verdad desde el 21/09/2026: antes eran
+/// una clave global y cambiar de cuenta en el mismo aparato le celebraba a la
+/// nueva los logros de la anterior.
 class _StoreFalso implements LogrosStore {
-  Referencia? referencia;
-  List<Logro> pendientes = [];
-  bool limpiado = false;
+  final Map<String, Referencia> referencias = {};
+  final Map<String, List<Logro>> colas = {};
+  bool purgado = false;
+
+  /// Atajos para los tests de un solo usuario ('u1').
+  Referencia? get referencia => referencias['u1'];
+  set referencia(Referencia? r) =>
+      r == null ? referencias.remove('u1') : referencias['u1'] = r;
+  List<Logro> get pendientes => colas['u1'] ?? const [];
+  set pendientes(List<Logro> l) => colas['u1'] = [...l];
 
   @override
-  Future<Referencia?> leerReferencia() async => referencia;
+  Future<Referencia?> leerReferencia(String usuario) async =>
+      referencias[usuario];
 
   @override
-  Future<void> guardarReferencia(Referencia ref) async => referencia = ref;
+  Future<void> guardarReferencia(String usuario, Referencia ref) async =>
+      referencias[usuario] = ref;
 
   @override
-  Future<List<Logro>> leerPendientes() async => pendientes;
+  Future<List<Logro>> leerPendientes(String usuario) async =>
+      colas[usuario] ?? const [];
 
   @override
-  Future<void> guardarPendientes(List<Logro> logros) async =>
-      pendientes = [...logros];
+  Future<void> guardarPendientes(String usuario, List<Logro> logros) async =>
+      colas[usuario] = [...logros];
 
   @override
-  Future<void> limpiar() async {
-    referencia = null;
-    pendientes = [];
-    limpiado = true;
+  Future<void> limpiar(String usuario) async {
+    referencias.remove(usuario);
+    colas.remove(usuario);
   }
+
+  @override
+  Future<void> purgarSinDuenno() async => purgado = true;
 }
 
 Map<String, dynamic> _cuerpo({
@@ -113,7 +129,8 @@ void main() {
     await p.refresh();
     expect(espia.pedidas, isEmpty);
 
-    p.setAutenticado(false);
+    p.setUsuario(null);
+    await Future<void>.delayed(Duration.zero);
     await p.refresh();
     expect(espia.pedidas, isEmpty);
 
@@ -124,7 +141,7 @@ void main() {
     final espia = _Espia(_cuerpo(level: 5, xpTotal: 3000, racha: 3));
     final p = ProgressProvider(_api(espia), store: _StoreFalso());
 
-    p.setAutenticado(true);
+    p.setUsuario('u1');
     await p.refresh();
 
     expect(espia.pedidas.single.path, '/api/progress');
@@ -141,7 +158,7 @@ void main() {
     final store = _StoreFalso();
     final p = ProgressProvider(_api(espia), store: store);
 
-    p.setAutenticado(true);
+    p.setUsuario('u1');
     await p.refresh();
 
     expect(p.logros, isEmpty);
@@ -160,7 +177,7 @@ void main() {
       );
     final p = ProgressProvider(_api(espia), store: store);
 
-    p.setAutenticado(true);
+    p.setUsuario('u1');
     await p.refresh();
 
     expect(p.logros, hasLength(1), reason: 'el logro está detectado…');
@@ -195,33 +212,38 @@ void main() {
       ];
 
     final p = ProgressProvider(_api(espia), store: store);
-    // La lectura del disco es asíncrona: se le da un turno al bucle.
-    await Future<void>.delayed(Duration.zero);
+    // La cola se lee cuando se sabe DE QUIÉN es, no al construir el provider:
+    // sin usuario no hay cola que leer.
+    p.setUsuario('u1');
+    await Future<void>.delayed(const Duration(milliseconds: 20));
 
-    expect(p.logros.map((l) => l.id), ['viejo'],
+    expect(p.logros.map((l) => l.id), contains('viejo'),
         reason: 'cerrar la app con un logro pendiente no puede perderlo');
     p.dispose();
   });
 
-  test('cerrar sesión tira el estado y la referencia', () async {
+  test('cerrar sesión vacía la pantalla pero NO el disco', () async {
     final espia = _Espia(_cuerpo(level: 9, xpTotal: 2600));
     final store = _StoreFalso();
     final p = ProgressProvider(_api(espia), store: store);
 
-    p.setAutenticado(true);
+    p.setUsuario('u1');
     await p.refresh();
     expect(p.progress, isNotNull);
 
-    p.setAutenticado(false);
+    p.setUsuario(null);
     // El cambio se aplaza a un microtask (lo llama el proxy durante el build):
     // se le da un turno al bucle.
     await Future<void>.delayed(Duration.zero);
 
     expect(p.progress, isNull);
     expect(p.logros, isEmpty);
-    expect(store.limpiado, isTrue,
-        reason: 'la referencia es de un usuario: no puede pasar a la cuenta '
-            'siguiente y celebrarle cosas que no ha conseguido');
+    // La referencia ya NO se borra al salir: vive bajo el id de su dueño, así
+    // que no puede pasar a la cuenta siguiente. Borrarla era además lo que
+    // hacía que quedarse sin conexión —que te echaba de la sesión— se llevara
+    // por delante lo que hubiera pendiente de celebrar.
+    expect(store.referencias['u1'], isNotNull,
+        reason: 'volver a entrar con la misma cuenta no debe re-fotografiar');
     p.dispose();
   });
 
@@ -267,9 +289,10 @@ void main() {
       );
     final p = ProgressProvider(_api(espia), store: store);
 
-    p.setAutenticado(true);
+    p.setUsuario('u1');
     // Volver del segundo plano justo al terminar un daily.
     await Future.wait([p.refresh(), p.refresh()]);
+    await Future<void>.delayed(const Duration(milliseconds: 20));
 
     expect(p.logros, hasLength(1));
     p.dispose();
