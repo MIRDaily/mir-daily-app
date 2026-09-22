@@ -327,7 +327,7 @@ class _ParticlesBackgroundState extends State<ParticlesBackground> with SingleTi
     'assets/images/rbc.png',
     'assets/images/neutrophil.png',
     'assets/images/Virus.png',
-    'assets/images/kidneys.png',
+    'assets/images/antibody.png',
   ];
   
   final String _rareImage = 'assets/images/Bacteriofago.png';

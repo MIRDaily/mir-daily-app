@@ -473,7 +473,7 @@ class LoadingScreenImages {
     'assets/images/rbc.png',
     'assets/images/neutrophil.png',
     'assets/images/Virus.png',
-    'assets/images/kidneys.png',
+    'assets/images/antibody.png',
     'assets/images/Bacteriofago.png',
   ];
 
@@ -551,7 +551,7 @@ class _ParticlesBackgroundState extends State<ParticlesBackground>
     'assets/images/rbc.png',
     'assets/images/neutrophil.png',
     'assets/images/Virus.png',
-    'assets/images/kidneys.png',
+    'assets/images/antibody.png',
   ];
 
   final String _rareImage = 'assets/images/Bacteriofago.png';
