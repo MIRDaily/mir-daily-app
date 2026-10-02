@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/config/app_config.dart';
@@ -144,7 +145,7 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
   bool _deleting = false;
   String? _error;
 
-  bool get _confirmed => _controller.text.trim().toUpperCase() == _palabra;
+  bool get _confirmed => _controller.text.trim() == _palabra;
 
   @override
   void dispose() {
@@ -198,6 +199,9 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
               autocorrect: false,
               enableSuggestions: false,
               textCapitalization: TextCapitalization.characters,
+              // Se ve siempre en mayúsculas, escriba como escriba: así no
+              // hay duda de qué palabra pide.
+              inputFormatters: [_UpperCaseFormatter()],
               onChanged: (_) => setState(() {}),
               onSubmitted: (_) => _delete(),
               decoration: const InputDecoration(
@@ -227,5 +231,14 @@ class _DeleteAccountDialogState extends State<_DeleteAccountDialog> {
         ],
       ),
     );
+  }
+}
+
+/// Pasa a mayúsculas lo que se escribe, conservando cursor y selección.
+class _UpperCaseFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+      TextEditingValue oldValue, TextEditingValue newValue) {
+    return newValue.copyWith(text: newValue.text.toUpperCase());
   }
 }
