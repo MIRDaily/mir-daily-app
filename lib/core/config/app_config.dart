@@ -14,6 +14,10 @@ class AppConfig {
   static const String apiBaseUrl =
       'https://mir-daily-backend-production.up.railway.app';
 
+  /// Web (Vercel). Hoy es el dominio temporal: cambiarlo al tener el propio.
+  /// La app abre aquí las páginas legales (/privacidad, /aviso-legal).
+  static const String webBaseUrl = 'https://mir-daily-frontend.vercel.app';
+
   /// Número de preguntas del daily (lo fija el backend).
   static const int questionsPerDaily = 5;
 

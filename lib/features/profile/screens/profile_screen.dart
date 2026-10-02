@@ -20,6 +20,7 @@ import '../widgets/profile_card.dart';
 import '../widgets/progress_section.dart';
 import '../widgets/profile_card_fields.dart';
 import '../widgets/profile_editor_sheet.dart';
+import '../widgets/privacy_sheet.dart';
 
 /// Perfil con el lenguaje visual de la web: borde de tinta, sombra dura y,
 /// como textura propia de esta pantalla, la de un **carné plastificado**
@@ -164,7 +165,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       icon: Icons.privacy_tip_outlined,
                       color: Colors.indigo,
                       title: 'Privacidad',
-                      onTap: () {},
+                      subtitle: 'Textos legales y eliminar cuenta',
+                      onTap: () => openPrivacySheet(context),
                     ),
                     _MenuItemData(
                       icon: Icons.dashboard_customize_outlined,

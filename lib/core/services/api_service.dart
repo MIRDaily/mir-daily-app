@@ -218,6 +218,17 @@ class ApiService {
     );
   }
 
+  /// Borra la cuenta y TODOS sus datos (RGPD, derecho de supresión). El
+  /// backend lo hace en una transacción: o se borra todo o nada. Tras esto
+  /// la sesión ya no vale y hay que cerrarla.
+  Future<void> deleteAccount() async {
+    await _request(
+      'POST',
+      '/api/profile/delete-account',
+      body: {'confirm': 'ELIMINAR'},
+    );
+  }
+
   // ==========================
   // ONBOARDING (usuarios nuevos)
   // ==========================
