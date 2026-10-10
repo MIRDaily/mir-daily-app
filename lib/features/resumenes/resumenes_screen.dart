@@ -6,10 +6,12 @@ import '../../core/responsive/adaptive_modal.dart';
 import '../../core/theme/app_theme.dart';
 import '../../shared/sticker/sticker.dart';
 import '../../shared/widgets/pressable.dart';
+import 'crear_resumenes_ia_screen.dart';
 import 'resumen_detail_screen.dart';
 import 'resumen_study_screen.dart';
 import 'resumenes_api.dart';
 import 'resumenes_grupo.dart';
+import 'resumenes_ia.dart';
 
 /// Resúmenes activos: los grupos del usuario. Un resumen activo es un párrafo de
 /// repaso con huecos que se estudia destapando y autoevaluando, con repaso
@@ -25,11 +27,19 @@ class _ResumenesScreenState extends State<ResumenesScreen> {
   List<GrupoResumen>? _grupos;
   String? _error;
   bool _loading = true;
+  bool _iaDisponible = false;
 
   @override
   void initState() {
     super.initState();
     _load();
+    _comprobarIa();
+  }
+
+  Future<void> _comprobarIa() async {
+    final e = await context.read<ResumenesIa>().estado();
+    if (!mounted) return;
+    setState(() => _iaDisponible = e != null && e['disponible'] == true);
   }
 
   Future<void> _load() async {
@@ -132,6 +142,11 @@ class _ResumenesScreenState extends State<ResumenesScreen> {
     Navigator.of(context).push(MaterialPageRoute(builder: (_) => ResumenStudyScreen(grupoId: grupo.id, grupoName: grupo.name)));
   }
 
+  Future<void> _crearConIa() async {
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CrearResumenesIAScreen()));
+    _load();
+  }
+
   void _toast(String msg) {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
@@ -181,6 +196,14 @@ class _ResumenesScreenState extends State<ResumenesScreen> {
                     title: 'Resúmenes activos',
                     subtitle:
                         'Párrafos de repaso con los datos clave tapados. Lee, intenta recordar, destapa y valora.',
+                    actions: [
+                      if (_iaDisponible)
+                        GhostButton(
+                          label: 'Crear con IA',
+                          icon: Icons.auto_awesome_rounded,
+                          onPressed: _crearConIa,
+                        ),
+                    ],
                     aside: _loading || grupos.isEmpty
                         ? null
                         : Wrap(

@@ -66,11 +66,11 @@ class ParrafoBorrador {
     this.nuevo = false,
   });
 
-  ParrafoBorrador copyWith({bool? incluir}) => ParrafoBorrador(
+  ParrafoBorrador copyWith({bool? incluir, List<Hueco>? huecos}) => ParrafoBorrador(
         key: key,
         tema: tema,
         texto: texto,
-        huecos: huecos,
+        huecos: huecos ?? this.huecos,
         incluir: incluir ?? this.incluir,
         grupo: grupo,
         ia: ia,
