@@ -11,6 +11,7 @@ import '../decks/decks_screen.dart';
 import '../electros/electros_hub_screen.dart';
 import '../flashcards/flashcards_screen.dart';
 import '../library/library_screen.dart';
+import '../resumenes/resumenes_screen.dart';
 import '../simulacro/simulacro_screen.dart';
 import 'widgets/studio_card_art.dart';
 
@@ -110,6 +111,20 @@ class BibliotecaHubScreen extends StatelessWidget {
                     art: const EcgMonitorArt(),
                     texture: graphPaper(tint: const Color(0xFFC45B4B), step: 9),
                     onTap: () => _open(context, const ElectrosHubScreen()),
+                  ),
+                ),
+                SlideFadeIn(
+                  delay: const Duration(milliseconds: 325),
+                  beginOffset: const Offset(0, 0.12),
+                  child: _ToolCard(
+                    title: 'Resúmenes',
+                    subtitle:
+                        'Párrafos con los datos clave tapados, para repasar destapando y autoevaluando.',
+                    tag: 'Huecos',
+                    icon: Icons.text_snippet_rounded,
+                    accent: const Color(0xFF7BA7C4),
+                    texture: ruledPaper(step: 22),
+                    onTap: () => _open(context, const ResumenesScreen()),
                   ),
                 ),
                 SlideFadeIn(
