@@ -158,3 +158,20 @@ String? cuandoVence(Parrafo p, [DateTime? ahora]) {
   if (dias == 1) return 'Vence mañana';
   return 'Vence en $dias días';
 }
+
+const List<String> _mesesAbrev = ['ene.', 'feb.', 'mar.', 'abr.', 'may.', 'jun.', 'jul.', 'ago.', 'sep.', 'oct.', 'nov.', 'dic.'];
+
+/// Cuándo vuelve un párrafo, para la pantalla de fin: «hoy», «mañana», «en 3 días», «el 12 nov.».
+String cuandoVuelve(String? iso, [DateTime? ahora]) {
+  if (iso == null) return 'pendiente';
+  final t = DateTime.tryParse(iso)?.toUtc();
+  if (t == null) return 'pendiente';
+  final a = (ahora ?? DateTime.now()).toUtc();
+  final diaT = DateTime.utc(t.year, t.month, t.day);
+  final diaA = DateTime.utc(a.year, a.month, a.day);
+  final dias = diaT.difference(diaA).inDays;
+  if (dias <= 0) return t.isAfter(a) ? 'hoy' : 'ya';
+  if (dias == 1) return 'mañana';
+  if (dias < 30) return 'en $dias días';
+  return 'el ${t.day} ${_mesesAbrev[t.month - 1]}';
+}

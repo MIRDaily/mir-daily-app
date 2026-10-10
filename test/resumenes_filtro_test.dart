@@ -80,4 +80,14 @@ void main() {
     expect(cuandoVence(_p(3, nextDueAt: '2026-10-16T10:00:00Z'), ahora), 'Vence en 5 días');
     expect(cuandoVence(_p(4, status: EstadoParrafoSrs.new_), ahora), isNull);
   });
+
+  test('cuandoVuelve distingue ya, mañana, días y fecha', () {
+    final ahora = DateTime.utc(2026, 10, 11, 12);
+    expect(cuandoVuelve('2026-10-11T08:00:00Z', ahora), 'ya');
+    expect(cuandoVuelve('2026-10-11T20:00:00Z', ahora), 'hoy');
+    expect(cuandoVuelve('2026-10-12T10:00:00Z', ahora), 'mañana');
+    expect(cuandoVuelve('2026-10-15T10:00:00Z', ahora), 'en 4 días');
+    expect(cuandoVuelve('2026-12-03T10:00:00Z', ahora), 'el 3 dic.');
+    expect(cuandoVuelve(null, ahora), 'pendiente');
+  });
 }

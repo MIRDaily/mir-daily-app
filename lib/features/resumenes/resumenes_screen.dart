@@ -7,6 +7,7 @@ import '../../core/theme/app_theme.dart';
 import '../../shared/sticker/sticker.dart';
 import '../../shared/widgets/pressable.dart';
 import 'resumen_detail_screen.dart';
+import 'resumen_study_screen.dart';
 import 'resumenes_api.dart';
 import 'resumenes_grupo.dart';
 
@@ -125,6 +126,10 @@ class _ResumenesScreenState extends State<ResumenesScreen> {
 
   void _abrir(GrupoResumen grupo) {
     Navigator.of(context).push(MaterialPageRoute(builder: (_) => ResumenDetailScreen(grupo: grupo)));
+  }
+
+  void _estudiar(GrupoResumen grupo) {
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => ResumenStudyScreen(grupoId: grupo.id, grupoName: grupo.name)));
   }
 
   void _toast(String msg) {
@@ -274,7 +279,7 @@ class _ResumenesScreenState extends State<ResumenesScreen> {
             (context, i) => _GrupoCard(
               grupo: grupos[i],
               onAbrir: () => _abrir(grupos[i]),
-              onEstudiar: () => _toast('El estudio llega en una fase posterior.'),
+              onEstudiar: () => _estudiar(grupos[i]),
               onBorrar: () => _confirmarBorrado(grupos[i]),
             ),
             childCount: grupos.length,
