@@ -122,3 +122,18 @@ int cuentaEstadoResumen(ResumenEstados r, EstadoParrafoSrs e) {
       return r.mastered;
   }
 }
+
+/// Dificultad del contenido de un hueco (nivel 1-4), con su nombre y colores.
+class NivelInfo {
+  final String nombre;
+  final Color color;
+  final Color soft;
+  const NivelInfo({required this.nombre, required this.color, required this.soft});
+}
+
+const Map<int, NivelInfo> nivelInfoResumen = {
+  1: NivelInfo(nombre: 'Fácil', color: Color(0xFF5E8C5A), soft: Color(0xFFE7F0E5)),
+  2: NivelInfo(nombre: 'Media', color: Color(0xFF3F7EA6), soft: Color(0xFFE3EEF5)),
+  3: NivelInfo(nombre: 'Difícil', color: Color(0xFFB07A1E), soft: Color(0xFFFBF0DA)),
+  4: NivelInfo(nombre: 'Demencial', color: Color(0xFFB04A5E), soft: Color(0xFFFAE3E8)),
+};
