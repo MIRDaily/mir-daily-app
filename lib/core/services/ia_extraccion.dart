@@ -8,6 +8,8 @@ import 'dart:typed_data';
 import 'package:syncfusion_flutter_pdf/pdf.dart';
 
 import '../models/ia.dart';
+import 'ia_extraccion_docx.dart';
+import 'ia_extraccion_pptx.dart';
 
 const int maxArchivoBytesIa = 30000000;
 const int maxOfficeBytesIa = 120000000;
@@ -107,6 +109,24 @@ String mensajeFormato(String nombre) {
   return _mensajesFormato[ext] ?? _genericoFormato;
 }
 
+/// Aviso para un documento con imágenes: su contenido no entra en el mapa.
+String? avisoImagenes(int n) {
+  if (n <= 0) return null;
+  return n == 1
+      ? 'Tiene 1 imagen: lo que haya dentro (tablas, esquemas, texto en la imagen) no se lee, solo el texto del documento.'
+      : 'Tiene $n imágenes: lo que haya dentro (tablas, esquemas, texto en las imágenes) no se lee, solo el texto del documento.';
+}
+
+/// Título de la portada como título del mapa; en MAYÚSCULAS se pasa a frase normal.
+String tituloDePortada(String t) {
+  final limpio = t.replaceAll(RegExp(r'\s+'), ' ').trim();
+  final recortado = limpio.length > 120 ? limpio.substring(0, 120) : limpio;
+  if (recortado.length < 4) return '';
+  if (recortado != recortado.toUpperCase()) return recortado;
+  final minus = recortado.toLowerCase();
+  return minus[0].toUpperCase() + minus.substring(1);
+}
+
 /// Lee un PDF, un Word o un PowerPoint y devuelve su texto por secciones.
 Future<Extraido> extraerDocumento({
   required Uint8List bytes,
@@ -126,8 +146,11 @@ Future<Extraido> extraerDocumento({
   if (nombreBajo.endsWith('.pdf')) {
     return extraerPdf(bytes: bytes, nombre: nombre, maxChars: maxChars, onProgreso: onProgreso);
   }
-  if (esOffice) {
-    throw const ExtractException('Los documentos Word y PowerPoint aún no se admiten en esta fase.');
+  if (nombreBajo.endsWith('.docx')) {
+    return extraerDocx(bytes: bytes, nombre: nombre, maxChars: maxChars);
+  }
+  if (nombreBajo.endsWith('.pptx')) {
+    return extraerPptx(bytes: bytes, nombre: nombre, maxChars: maxChars);
   }
   throw ExtractException(mensajeFormato(nombre));
 }
