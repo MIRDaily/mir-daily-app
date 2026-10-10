@@ -145,6 +145,50 @@ class TemaIndice {
   });
 }
 
+/// Un marcador del índice de un documento (título y página donde empieza).
+class Marcador {
+  final String titulo;
+  final int pagina;
+  final int nivel; // 1 o 2
+  const Marcador({required this.titulo, required this.pagina, required this.nivel});
+}
+
+/// Resultado de leer un documento: texto por secciones + metadatos.
+class Extraido {
+  final String titulo;
+  final List<Seccion> secciones;
+  final int paginas;
+  final int tablas;
+
+  /// Cómo se llaman las «páginas» de este formato: 'página' | 'diapositiva'.
+  final String unidad;
+  final int caracteres;
+  final List<String> avisos;
+  final bool truncado;
+  final List<Marcador>? marcadores;
+
+  const Extraido({
+    required this.titulo,
+    required this.secciones,
+    required this.paginas,
+    required this.tablas,
+    required this.unidad,
+    required this.caracteres,
+    required this.avisos,
+    required this.truncado,
+    this.marcadores,
+  });
+}
+
+/// Error de extracción de un documento, con mensaje listo para el usuario.
+class ExtractException implements Exception {
+  final String message;
+  const ExtractException(this.message);
+
+  @override
+  String toString() => message;
+}
+
 /// Error con mensaje listo para enseñar al usuario. Espeja `IAError` de la web:
 /// el permiso (rol admin, interruptor y cupos) lo valida SIEMPRE el backend.
 class IaException implements Exception {
