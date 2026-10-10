@@ -67,6 +67,7 @@ dependencies:
   syncfusion_flutter_pdf: ^35.1.39
   archive: ^4.4.0
   xml: ^7.0.1
+  crypto: ^3.0.7
 
 dev_dependencies:
   flutter_test:
