@@ -23,6 +23,7 @@ import 'core/services/ia_service.dart';
 import 'core/services/app_warmup.dart';
 import 'core/services/auth_service.dart';
 import 'core/services/notification_service.dart';
+import 'features/resumenes/resumenes_api.dart';
 import 'features/focus/providers/focus_provider.dart';
 import 'features/navigation/main_navigation.dart';
 import 'features/progress/celebracion_logros.dart';
@@ -73,6 +74,11 @@ void main() async {
     token: apiService.validToken,
     baseUrl: AppConfig.apiBaseUrl,
   );
+  // Resúmenes activos: comparte la sesión con ApiService (JWT renovado en un único sitio).
+  final resumenesApi = ResumenesApi(
+    token: apiService.validToken,
+    baseUrl: AppConfig.apiBaseUrl,
+  );
 
   // Notificaciones locales: inicializa y reprograma el recordatorio del daily
   // si el usuario lo tenía activado (no bloquea el arranque si falla).
@@ -88,6 +94,7 @@ void main() async {
     authService: authService,
     apiService: apiService,
     iaService: iaService,
+    resumenesApi: resumenesApi,
   ));
 }
 
@@ -95,12 +102,14 @@ class MIRDailyApp extends StatelessWidget {
   final AuthService authService;
   final ApiService apiService;
   final IaService iaService;
+  final ResumenesApi resumenesApi;
 
   const MIRDailyApp({
     super.key,
     required this.authService,
     required this.apiService,
     required this.iaService,
+    required this.resumenesApi,
   });
 
   @override
@@ -111,6 +120,8 @@ class MIRDailyApp extends StatelessWidget {
         Provider<ApiService>.value(value: apiService),
         // IA (mapas, flashcards, resúmenes). Sin UI propia: la consumen las fases 2/6/7.
         Provider<IaService>.value(value: iaService),
+        // Resúmenes activos (fase 1): la consumen sus pantallas.
+        Provider<ResumenesApi>.value(value: resumenesApi),
         ChangeNotifierProvider(
           create: (_) => AuthProvider(
             authService: authService,
