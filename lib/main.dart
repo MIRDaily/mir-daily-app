@@ -17,7 +17,9 @@ import 'core/providers/user_provider.dart';
 import 'core/providers/auth_provider.dart';
 import 'core/providers/daily_provider.dart';
 import 'core/providers/progress_provider.dart';
+import 'core/config/app_config.dart';
 import 'core/services/api_service.dart';
+import 'core/services/ia_service.dart';
 import 'core/services/app_warmup.dart';
 import 'core/services/auth_service.dart';
 import 'core/services/notification_service.dart';
@@ -65,6 +67,12 @@ void main() async {
 
   final authService = AuthService();
   final apiService = ApiService(authService);
+  // IA (mapas, flashcards y resúmenes): comparte la sesión con ApiService para
+  // que el JWT se renueve en un único sitio.
+  final iaService = IaService(
+    token: apiService.validToken,
+    baseUrl: AppConfig.apiBaseUrl,
+  );
 
   // Notificaciones locales: inicializa y reprograma el recordatorio del daily
   // si el usuario lo tenía activado (no bloquea el arranque si falla).
@@ -76,17 +84,23 @@ void main() async {
   // que ha abierto la app, y entonces llega antes que ninguna pantalla.
   unawaited(VersusLinks.instance.start());
 
-  runApp(MIRDailyApp(authService: authService, apiService: apiService));
+  runApp(MIRDailyApp(
+    authService: authService,
+    apiService: apiService,
+    iaService: iaService,
+  ));
 }
 
 class MIRDailyApp extends StatelessWidget {
   final AuthService authService;
   final ApiService apiService;
+  final IaService iaService;
 
   const MIRDailyApp({
     super.key,
     required this.authService,
     required this.apiService,
+    required this.iaService,
   });
 
   @override
@@ -95,6 +109,8 @@ class MIRDailyApp extends StatelessWidget {
       providers: [
         // Capa backend (sobre diario real)
         Provider<ApiService>.value(value: apiService),
+        // IA (mapas, flashcards, resúmenes). Sin UI propia: la consumen las fases 2/6/7.
+        Provider<IaService>.value(value: iaService),
         ChangeNotifierProvider(
           create: (_) => AuthProvider(
             authService: authService,
