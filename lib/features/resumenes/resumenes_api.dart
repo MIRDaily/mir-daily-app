@@ -10,6 +10,7 @@ import 'dart:math' as math;
 import 'package:http/http.dart' as http;
 
 import '../../core/models/resumen.dart';
+import '../../core/models/resumen_ia.dart';
 import 'resumenes_huecos.dart';
 
 class ResumenesApiError implements Exception {
@@ -121,6 +122,30 @@ class ParrafoFallado {
   final Parrafo parrafo;
   final List<int> huecosFalladosSesion;
   const ParrafoFallado(this.parrafo, this.huecosFalladosSesion);
+}
+
+/// Uno del grupo que se parece a uno de la vista previa (`igual`: el mismo texto).
+class Parecido {
+  final bool igual;
+  final String? tema;
+  final String texto;
+  const Parecido({required this.igual, this.tema, required this.texto});
+}
+
+/// Cuánto texto literal de un documento hay ya en el grupo, y cuánto cabe.
+class UsoLiteral {
+  final String hash;
+  final int usado;
+  final int tope;
+  const UsoLiteral({required this.hash, required this.usado, required this.tope});
+}
+
+/// Una tanda de párrafos de la IA de un mismo documento.
+class TandaIA {
+  final FuenteFirmada? fuente;
+  final List<ParrafoNuevo> parrafos;
+  final List<int> incluirParecidos;
+  const TandaIA({this.fuente, required this.parrafos, required this.incluirParecidos});
 }
 
 class ResumenesApi {
@@ -237,6 +262,79 @@ class ResumenesApi {
       onProgreso?.call(math.min(lista.length, k + 40));
     }
     return (creados: creados, duplicados: duplicados);
+  }
+
+  /// Guarda lo de la IA con su documento de origen (POST /:id/parrafos-ia): el
+  /// servidor comprueba el tope de «texto original» y no guarda los casi iguales.
+  Future<({int creados, int duplicados, int parecidos})> anadirParrafosIA(
+    String id,
+    List<TandaIA> tandas, {
+    void Function(int)? onProgreso,
+  }) async {
+    var creados = 0;
+    var duplicados = 0;
+    var parecidos = 0;
+    var hechos = 0;
+    for (final t in tandas) {
+      final r = await _pedir(
+        '/$id/parrafos-ia',
+        method: 'POST',
+        cuerpo: {
+          'parrafos': t.parrafos.map((p) => p.toJson()).toList(),
+          if (t.fuente != null) 'fuente': t.fuente!.toJson(),
+          if (t.incluirParecidos.isNotEmpty) 'incluirParecidos': t.incluirParecidos,
+        },
+        mensaje: 'No se pudieron guardar los párrafos',
+      );
+      creados += _num(r['creados']);
+      duplicados += _num(r['duplicados']);
+      parecidos += _num(r['parecidos']);
+      hechos += t.parrafos.length;
+      onProgreso?.call(hechos);
+    }
+    return (creados: creados, duplicados: duplicados, parecidos: parecidos);
+  }
+
+  /// Antes de guardar en un grupo: qué textos se parecen a uno suyo (tandas de 60)
+  /// y el literal de cada documento.
+  Future<({List<Parecido?> parecidos, List<UsoLiteral> literal})> buscarParecidos(
+    String id,
+    List<String> textos,
+    List<FuenteFirmada> fuentes,
+  ) async {
+    final parecidos = <Parecido?>[];
+    var literal = <UsoLiteral>[];
+    for (var k = 0; k == 0 || k < textos.length; k += 60) {
+      final fin = (k + 60) < textos.length ? k + 60 : textos.length;
+      final r = await _pedir(
+        '/$id/parecidos',
+        method: 'POST',
+        cuerpo: {
+          'textos': textos.sublist(k, fin),
+          if (k == 0 && fuentes.isNotEmpty) 'fuentes': fuentes.take(20).map((f) => f.toJson()).toList(),
+        },
+        mensaje: 'No se pudo comprobar el grupo',
+      );
+      final lote = r['parecidos'] is List ? r['parecidos'] as List : const [];
+      for (var j = 0; j < 60 && k + j < textos.length; j++) {
+        final x = j < lote.length && lote[j] is Map ? lote[j] as Map : null;
+        parecidos.add(x != null && x['texto'] is String
+            ? Parecido(
+                igual: x['igual'] == true,
+                tema: x['tema'] is String ? x['tema'] as String : null,
+                texto: (x['texto'] as String).length > 220 ? (x['texto'] as String).substring(0, 220) : x['texto'] as String,
+              )
+            : null);
+      }
+      if (k == 0) {
+        literal = (r['literal'] is List ? r['literal'] as List : const [])
+            .whereType<Map>()
+            .where((u) => u['hash'] is String)
+            .map((u) => UsoLiteral(hash: u['hash'] as String, usado: _num(u['usado']), tope: _num(u['tope'])))
+            .toList();
+      }
+    }
+    return (parecidos: parecidos, literal: literal);
   }
 
   Future<Parrafo> editarParrafo(String pid, {String? texto, List<Hueco>? huecos, String? tema}) async {

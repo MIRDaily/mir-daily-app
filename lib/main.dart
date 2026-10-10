@@ -24,6 +24,7 @@ import 'core/services/app_warmup.dart';
 import 'core/services/auth_service.dart';
 import 'core/services/notification_service.dart';
 import 'features/resumenes/resumenes_api.dart';
+import 'features/resumenes/resumenes_ia.dart';
 import 'features/focus/providers/focus_provider.dart';
 import 'features/navigation/main_navigation.dart';
 import 'features/progress/celebracion_logros.dart';
@@ -79,6 +80,8 @@ void main() async {
     token: apiService.validToken,
     baseUrl: AppConfig.apiBaseUrl,
   );
+  // Generación de resúmenes con IA (usa la capa de IA de la fase 0).
+  final resumenesIa = ResumenesIa(iaService);
 
   // Notificaciones locales: inicializa y reprograma el recordatorio del daily
   // si el usuario lo tenía activado (no bloquea el arranque si falla).
@@ -95,6 +98,7 @@ void main() async {
     apiService: apiService,
     iaService: iaService,
     resumenesApi: resumenesApi,
+    resumenesIa: resumenesIa,
   ));
 }
 
@@ -103,6 +107,7 @@ class MIRDailyApp extends StatelessWidget {
   final ApiService apiService;
   final IaService iaService;
   final ResumenesApi resumenesApi;
+  final ResumenesIa resumenesIa;
 
   const MIRDailyApp({
     super.key,
@@ -110,6 +115,7 @@ class MIRDailyApp extends StatelessWidget {
     required this.apiService,
     required this.iaService,
     required this.resumenesApi,
+    required this.resumenesIa,
   });
 
   @override
@@ -122,6 +128,8 @@ class MIRDailyApp extends StatelessWidget {
         Provider<IaService>.value(value: iaService),
         // Resúmenes activos (fase 1): la consumen sus pantallas.
         Provider<ResumenesApi>.value(value: resumenesApi),
+        // Resúmenes con IA (fase 2): generación desde documentos.
+        Provider<ResumenesIa>.value(value: resumenesIa),
         ChangeNotifierProvider(
           create: (_) => AuthProvider(
             authService: authService,
