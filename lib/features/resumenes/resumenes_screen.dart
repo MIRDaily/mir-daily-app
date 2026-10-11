@@ -204,16 +204,19 @@ class _ResumenesScreenState extends State<ResumenesScreen> {
                           onPressed: _crearConIa,
                         ),
                     ],
-                    aside: _loading || grupos.isEmpty
+                    child: _loading || grupos.isEmpty
                         ? null
-                        : Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: [
-                              StatChip(value: '${grupos.length}', label: grupos.length == 1 ? 'grupo' : 'grupos'),
-                              StatChip(value: '$totalParrafos', label: 'párrafos', color: const Color(0xFF3F7EA6)),
-                              StatChip(value: '$totalPendientes', label: 'por repasar', color: const Color(0xFFB07A1E)),
-                            ],
+                        : Padding(
+                            padding: const EdgeInsets.only(top: 14),
+                            child: Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                StatChip(value: '${grupos.length}', label: grupos.length == 1 ? 'grupo' : 'grupos'),
+                                StatChip(value: '$totalParrafos', label: 'párrafos', color: const Color(0xFF3F7EA6)),
+                                StatChip(value: '$totalPendientes', label: 'por repasar', color: const Color(0xFFB07A1E)),
+                              ],
+                            ),
                           ),
                   ),
                 ),
