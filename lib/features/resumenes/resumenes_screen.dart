@@ -147,6 +147,59 @@ class _ResumenesScreenState extends State<ResumenesScreen> {
     _load();
   }
 
+  Future<void> _abrirPapeleraGrupos() async {
+    final api = context.read<ResumenesApi>();
+    final papelera = await api.listarGruposPapelera();
+    if (!mounted) return;
+    await showAdaptiveModal<void>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Papelera', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 19, color: kInk)),
+              const SizedBox(height: 6),
+              const Text('Los grupos borrados se recuperan hasta pasadas 24 horas.', style: TextStyle(color: AppColors.textSecondary, fontSize: 12.5)),
+              const SizedBox(height: 14),
+              if (papelera.isEmpty)
+                const Padding(padding: EdgeInsets.symmetric(vertical: 20), child: Text('La papelera está vacía.', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)))
+              else
+                for (final g in papelera)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Container(
+                      width: 34,
+                      height: 34,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(color: resolveColorResumen(g.color).bg, borderRadius: BorderRadius.circular(10), border: Border.all(color: kInk, width: 2)),
+                      child: Icon(iconoGrupoResumen(g.icon), color: Colors.white, size: 18),
+                    ),
+                    title: Text(g.name, style: const TextStyle(color: kInk, fontSize: 14, fontWeight: FontWeight.w700)),
+                    trailing: TextButton(
+                      onPressed: () async {
+                        try {
+                          await api.restaurarGrupo(g.id);
+                          if (ctx.mounted) Navigator.pop(ctx);
+                          _load();
+                        } on ResumenesApiError catch (e) {
+                          _toast(e.message);
+                        } catch (_) {
+                          _toast('No se pudo recuperar el grupo.');
+                        }
+                      },
+                      child: const Text('Restaurar', style: TextStyle(fontWeight: FontWeight.w700)),
+                    ),
+                  ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   void _toast(String msg) {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
@@ -197,6 +250,11 @@ class _ResumenesScreenState extends State<ResumenesScreen> {
                     subtitle:
                         'Párrafos de repaso con los datos clave tapados. Lee, intenta recordar, destapa y valora.',
                     actions: [
+                      GhostButton(
+                        label: 'Papelera',
+                        icon: Icons.delete_outline_rounded,
+                        onPressed: _abrirPapeleraGrupos,
+                      ),
                       if (_iaDisponible)
                         GhostButton(
                           label: 'Crear con IA',

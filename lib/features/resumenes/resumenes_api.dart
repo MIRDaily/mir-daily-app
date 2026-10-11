@@ -132,6 +132,17 @@ class ParrafoPapelera {
   const ParrafoPapelera(this.parrafo, this.deletedAt, this.purgeAt);
 }
 
+/// Un grupo en la papelera (borrado hace 24 h como mucho).
+class GrupoPapelera {
+  final String id;
+  final String name;
+  final String? color;
+  final String? icon;
+  final String? deletedAt;
+  final String? purgeAt;
+  const GrupoPapelera({required this.id, required this.name, this.color, this.icon, this.deletedAt, this.purgeAt});
+}
+
 /// Uno del grupo que se parece a uno de la vista previa (`igual`: el mismo texto).
 class Parecido {
   final bool igual;
@@ -236,6 +247,30 @@ class ResumenesApi {
 
   Future<void> borrarGrupo(String id) async {
     await _pedir('/$id', method: 'DELETE', mensaje: 'No se pudo borrar el grupo');
+  }
+
+  /// Los grupos borrados (papelera 24 h).
+  Future<List<GrupoPapelera>> listarGruposPapelera() async {
+    final r = await _pedir('/papelera', mensaje: 'No se pudo cargar la papelera');
+    final raw = r['grupos'] is List ? r['grupos'] as List : const [];
+    final out = <GrupoPapelera>[];
+    for (final x in raw.whereType<Map>()) {
+      if (x['id'] is! String || x['name'] is! String) continue;
+      out.add(GrupoPapelera(
+        id: x['id'] as String,
+        name: x['name'] as String,
+        color: x['color'] is String ? x['color'] as String : null,
+        icon: x['icon'] is String ? x['icon'] as String : null,
+        deletedAt: x['deleted_at'] is String ? x['deleted_at'] as String : null,
+        purgeAt: x['purge_at'] is String ? x['purge_at'] as String : null,
+      ));
+    }
+    return out;
+  }
+
+  /// Recupera un grupo de la papelera.
+  Future<void> restaurarGrupo(String id) async {
+    await _pedir('/$id/restaurar', method: 'POST', mensaje: 'No se pudo recuperar el grupo');
   }
 
   Future<({GrupoResumen grupo, List<Parrafo> parrafos, int max})> cargarGrupo(String id) async {
