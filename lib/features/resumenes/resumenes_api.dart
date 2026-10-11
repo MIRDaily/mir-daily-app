@@ -124,6 +124,14 @@ class ParrafoFallado {
   const ParrafoFallado(this.parrafo, this.huecosFalladosSesion);
 }
 
+/// Un párrafo en la papelera (borrado hace 24 h como mucho).
+class ParrafoPapelera {
+  final Parrafo parrafo;
+  final String? deletedAt;
+  final String? purgeAt;
+  const ParrafoPapelera(this.parrafo, this.deletedAt, this.purgeAt);
+}
+
 /// Uno del grupo que se parece a uno de la vista previa (`igual`: el mismo texto).
 class Parecido {
   final bool igual;
@@ -355,6 +363,28 @@ class ResumenesApi {
 
   Future<void> quitarParrafo(String id, int itemId) async {
     await _pedir('/$id/parrafos/$itemId', method: 'DELETE', mensaje: 'No se pudo borrar el párrafo');
+  }
+
+  /// Los párrafos borrados del grupo (papelera 24 h).
+  Future<List<ParrafoPapelera>> listarPapelera(String id) async {
+    final r = await _pedir('/$id/parrafos/papelera', mensaje: 'No se pudo cargar la papelera');
+    final raw = r['parrafos'] is List ? r['parrafos'] as List : const [];
+    final out = <ParrafoPapelera>[];
+    for (final x in raw) {
+      final p = sanearParrafo(x);
+      if (p == null) continue;
+      out.add(ParrafoPapelera(
+        p,
+        x is Map && x['deletedAt'] is String ? x['deletedAt'] as String : null,
+        x is Map && x['purgeAt'] is String ? x['purgeAt'] as String : null,
+      ));
+    }
+    return out;
+  }
+
+  /// Recupera un párrafo de la papelera.
+  Future<void> restaurarParrafo(String id, int itemId) async {
+    await _pedir('/$id/parrafos/$itemId/restaurar', method: 'POST', mensaje: 'No se pudo recuperar el párrafo');
   }
 
   Future<String> empezarSesion(String id, AjustesEstudio ajustes, {int limit = 200}) async {

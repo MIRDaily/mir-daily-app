@@ -272,6 +272,29 @@ class _CrearResumenesIAScreenState extends State<CrearResumenesIAScreen> {
             children: [
               const Text('Guardar en', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 19, color: kInk)),
               const SizedBox(height: 14),
+              ListTile(
+                onTap: () async {
+                  final nombre = await _pedirNombreGrupo(ctx);
+                  if (nombre == null) return;
+                  try {
+                    final g = await _api.crearGrupo(nombre);
+                    if (ctx.mounted) Navigator.pop(ctx, g);
+                  } on ResumenesApiError catch (e) {
+                    if (ctx.mounted) _aviso(ctx, e.message);
+                  } catch (_) {
+                    if (ctx.mounted) _aviso(ctx, 'No se pudo crear el grupo.');
+                  }
+                },
+                leading: Container(
+                  width: 34,
+                  height: 34,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(color: kInk, borderRadius: BorderRadius.circular(10), border: Border.all(color: kInk, width: 2)),
+                  child: const Icon(Icons.add_rounded, color: Colors.white, size: 18),
+                ),
+                title: const Text('Nuevo grupo', style: TextStyle(color: kInk, fontWeight: FontWeight.w700)),
+                subtitle: const Text('Créalo ahora y guarda aquí lo generado', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+              ),
               for (final g in grupos)
                 ListTile(
                   onTap: () => Navigator.pop(ctx, g),
@@ -288,13 +311,47 @@ class _CrearResumenesIAScreenState extends State<CrearResumenesIAScreen> {
               if (grupos.isEmpty)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 12),
-                  child: Text('No tienes grupos todavía. Crea uno desde Resúmenes.', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                  child: Text('No tienes grupos todavía. Crea uno con el botón de arriba.', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
                 ),
             ],
           ),
         ),
       ),
     );
+  }
+
+  Future<String?> _pedirNombreGrupo(BuildContext ctx) {
+    final controller = TextEditingController();
+    return showDialog<String>(
+      context: ctx,
+      builder: (dctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Nuevo grupo'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          textCapitalization: TextCapitalization.sentences,
+          decoration: const InputDecoration(hintText: 'Nombre del grupo (mín. 3 letras)', border: OutlineInputBorder()),
+          onSubmitted: (v) => Navigator.pop(dctx, v.trim()),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dctx), child: const Text('Cancelar')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white),
+            onPressed: () => Navigator.pop(dctx, controller.text.trim()),
+            child: const Text('Crear'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _aviso(BuildContext ctx, String msg) {
+    ScaffoldMessenger.of(ctx)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating, backgroundColor: AppColors.textPrimary));
   }
 
   String _labelFase(FaseIa f) {

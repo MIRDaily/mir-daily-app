@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/models/resumen.dart';
+import '../../core/responsive/adaptive_modal.dart';
 import '../../core/theme/app_theme.dart';
 import '../../shared/sticker/sticker.dart';
+import 'crear_resumenes_ia_screen.dart';
 import 'resumen_editor.dart';
+import 'resumen_study_screen.dart';
 import 'resumenes_api.dart';
 import 'resumenes_filtro.dart';
 import 'resumenes_grupo.dart';
@@ -28,6 +31,8 @@ class _ResumenDetailScreenState extends State<ResumenDetailScreen> {
   final _busquedaCtrl = TextEditingController();
   FiltrosGrupo _filtros = const FiltrosGrupo();
   final OrdenGrupo _orden = OrdenGrupo.documento;
+  int _pagina = 0;
+  static const int _porPagina = 30;
 
   @override
   void initState() {
@@ -150,6 +155,64 @@ class _ResumenDetailScreenState extends State<ResumenDetailScreen> {
       ..showSnackBar(SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating, backgroundColor: AppColors.textPrimary));
   }
 
+  void _estudiar() {
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => ResumenStudyScreen(grupoId: widget.grupo.id, grupoName: widget.grupo.name),
+    ));
+  }
+
+  Future<void> _crearConIa() async {
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CrearResumenesIAScreen()));
+    _load();
+  }
+
+  Future<void> _abrirPapelera() async {
+    final api = context.read<ResumenesApi>();
+    final papelera = await api.listarPapelera(widget.grupo.id);
+    if (!mounted) return;
+    await showAdaptiveModal<void>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Papelera', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 19, color: kInk)),
+              const SizedBox(height: 6),
+              const Text('Los párrafos borrados se recuperan hasta pasadas 24 horas.', style: TextStyle(color: AppColors.textSecondary, fontSize: 12.5)),
+              const SizedBox(height: 14),
+              if (papelera.isEmpty)
+                const Padding(padding: EdgeInsets.symmetric(vertical: 20), child: Text('La papelera está vacía.', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)))
+              else
+                for (final e in papelera)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(e.parrafo.texto, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: kInk, fontSize: 13)),
+                    subtitle: Text(e.parrafo.tema?.isNotEmpty == true ? e.parrafo.tema! : 'Sin tema', style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                    trailing: TextButton(
+                      onPressed: () async {
+                        try {
+                          await api.restaurarParrafo(widget.grupo.id, e.parrafo.itemId);
+                          if (ctx.mounted) Navigator.pop(ctx);
+                          _load();
+                        } on ResumenesApiError catch (err) {
+                          _toast(err.message);
+                        } catch (_) {
+                          _toast('No se pudo recuperar el párrafo.');
+                        }
+                      },
+                      child: const Text('Restaurar', style: TextStyle(fontWeight: FontWeight.w700)),
+                    ),
+                  ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final color = resolveColorResumen(widget.grupo.color);
@@ -172,6 +235,23 @@ class _ResumenDetailScreenState extends State<ResumenDetailScreen> {
             Expanded(child: Text(widget.grupo.name, overflow: TextOverflow.ellipsis, style: const TextStyle(color: kInk, fontWeight: FontWeight.w900))),
           ],
         ),
+        actions: [
+          IconButton(
+            tooltip: 'Papelera',
+            icon: const Icon(Icons.delete_outline_rounded, color: kInk),
+            onPressed: _abrirPapelera,
+          ),
+          IconButton(
+            tooltip: 'Crear con IA',
+            icon: const Icon(Icons.auto_awesome_rounded, color: kInk),
+            onPressed: _crearConIa,
+          ),
+          IconButton(
+            tooltip: 'Estudiar',
+            icon: const Icon(Icons.play_arrow_rounded, color: kInk),
+            onPressed: _estudiar,
+          ),
+        ],
       ),
       floatingActionButton: Padding(
         padding: const EdgeInsets.only(bottom: 4, right: 4),
@@ -203,7 +283,10 @@ class _ResumenDetailScreenState extends State<ResumenDetailScreen> {
         children: [
           TextField(
             controller: _busquedaCtrl,
-            onChanged: (v) => setState(() => _filtros = _filtros.copyWith(busqueda: v)),
+            onChanged: (v) => setState(() {
+              _filtros = _filtros.copyWith(busqueda: v);
+              _pagina = 0;
+            }),
             decoration: InputDecoration(
               hintText: 'Buscar en los párrafos',
               prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textSecondary),
@@ -219,8 +302,14 @@ class _ResumenDetailScreenState extends State<ResumenDetailScreen> {
             runSpacing: 8,
             children: [
               for (final e in ordenEstadosResumen) _chipEstado(e),
-              _chipToggle('Toca repasar', Icons.schedule_rounded, _filtros.tocaRepasar, () => setState(() => _filtros = _filtros.copyWith(tocaRepasar: !_filtros.tocaRepasar))),
-              _chipToggle('Con fallados', Icons.local_fire_department_rounded, _filtros.conFallados, () => setState(() => _filtros = _filtros.copyWith(conFallados: !_filtros.conFallados))),
+              _chipToggle('Toca repasar', Icons.schedule_rounded, _filtros.tocaRepasar, () => setState(() {
+                _filtros = _filtros.copyWith(tocaRepasar: !_filtros.tocaRepasar);
+                _pagina = 0;
+              })),
+              _chipToggle('Con fallados', Icons.local_fire_department_rounded, _filtros.conFallados, () => setState(() {
+                _filtros = _filtros.copyWith(conFallados: !_filtros.conFallados);
+                _pagina = 0;
+              })),
             ],
           ),
         ],
@@ -237,6 +326,7 @@ class _ResumenDetailScreenState extends State<ResumenDetailScreen> {
           final estados = List<EstadoParrafoSrs>.from(_filtros.estados);
           sel ? estados.remove(e) : estados.add(e);
           _filtros = _filtros.copyWith(estados: estados);
+          _pagina = 0;
         });
       },
       child: Container(
@@ -310,7 +400,11 @@ class _ResumenDetailScreenState extends State<ResumenDetailScreen> {
 
     final filtrados = filtrarParrafos(parrafos, _filtros);
     final ordenados = ordenarParrafos(filtrados, _orden);
-    final grupos = agruparPorTema(ordenados);
+    final totalPaginas = (ordenados.length / _porPagina).ceil();
+    final pagina = _pagina.clamp(0, totalPaginas > 1 ? totalPaginas - 1 : 0);
+    final inicio = pagina * _porPagina;
+    final paginados = ordenados.skip(inicio).take(_porPagina).toList();
+    final grupos = agruparPorTema(paginados);
 
     if (grupos.isEmpty) {
       return [
@@ -334,7 +428,29 @@ class _ResumenDetailScreenState extends State<ResumenDetailScreen> {
             ]),
           ),
         ),
+      if (totalPaginas > 1)
+        SliverToBoxAdapter(child: _paginador(totalPaginas, pagina)),
     ];
+  }
+
+  Widget _paginador(int totalPaginas, int pagina) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          IconButton(
+            onPressed: pagina > 0 ? () => setState(() => _pagina = pagina - 1) : null,
+            icon: const Icon(Icons.chevron_left_rounded),
+          ),
+          Text('Página ${pagina + 1} de $totalPaginas', style: const TextStyle(color: AppColors.textSecondary, fontSize: 13, fontWeight: FontWeight.w700)),
+          IconButton(
+            onPressed: pagina < totalPaginas - 1 ? () => setState(() => _pagina = pagina + 1) : null,
+            icon: const Icon(Icons.chevron_right_rounded),
+          ),
+        ],
+      ),
+    );
   }
 }
 
