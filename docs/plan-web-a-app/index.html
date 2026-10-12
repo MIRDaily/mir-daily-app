@@ -1,0 +1,1350 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MIRDaily · Plan de adaptación web → app (V7) por fases</title>
+<style>
+/* ============ MARCA MIRDaily — tokens reales ============ */
+@font-face{font-family:'Lexend';font-style:normal;font-weight:400;font-display:swap;src:url('fonts/Lexend-Regular.ttf') format('truetype');}
+@font-face{font-family:'Lexend';font-style:normal;font-weight:500;font-display:swap;src:url('fonts/Lexend-Medium.ttf') format('truetype');}
+@font-face{font-family:'Lexend';font-style:normal;font-weight:600;font-display:swap;src:url('fonts/Lexend-SemiBold.ttf') format('truetype');}
+@font-face{font-family:'Lexend';font-style:normal;font-weight:700;font-display:swap;src:url('fonts/Lexend-Bold.ttf') format('truetype');}
+@font-face{font-family:'Lexend';font-style:normal;font-weight:900;font-display:swap;src:url('fonts/Lexend-Bold.ttf') format('truetype');}
+
+:root{
+  --bg:#FAF7F4;         /* fondo global */
+  --surface:#FFFFFF;    /* superficies/tarjetas */
+  --paper:#F5F0EB;      /* superficie variante */
+  --ink:#2C3E50;        /* trazo de tinta / bordes duros */
+  --hairline:#EAE4E2;   /* borde pelo */
+  --accent:#E8A598;     /* coral de marca */
+  --accent-deep:#B87A6F;/* coral profundo */
+  --accent-dark:#C45B4B;/* coral intenso */
+  --muted:#7D8A96;      /* texto secundario */
+  --text:#3D4248;       /* texto principal */
+  --success:#8BA888;    /* éxito/verde salvia */
+  --error:#C4655A;      /* error */
+  --gold:#C9A227;       /* dorado */
+  --night:#211D1A;      /* guardia nocturna */
+  --ease:cubic-bezier(.22,1,.36,1);
+  --ease-bounce:cubic-bezier(.34,1.56,.64,1);
+}
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  margin:0;background:var(--bg);color:var(--text);
+  font-family:'Lexend',system-ui,-apple-system,Segoe UI,sans-serif;
+  font-weight:400;font-size:16px;line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+::selection{background:var(--accent);color:#fff;}
+
+/* barra de progreso de scroll */
+#progress{position:fixed;top:0;left:0;height:4px;width:0;z-index:100;
+  background:linear-gradient(90deg,#E2A99E,#D4978C,#B87A6F);transition:width .12s linear;}
+
+/* ============ HERO ============ */
+.hero{position:relative;overflow:hidden;padding:38px 24px 26px;border-bottom:2px solid var(--ink);}
+.blob{position:absolute;border-radius:50%;filter:blur(64px);mix-blend-mode:multiply;pointer-events:none;}
+.blob.b1{width:320px;height:320px;background:rgba(232,165,152,.55);top:-90px;right:8%;animation:blob 15s ease-in-out infinite;}
+.blob.b2{width:260px;height:260px;background:rgba(139,168,136,.35);bottom:-120px;left:-40px;animation:blob 18s ease-in-out infinite reverse;}
+.blob.b3{width:200px;height:200px;background:rgba(201,162,39,.22);top:30%;left:38%;animation:blob 20s ease-in-out infinite;}
+@keyframes blob{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(34px,-26px) scale(1.1)}}
+.hero-inner{position:relative;z-index:2;max-width:1120px;margin:0 auto;}
+.topline{display:flex;align-items:center;gap:16px;flex-wrap:wrap;justify-content:space-between;}
+.wordmark{display:inline-flex;align-items:center;border:2px dashed #B9B2AD;border-radius:999px;background:#FFFDFB;
+  padding:7px 20px;font-weight:900;font-size:24px;letter-spacing:-.6px;color:var(--accent);box-shadow:4px 4px 0 0 var(--ink);}
+.wordmark small{font-weight:500;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin-left:10px;}
+.eyebrow{font-size:11px;font-weight:900;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);}
+h1{font-size:clamp(30px,5vw,52px);font-weight:900;letter-spacing:-.02em;line-height:1.04;color:var(--ink);margin:18px 0 10px;}
+h1 em{font-style:normal;color:var(--accent-dark);}
+.lede{font-size:clamp(16px,2.1vw,19px);color:var(--text);max-width:60ch;margin:0;}
+.meta-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px;}
+.chip{border:2px solid var(--hairline);background:var(--surface);border-radius:999px;padding:6px 14px;
+  font-size:12.5px;font-weight:600;color:var(--muted);}
+.chip b{color:var(--ink);font-weight:900;}
+.hero-mascot{position:absolute;right:20px;bottom:-6px;height:210px;z-index:1;pointer-events:none;
+  filter:drop-shadow(6px 8px 0 rgba(44,62,80,.12));animation:float 6s ease-in-out infinite;}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
+@media(max-width:820px){.hero-mascot{display:none}}
+
+/* ============ LAYOUT ============ */
+.wrap{max-width:1120px;margin:0 auto;padding:0 24px;display:grid;grid-template-columns:264px 1fr;gap:34px;align-items:start;}
+@media(max-width:900px){.wrap{grid-template-columns:1fr;gap:0}}
+nav.toc{position:sticky;top:20px;align-self:start;max-height:calc(100vh - 40px);overflow:auto;padding:22px 0 40px;}
+@media(max-width:900px){nav.toc{position:static;max-height:none;padding:16px 0 0;overflow:visible;}}
+nav.toc ol{list-style:none;margin:12px 0 0;padding:0;}
+nav.toc a{display:flex;gap:10px;align-items:flex-start;text-decoration:none;color:var(--muted);
+  font-size:13.5px;font-weight:500;padding:7px 10px;border-radius:12px;border:2px solid transparent;transition:all .18s var(--ease);}
+nav.toc a .n{font-weight:900;color:var(--ink);min-width:20px;}
+nav.toc a:hover{background:#fff;border-color:var(--hairline);color:var(--ink);}
+nav.toc a.active{background:#fff;border-color:var(--ink);color:var(--ink);box-shadow:3px 3px 0 0 var(--ink);}
+nav.toc a.active .n{color:var(--accent-dark);}
+@media(max-width:900px){nav.toc ol{display:flex;flex-wrap:wrap;gap:6px;} nav.toc li{flex:0 0 auto;}}
+
+main{padding:30px 0 90px;min-width:0;}
+
+/* ============ SECCIONES ============ */
+section{margin:0 0 40px;scroll-margin-top:20px;}
+.slabel{display:flex;align-items:center;gap:12px;font-size:11px;font-weight:900;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--muted);margin:0 0 14px;}
+.slabel::after{content:"";height:1px;flex:1;background:#E6DEDA;}
+h2{font-size:clamp(22px,3vw,30px);font-weight:900;letter-spacing:-.02em;color:var(--ink);margin:0 0 6px;line-height:1.1;}
+h3{font-size:19px;font-weight:900;letter-spacing:-.01em;color:var(--ink);margin:0;}
+p{margin:0 0 12px;}
+.small{font-size:13.5px;color:var(--muted);}
+strong{font-weight:700;color:var(--ink);}
+
+.card{background:var(--surface);border:2px solid var(--ink);border-radius:24px;box-shadow:5px 5px 0 0 var(--ink);
+  padding:22px 24px;margin:16px 0;}
+.card.soft{border-color:var(--hairline);box-shadow:none;}
+
+/* entradas escalonadas (hub-rise, firma de marca) */
+.rise{opacity:0;animation:rise .7s var(--ease) both;animation-delay:calc(var(--i,0)*70ms);}
+@keyframes rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+
+ul.clean{margin:8px 0 0;padding-left:18px;}
+ul.clean li{margin:5px 0;}
+ul.clean li::marker{color:var(--accent-dark);}
+
+/* grilla de resumen de estrategia */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+@media(max-width:760px){.grid2{grid-template-columns:1fr;}}
+
+/* tabla de estado / marca */
+table{width:100%;border-collapse:separate;border-spacing:0;margin:8px 0 0;font-size:13.5px;}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--hairline);vertical-align:top;}
+th{font-size:11px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);}
+tr:last-child td{border-bottom:none;}
+.tag-ok{color:var(--success);font-weight:700;}
+.tag-part{color:var(--gold);font-weight:700;}
+.tag-no{color:var(--error);font-weight:700;}
+
+/* swatches de color reales */
+.swatches{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px;}
+.sw{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);font-weight:600;}
+.sw i{width:26px;height:26px;border-radius:8px;border:2px solid var(--ink);display:inline-block;}
+
+/* ============ FASE ============ */
+.phase{margin:22px 0 30px;}
+.phase-head{display:flex;gap:16px;align-items:flex-start;}
+.step{flex:0 0 auto;width:42px;height:42px;border-radius:999px;border:2px solid var(--ink);background:var(--accent);
+  color:#fff;font-weight:900;font-size:19px;display:flex;align-items:center;justify-content:center;
+  box-shadow:3px 3px 0 0 var(--ink);}
+.phase.f0 .step{background:var(--ink);}
+.phase-head .meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;}
+.spec{margin:18px 0 0;}
+.spec dt{font-size:11px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;color:var(--accent-deep);margin:14px 0 4px;}
+.spec dd{margin:0;color:var(--text);font-size:14.5px;}
+.spec dd ul{margin:6px 0 0;padding-left:18px;}
+.spec dd li{margin:4px 0;}
+.spec dd li::marker{color:var(--accent-dark);}
+
+/* bloque de prompt */
+.prompt{position:relative;margin-top:18px;border:2px dashed var(--muted);border-radius:18px;background:#FFFDFB;padding:16px 16px 14px;}
+.prompt .plabel{font-size:10.5px;font-weight:900;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;}
+.prompt pre{margin:0;white-space:pre-wrap;word-wrap:break-word;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font-size:12.8px;line-height:1.62;color:#2b2b2b;max-height:340px;overflow:auto;padding-right:6px;}
+.copy{position:absolute;top:12px;right:12px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:900;
+  color:#fff;background:var(--accent);border:2px solid var(--ink);border-radius:12px;padding:7px 12px;
+  box-shadow:3px 3px 0 0 var(--ink);transition:all .12s var(--ease);}
+.copy:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 0 var(--ink);}
+.copy:active{transform:translate(3px,3px);box-shadow:0 0 0 0 var(--ink);}
+.copy.done{background:var(--success);}
+
+/* roadmap overview */
+.rm td:first-child{font-weight:900;color:var(--ink);white-space:nowrap;}
+.pill{display:inline-block;font-size:11.5px;font-weight:700;border-radius:999px;padding:2px 10px;border:2px solid var(--hairline);color:var(--muted);}
+.pill.a{border-color:#F1C6BD;background:#FFF1EE;color:#C4655A;}
+.pill.b{border-color:#EBD6A3;background:#FBF3E1;color:#A9821F;}
+.pill.c{border-color:#CFE0CC;background:#EAF2E8;color:#5C7A59;}
+.pill.n{border-color:#CBD9E3;background:#EAF0F5;color:#5D7A93;}
+
+footer{border-top:2px solid var(--ink);margin-top:40px;padding:22px 24px 60px;background:#F5F1EC;}
+footer .fin{max-width:1120px;margin:0 auto;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:center;color:var(--muted);font-size:13px;}
+
+@media(prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important;}
+  html{scroll-behavior:auto;}
+  .rise{opacity:1!important;transform:none!important;}
+}
+</style>
+</head>
+<body>
+<div id="progress"></div>
+
+<header class="hero">
+  <span class="blob b1"></span><span class="blob b2"></span><span class="blob b3"></span>
+  <img class="hero-mascot" src="img/mascota-saludo.png" alt="Mascota MIRDaily">
+  <div class="hero-inner">
+    <div class="topline rise" style="--i:0">
+      <span class="wordmark">MirDaily<small>plan de producto</small></span>
+      <span class="eyebrow">App · v7 · Octubre 2026</span>
+    </div>
+    <h1 class="rise" style="--i:1">Adaptar la web a la app,<br><em>por fases y sin errores</em></h1>
+    <p class="lede rise" style="--i:2">Informe maestro de la adaptación de las funcionalidades de la plataforma web a la app Flutter nativa. Define las 14 sesiones de trabajo, su orden, sus dependencias y el <strong>prompt listo para copiar</strong> de cada una, respetando el sistema de marca y el lenguaje de movimiento ya integrados.</p>
+    <div class="meta-row rise" style="--i:3">
+      <span class="chip"><b>14</b> fases</span>
+      <span class="chip"><b>Flutter</b> nativo</span>
+      <span class="chip">WebView solo como <b>excepción</b></span>
+      <span class="chip">Marca: <b>sticker &amp; cozy</b></span>
+      <span class="chip">Backend <b>compartido</b> (sin duplicar lógica)</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <nav class="toc">
+    <div class="eyebrow">Índice</div>
+    <ol>
+      <li><a href="#como"><span class="n">i</span><span>Cómo leer este informe</span></a></li>
+      <li><a href="#estrategia"><span class="n">ii</span><span>Estrategia</span></a></li>
+      <li><a href="#estado"><span class="n">iii</span><span>Estado de partida</span></a></li>
+      <li><a href="#marca"><span class="n">iv</span><span>Marca y movimiento</span></a></li>
+      <li><a href="#roadmap"><span class="n">v</span><span>Roadmap · 14 fases</span></a></li>
+      <li><a href="#f0"><span class="n">0</span><span>Cimientos de IA</span></a></li>
+      <li><a href="#f1"><span class="n">1</span><span>Resúmenes activos</span></a></li>
+      <li><a href="#f2"><span class="n">2</span><span>Resúmenes IA</span></a></li>
+      <li><a href="#f3"><span class="n">3</span><span>Mapas · catálogo</span></a></li>
+      <li><a href="#f4"><span class="n">4</span><span>Mapas · visor y estudio</span></a></li>
+      <li><a href="#f5"><span class="n">5</span><span>Mapas · editor</span></a></li>
+      <li><a href="#f6"><span class="n">6</span><span>Mapas IA</span></a></li>
+      <li><a href="#f7"><span class="n">7</span><span>Flashcards IA</span></a></li>
+      <li><a href="#f8"><span class="n">8</span><span>Zen</span></a></li>
+      <li><a href="#f9"><span class="n">9</span><span>MedGuess</span></a></li>
+      <li><a href="#f10"><span class="n">10</span><span>Minijuegos</span></a></li>
+      <li><a href="#f11"><span class="n">11</span><span>Biblioteca completa</span></a></li>
+      <li><a href="#f12"><span class="n">12</span><span>Electros · Explorador</span></a></li>
+      <li><a href="#f13"><span class="n">13</span><span>Transversales</span></a></li>
+    </ol>
+  </nav>
+
+  <main>
+
+    <!-- ====== CÓMO LEER ====== -->
+    <section id="como">
+      <div class="slabel">Cómo leer este informe</div>
+      <div class="card rise" style="--i:0">
+        <p>Cada fase es una <strong>sesión de trabajo independiente</strong>. Cada una incluye su objetivo, alcance, dependencias, entregables, criterios de aceptación y un <strong>prompt autocontenido</strong> que puedes pegar tal cual al inicio de una sesión nueva (el agente no recordará nada del contexto anterior).</p>
+        <p class="small" style="margin-bottom:0">Ejecuta las fases <strong>en orden</strong> cuando haya dependencias. Las fases sin dependencia (9, 10, 11, 12) pueden hacerse en cualquier momento. El botón <em>Copiar prompt</em> de cada bloque copia el texto al portapapeles.</p>
+      </div>
+    </section>
+
+    <!-- ====== ESTRATEGIA ====== -->
+    <section id="estrategia">
+      <div class="slabel">Estrategia</div>
+      <h2>Nativo Flutter por defecto. WebView, solo si es inevitable.</h2>
+      <p class="small">La lógica dura (SRS, corrección, analítica y toda la IA) vive en el <strong>backend compartido</strong> de Express + Supabase. Por eso la app puede ser nativa sin duplicar lógica: reimplementa solo la interfaz y llama a la misma API que la web.</p>
+      <div class="grid2">
+        <div class="card rise" style="--i:0">
+          <h3>Por qué nativo</h3>
+          <ul class="clean">
+            <li>Coherencia de UX con el kit sticker ya existente.</li>
+            <li>Una sola lógica: el backend es la fuente de verdad.</li>
+            <li>Realtime, físicas, háptica, cámara/QR, notificaciones y offline.</li>
+            <li>Evita el riesgo de rechazo en App Store por "web empaquetada".</li>
+          </ul>
+        </div>
+        <div class="card rise" style="--i:1">
+          <h3>La única excepción</h3>
+          <p>El <strong>editor de mapas mentales</strong> (React Flow + física + tablas + export) es desproporcionadamente caro de reimplementar. Estrategia: hacerlo <strong>por fases</strong> (cátalogo → visor/estudio → editor) y decidir en la Fase 5 si el editor completo se hace nativo o se resuelve como excepción.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====== ESTADO ====== -->
+    <section id="estado">
+      <div class="slabel">Estado de partida · web vs app</div>
+      <h2>Qué hay, qué falta</h2>
+      <p class="small">Comparación de la app V7 con la web. Base para decidir el contenido de cada fase.</p>
+
+      <div class="card rise" style="--i:0">
+        <h3 style="margin-bottom:10px">Ya en paridad — no requiere fase</h3>
+        <p class="small" style="margin:0">Daily / quiz · Resultados · Mazos (SRS) · Flashcards (base) · Simulacros + historial · Panel de analítica · Versus (realtime) · Onboarding · Login/registro · Perfil · Gamificación · Electros Academia · Ajustes.</p>
+      </div>
+
+      <div class="card rise" style="--i:1">
+        <h3 style="margin-bottom:10px">Existe en ambos, la app va por detrás</h3>
+        <table>
+          <tr><th>Funcionalidad</th><th>Estado en la app</th><th>Fase</th></tr>
+          <tr><td>Guías de estudio</td><td class="tag-part">Solo 3 de 17 asignaturas</td><td>11</td></tr>
+          <tr><td>Electros</td><td class="tag-part">Solo Academia (WebView); falta Explorador</td><td>12</td></tr>
+          <tr><td>Notificaciones</td><td class="tag-part">Solo recordatorio local; sin inbox</td><td>13</td></tr>
+        </table>
+      </div>
+
+      <div class="card rise" style="--i:2">
+        <h3 style="margin-bottom:10px">Solo en la web — hay que adaptar</h3>
+        <table>
+          <tr><th>Funcionalidad web</th><th>IA</th><th>Fase</th></tr>
+          <tr><td>Resúmenes activos (párrafos con huecos + SRS)</td><td>—</td><td>1</td></tr>
+          <tr><td>Resúmenes IA (crear/ampliar/rehacer)</td><td class="tag-no">Sí</td><td>2</td></tr>
+          <tr><td>Mapas mentales (catálogo · visor · editor)</td><td>—</td><td>3–5</td></tr>
+          <tr><td>Mapas IA (documento → mapa · rama IA)</td><td class="tag-no">Sí</td><td>6</td></tr>
+          <tr><td>Flashcards IA (desde documento/mapa)</td><td class="tag-no">Sí</td><td>7</td></tr>
+          <tr><td>Zen (Pomodoro social, realtime)</td><td>—</td><td>8</td></tr>
+          <tr><td>MedGuess (wordle médico diario)</td><td>—</td><td>9</td></tr>
+          <tr><td>Minijuegos (hub + GramSwipe)</td><td>—</td><td>10</td></tr>
+          <tr><td>Recursos de biblioteca</td><td>—</td><td>11</td></tr>
+          <tr><td>Reportar contenido · Tutoriales mascota · Smart Simulacro</td><td>—</td><td>13</td></tr>
+        </table>
+        <p class="small" style="margin:12px 0 0">Descartado: <em>editorial, sinapsis, recta-final, atlas, cozy y goo</em> son <strong>páginas de aterrizaje (landing)</strong>, no funcionalidades de usuario.</p>
+      </div>
+    </section>
+
+    <!-- ====== MARCA ====== -->
+    <section id="marca">
+      <div class="slabel">Sistema de marca y movimiento</div>
+      <h2>La estética que todas las fases deben respetar</h2>
+      <p class="small">Tokens reales extraídos del código. Los prompts los citan para que cada implementación sea indistinguible del resto de la app.</p>
+
+      <div class="card rise" style="--i:0">
+        <h3>Paleta</h3>
+        <div class="swatches">
+          <span class="sw"><i style="background:#FAF7F4"></i>Fondo #FAF7F4</span>
+          <span class="sw"><i style="background:#FFFFFF"></i>Superficie #FFFFFF</span>
+          <span class="sw"><i style="background:#2C3E50"></i>Tinta #2C3E50</span>
+          <span class="sw"><i style="background:#E8A598"></i>Coral #E8A598</span>
+          <span class="sw"><i style="background:#B87A6F"></i>Coral profundo #B87A6F</span>
+          <span class="sw"><i style="background:#C45B4B"></i>Coral intenso #C45B4B</span>
+          <span class="sw"><i style="background:#7D8A96"></i>Muted #7D8A96</span>
+          <span class="sw"><i style="background:#3D4248"></i>Texto #3D4248</span>
+          <span class="sw"><i style="background:#8BA888"></i>Éxito #8BA888</span>
+          <span class="sw"><i style="background:#C4655A"></i>Error #C4655A</span>
+          <span class="sw"><i style="background:#C9A227"></i>Dorado #C9A227</span>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="card rise" style="--i:1">
+          <h3>Tipografía y formas</h3>
+          <ul class="clean">
+            <li><strong>Lexend</strong> única familia; pesos reales 400 / 500 / 600 / 900.</li>
+            <li>Titulares 900 con <em>tracking</em> negativo; etiquetas 11 px 900 mayúsculas.</li>
+            <li>Radios: 16 (controles) · 24 (tarjetas) · 999 (píldoras).</li>
+            <li>Kit <strong>sticker</strong>: borde de tinta 2 px + <strong>sombra dura</strong> <code>offset (5,5)</code> sin desenfoque; al pulsar, se hunde hasta la sombra (90 ms).</li>
+            <li>Bordes discontinuos "cosido" y texturas de papel rayado/cuadriculado.</li>
+          </ul>
+        </div>
+        <div class="card rise" style="--i:2">
+          <h3>Lenguaje de movimiento</h3>
+          <ul class="clean">
+            <li>Curva de marca <code>Cubic(.22,1,.36,1)</code> (<code>kEaseOut</code>) para entradas.</li>
+            <li>Rebote <code>Cubic(.34,1.56,.64,1)</code> para pops y píldoras.</li>
+            <li>Entradas escalonadas 480–700 ms; microinteracciones 90–220 ms.</li>
+            <li>Loops ambientales 6–36 s (blobs, fondo, avatares).</li>
+            <li>Confeti, chispas, llama de racha y háptica asocian color ↔ sonido ↔ logro.</li>
+            <li>Se respeta <code>disableAnimations</code> / <code>prefers-reduced-motion</code>.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====== ROADMAP ====== -->
+    <section id="roadmap">
+      <div class="slabel">Roadmap</div>
+      <h2>Las 14 fases de un vistazo</h2>
+      <div class="card rise" style="--i:0">
+        <table class="rm">
+          <tr><th>#</th><th>Fase</th><th>Depende de</th><th>Tamaño</th></tr>
+          <tr><td>0</td><td>Cimientos de IA y documentos</td><td>—</td><td><span class="pill a">Medio</span></td></tr>
+          <tr><td>1</td><td>Resúmenes activos (sin IA)</td><td>—</td><td><span class="pill b">Medio-alto</span></td></tr>
+          <tr><td>2</td><td>Resúmenes IA</td><td>0, 1</td><td><span class="pill a">Alto</span></td></tr>
+          <tr><td>3</td><td>Mapas · catálogo, tutorial, papelera</td><td>—</td><td><span class="pill b">Medio</span></td></tr>
+          <tr><td>4</td><td>Mapas · visor + modo estudio</td><td>3</td><td><span class="pill b">Medio-alto</span></td></tr>
+          <tr><td>5</td><td>Mapas · editor</td><td>4</td><td><span class="pill a">Muy alto</span></td></tr>
+          <tr><td>6</td><td>Mapas IA</td><td>0, 5</td><td><span class="pill a">Alto</span></td></tr>
+          <tr><td>7</td><td>Flashcards IA</td><td>0 (+4)</td><td><span class="pill a">Alto</span></td></tr>
+          <tr><td>8</td><td>Zen (Pomodoro social)</td><td>—</td><td><span class="pill a">Alto</span></td></tr>
+          <tr><td>9</td><td>MedGuess</td><td>—</td><td><span class="pill b">Medio</span></td></tr>
+          <tr><td>10</td><td>Minijuegos (hub + GramSwipe)</td><td>—</td><td><span class="pill b">Medio</span></td></tr>
+          <tr><td>11</td><td>Biblioteca: guías al 100% + recursos</td><td>—</td><td><span class="pill c">Bajo-medio</span></td></tr>
+          <tr><td>12</td><td>Electros · Explorador 12 derivaciones</td><td>—</td><td><span class="pill b">Medio</span></td></tr>
+          <tr><td>13</td><td>Transversales (inbox, reportes, tutoriales, Smart Simulacro)</td><td>varias</td><td><span class="pill b">Medio</span></td></tr>
+        </table>
+      </div>
+    </section>
+
+    <!-- ================= FASE 0 ================= -->
+    <section class="phase f0 rise" id="f0" style="--i:0">
+      <div class="phase-head">
+        <span class="step">0</span>
+        <div>
+          <h3>Cimientos de IA y documentos</h3>
+          <div class="meta">
+            <span class="chip">Tamaño: <b>Medio</b></span>
+            <span class="chip">Depende de: <b>—</b></span>
+            <span class="chip">Habilita: <b>F2 · F6 · F7</b></span>
+          </div>
+        </div>
+      </div>
+      <div class="card soft">
+        <dl class="spec">
+          <dt>Objetivo</dt>
+          <dd>Dotar a la app de la infraestructura común de IA y de extracción de documentos, sin interfaz de usuario final. Es el prerrequisito de todas las funciones IA.</dd>
+          <dt>Alcance</dt>
+          <dd><ul>
+            <li><strong>Cliente IA</strong> (<code>core/services/ia_service.dart</code>): estado del interruptor, cupos y errores; llamadas a los endpoints IA del backend; soporte de streaming cuando aplique.</li>
+            <li><strong>Extracción de documentos</strong> (PDF / DOCX / PPTX): decisión e implementación. Recomendado: subir el archivo al backend y extraerlo allí (una sola implementación, coherente con la web).</li>
+            <li><strong>Borradores locales</strong> (<code>borrador_store.dart</code>): persistencia de resultados IA sin revisar, con versionado/TTL, replicando <code>lib/flashcards/ia/borrador.ts</code> y <code>lib/resumenes/borrador.ts</code>.</li>
+            <li><strong>Gate de permisos</strong>: reflejar en la app el estado admin / interruptor / cupos que decide el servidor.</li>
+          </ul></dd>
+          <dt>Backend (API compartida)</dt>
+          <dd>Rutas <code>src/routes/resumenesIA.js</code>, <code>flashcardsIA.js</code>, <code>mapasIA.js</code>. Hoy la IA es <strong>solo admin</strong> y se valida en servidor.</dd>
+          <dt>Entregables</dt>
+          <dd>Servicios + modelos + tests de unidad (sin UI).</dd>
+          <dt>Criterios de aceptación</dt>
+          <dd><ul>
+            <li>La app puede consultar el estado de la IA y reaccionar (on/off, cupos).</li>
+            <li>Un documento de prueba se convierte en texto extraído de forma fiable.</li>
+            <li>Los borradores sobreviven al cierre de la app.</li>
+          </ul></dd>
+        </dl>
+        <div class="prompt">
+          <div class="plabel">Prompt de la fase 0</div>
+          <button class="copy">Copiar prompt</button>
+<pre>CONTEXTO
+Trabajamos en MIRDaily, app Flutter nativa (Dart) para opositores MIR.
+· Carpeta app: C:\Users\Alejandro\Desktop\Entorno mirdaily\mir-daily-app\Mirdaily APP V7  (rama git v7; tema claro único).
+· Stack: Flutter + provider, Supabase Auth (JWT Bearer), notificaciones locales, flame, lottie. Backend Express en Railway, COMPARTIDO con la web (no dupliques lógica: la app solo orquesta y llama a la API).
+· Web de referencia (fuente de verdad): C:\Users\Alejandro\Desktop\Entorno mirdaily\mir-daily-frontend
+· Marca: fondo #FAF7F4, coral #E8A598, tinta #2C3E50, texto #3D4248, muted #7D8A96, éxito #8BA888, error #C4655A. Lexend 400/500/600/900. Kit "sticker" (StickerCard/StickerButton/DocChip: borde tinta 2px + sombra dura offset). Curva Cubic(.22,1,.36,1). Respeta MediaQuery.disableAnimations.
+· Convención: nativo (sin WebView). Tests con los patrones de la carpeta test/.
+
+OBJETIVO
+Crear la infraestructura común de IA y de extracción de documentos. Sin UI de usuario final.
+
+TAREAS
+1. Servicio core/services/ia_service.dart: encapsula las llamadas a los endpoints IA del backend, con manejo de estado (interruptor on/off), cupos y errores (IaException). Incluye streaming si el endpoint lo soporta.
+2. Servicio de documentos: extrae texto de PDF/DOCX/PPTX. Decide y documenta el enfoque; recomendado subir el archivo al backend y extraer allí para tener una sola implementación. Deja un punto de extensión para modo cliente si hiciera falta.
+3. Persistencia de borradores IA locales (results sin revisar) con versionado/TTL; replica el comportamiento de lib/flashcards/ia/borrador.ts y lib/resumenes/borrador.ts de la web.
+4. Gate de permisos: refleja en la app el estado admin/interruptor/cupos que decide el servidor; nunca habilites funciones IA sin confirmación del servidor.
+
+CRITERIOS DE ACEPTACIÓN
+· La app consulta y refleja el estado de la IA.
+· Un PDF/DOCX/PPTX de prueba se extrae a texto de forma fiable.
+· Los borradores sobreviven al cierre de la app.
+· Tests de unidad de la capa de servicios.
+
+NO HAGAS
+· No construyas todavía pantallas de IA (llegan en las fases 2, 6 y 7).
+· No inventes endpoints: primero lee la web y el backend para confirmar rutas y contratos.</pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= FASE 1 ================= -->
+    <section class="phase rise" id="f1" style="--i:1">
+      <div class="phase-head">
+        <span class="step">1</span>
+        <div>
+          <h3>Resúmenes activos (sin IA)</h3>
+          <div class="meta">
+            <span class="chip">Tamaño: <b>Medio-alto</b></span>
+            <span class="chip">Depende de: <b>—</b></span>
+            <span class="chip">Fuente: <b>/resumenes · /resumenes/[id]</b></span>
+          </div>
+        </div>
+      </div>
+      <div class="card soft">
+        <dl class="spec">
+          <dt>Objetivo</dt>
+          <dd>Añadir a la app el módulo de estudio "Resúmenes activos": grupos de párrafos con huecos que se estudian destapando y autoevaluando, con estado SRS y filtros.</dd>
+          <dt>Alcance</dt>
+          <dd><ul>
+            <li>Catálogo de grupos: crear grupo con color e icono; estado SRS (nuevos / fallados / aprendiendo / dominados).</li>
+            <li>Detalle/estudio: editor de párrafos con huecos, modo estudio (destapar y autoevaluar), filtros por grupo.</li>
+            <li>Integración en el hub de Biblioteca/Studio como nueva puerta.</li>
+          </ul></dd>
+          <dt>Alcance web a leer</dt>
+          <dd><code>src/app/resumenes/page.tsx</code>, <code>src/app/resumenes/[id]/page.tsx</code>, <code>src/components/resumenes/*</code> (EstudioResumen, ParrafoHuecos, EditorParrafo, FiltrosGrupo, ColorIconoGrupo), <code>src/lib/resumenes/*</code>.</dd>
+          <dt>Criterios de aceptación</dt>
+          <dd><ul>
+            <li>Crear, listar y estudiar un grupo funciona de extremo a extremo.</li>
+            <li>El estado SRS se refleja y actualiza como en la web.</li>
+            <li>El destapado de huecos usa una animación de marca (~260 ms, ease-out).</li>
+          </ul></dd>
+        </dl>
+        <div class="prompt">
+          <div class="plabel">Prompt de la fase 1</div>
+          <button class="copy">Copiar prompt</button>
+<pre>CONTEXTO
+MIRDaily, app Flutter nativa (Dart) para opositores MIR.
+· App: C:\Users\Alejandro\Desktop\Entorno mirdaily\mir-daily-app\Mirdaily APP V7  (rama v7; tema claro único).
+· Stack: Flutter + provider, Supabase Auth, backend Express compartido con la web. No dupliques lógica de negocio.
+· Web de referencia (fuente de verdad, LÉELA antes de implementar): C:\Users\Alejandro\Desktop\Entorno mirdaily\mir-daily-frontend
+· Marca: fondo #FAF7F4, coral #E8A598, tinta #2C3E50, texto #3D4248, muted #7D8A96, éxito #8BA888, error #C4655A. Lexend 400/500/600/900. Kit sticker: StickerCard, StickerHero, StickerButton, DocChip, SectionLabel (borde tinta 2px + sombra dura). Curva Cubic(.22,1,.36,1); entradas escalonadas 480-700 ms; respeta MediaQuery.disableAnimations. Responsive 600/1024 (BodyConstraint, MasterDetailScaffold).
+· Convención: nativo (sin WebView). Tests con los patrones de test/.
+
+OBJETIVO
+Portar "Resúmenes activos" a la app, SIN IA en esta fase: grupos de párrafos con huecos + estudio SRS + filtros.
+
+LEE EN LA WEB
+· src/app/resumenes/page.tsx  y  src/app/resumenes/[id]/page.tsx
+· src/components/resumenes/*  (EstudioResumen, ParrafoHuecos, EditorParrafo, FiltrosGrupo, ColorIconoGrupo, TarjetaParrafoGrupo)
+· src/lib/resumenes/api.ts, grupo.ts, sesion.ts, guardado.ts
+
+TAREAS
+1. Modelos Dart y cliente de API de resúmenes (estados SRS: nuevos/fallados/aprendiendo/dominados).
+2. Catálogo de grupos: crear (color + icono), listar, abrir; mostrar estado SRS.
+3. Detalle/estudio: editor de párrafos con huecos + modo estudio (destapar y autoevaluar) + filtros por grupo.
+4. Puerta de entrada en hub de Biblioteca/Studio.
+5. Animación de destape de huecos con la curva de marca.
+
+CRITERIOS DE ACEPTACIÓN
+· CRUD y estudio de un grupo funcionan de extremo a extremo.
+· Estado SRS coherente con la web.
+· UI indistinguible del resto de la app (kit sticker, tipografía, animaciones).
+· Widget tests de la pantalla de estudio y del catálogo.
+
+NO HAGAS
+· No incluyas generación con IA (es la fase 2).</pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= FASE 2 ================= -->
+    <section class="phase rise" id="f2" style="--i:2">
+      <div class="phase-head">
+        <span class="step">2</span>
+        <div>
+          <h3>Resúmenes IA</h3>
+          <div class="meta">
+            <span class="chip">Tamaño: <b>Alto</b></span>
+            <span class="chip">Depende de: <b>0 · 1</b></span>
+            <span class="chip">IA: <b>sí</b></span>
+          </div>
+        </div>
+      </div>
+      <div class="card soft">
+        <dl class="spec">
+          <dt>Objetivo</dt>
+          <dd>Generar resúmenes con IA desde un documento (modos resumen/literal, densidad y niveles), y ampliar un tema o rehacer un párrafo con IA, con vista previa y borradores locales.</dd>
+          <dt>Alcance web a leer</dt>
+          <dd><code>src/components/resumenes/CrearResumenesIA.tsx</code>, <code>VistaPreviaResumenes.tsx</code>, <code>src/lib/resumenes/ia.ts</code>, <code>src/lib/resumenes/borrador.ts</code>.</dd>
+          <dt>Criterios de aceptación</dt>
+          <dd><ul>
+            <li>Crear con IA desde documento produce un borrador editable y revisable.</li>
+            <li>Ampliar y rehacer funcionan con el contexto del párrafo.</li>
+            <li>El borrador se recupera tras cerrar la app (usa la Fase 0).</li>
+            <li>Respeta interruptor, cupos y gating de admin del servidor.</li>
+          </ul></dd>
+        </dl>
+        <div class="prompt">
+          <div class="plabel">Prompt de la fase 2</div>
+          <button class="copy">Copiar prompt</button>
+<pre>CONTEXTO
+MIRDaily, app Flutter nativa (Dart). App: C:\Users\Alejandro\Desktop\Entorno mirdaily\mir-daily-app\Mirdaily APP V7  (rama v7).
+Stack: Flutter + provider, Supabase Auth, backend Express compartido. No dupliques lógica de negocio.
+Web de referencia (LÉELA): C:\Users\Alejandro\Desktop\Entorno mirdaily\mir-daily-frontend
+Marca: fondo #FAF7F4, coral #E8A598, tinta #2C3E50, texto #3D4248, muted #7D8A96, éxito #8BA888, error #C4655A. Lexend 400/500/600/900. Kit sticker (borde tinta 2px + sombra dura). Curva Cubic(.22,1,.36,1); entradas 480-700 ms; respeta MediaQuery.disableAnimations.
+Prerrequisitos YA hechos: capa de IA (ia_service), extracción de documentos y borradores locales (fase 0); módulo de resúmenes (fase 1).
+
+OBJETIVO
+Generar resúmenes con IA desde documento y editarlos: modos resumen/texto original, densidad y niveles; ampliar tema; rehacer párrafo; vista previa y borradores.
+
+LEE EN LA WEB
+· src/components/resumenes/CrearResumenesIA.tsx
+· src/components/resumenes/VistaPreviaResumenes.tsx
+· src/lib/resumenes/ia.ts y src/lib/resumenes/borrador.ts
+
+TAREAS
+1. Flujo "Crear con IA": elegir documento (usa el servicio de documentos de la fase 0), modo (resumen/literal), densidad y niveles; mostrar progreso.
+2. Vista previa editable del resultado; aceptar descartar por párrafo.
+3. Ampliar tema y rehacer párrafo con IA en el detalle de un resumen.
+4. Borradores persistentes (fase 0) con recuperación al reabrir.
+5. Respetar estado/interruptor/cupos del servidor; mensajes claros si está apagado.
+
+CRITERIOS DE ACEPTACIÓN
+· Crear con IA produce un borrador revisable y guardable.
+· Ampliar/rehacer usan el contexto del párrafo y funcionan de extremo a extremo.
+· El borrador se recupera tras cerrar la app.
+· Animación de progreso y entradas con el lenguaje de marca.
+
+NO HAGAS
+· No implementes de nuevo la extracción de documentos ni el cliente IA (ya están en la fase 0).</pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= FASE 3 ================= -->
+    <section class="phase rise" id="f3" style="--i:3">
+      <div class="phase-head">
+        <span class="step">3</span>
+        <div>
+          <h3>Mapas mentales · catálogo, tutorial y papelera</h3>
+          <div class="meta">
+            <span class="chip">Tamaño: <b>Medio</b></span>
+            <span class="chip">Depende de: <b>—</b></span>
+            <span class="chip">Fuente: <b>/mapas · /papelera · /tutorial</b></span>
+          </div>
+        </div>
+      </div>
+      <div class="card soft">
+        <dl class="spec">
+          <dt>Objetivo</dt>
+          <dd>Catálogo de mapas mentales: crear, importar JSON, buscar/filtrar/ordenar, fijar, duplicar, renombrar, asignar asignatura, papelera con restauración 24 h y tutorial interactivo. Todavía sin editor ni visor.</dd>
+          <dt>Alcance web a leer</dt>
+          <dd><code>src/app/mapas/page.tsx</code>, <code>src/app/mapas/papelera/page.tsx</code>, <code>src/app/mapas/tutorial/page.tsx</code>, <code>src/components/mapas/list/*</code>, <code>src/components/mapas/tutorial/*</code>, <code>src/lib/mapas/api.ts</code>.</dd>
+          <dt>Criterios de aceptación</dt>
+          <dd><ul>
+            <li>CRUD completo de mapas + fijar/duplicar/renombrar.</li>
+            <li>Papelera con cuenta atrás de 24 h y restauración/purga.</li>
+            <li>Tutorial interactivo replicado.</li>
+            <li>Tarjetas de mapa con la estética sticker (borde tinta + sombra dura + brillo de marca).</li>
+          </ul></dd>
+        </dl>
+        <div class="prompt">
+          <div class="plabel">Prompt de la fase 3</div>
+          <button class="copy">Copiar prompt</button>
+<pre>CONTEXTO
+MIRDaily, app Flutter nativa (Dart). App: C:\Users\Alejandro\Desktop\Entorno mirdaily\mir-daily-app\Mirdaily APP V7  (rama v7).
+Stack: Flutter + provider, Supabase Auth, backend Express compartido. No dupliques lógica.
+Web de referencia (LÉELA): C:\Users\Alejandro\Desktop\Entorno mirdaily\mir-daily-frontend
+Marca: fondo #FAF7F4, coral #E8A598, tinta #2C3E50, texto #3D4248, muted #7D8A96, éxito #8BA888, error #C4655A. Lexend 400/500/600/900. Kit sticker (StickerCard/StickerButton; borde tinta 2px + sombra dura offset). Curva Cubic(.22,1,.36,1); entradas escalonadas 480-700 ms; respeta MediaQuery.disableAnimations. Responsive 600/1024.
+Convención: nativo (sin WebView).
+
+OBJETIVO
+Portar el CATÁLOGO de mapas mentales (sin editor ni visor): crear, importar JSON, buscar/filtrar/ordenar, fijar, duplicar, renombrar, asignatura, papelera 24h y tutorial.
+
+LEE EN LA WEB
+· src/app/mapas/page.tsx · src/app/mapas/papelera/page.tsx · src/app/mapas/tutorial/page.tsx
+· src/components/mapas/list/MapCard.tsx y MapThumb.tsx
+· src/components/mapas/tutorial/*  y  src/lib/mapas/api.ts
+
+TAREAS
+1. Modelos Dart + cliente de API de mapas (listar, crear, importar JSON, duplicar, renombrar, fijar, asignatura, borrar).
+2. Rejilla de mapas con tarjetas sticker (miniatura, título, asignatura, acciones).
+3. Búsqueda, filtros y ordenación.
+4. Papelera: cuenta atrás 24h, restaurar y purgar (reutiliza el patrón de la papelera de mazos).
+5. Tutorial interactivo sobre un mapa de prueba.
+6. Entrada desde el hub (Biblioteca/Studio).
+
+CRITERIOS DE ACEPTACIÓN
+· CRUD + fijar/duplicar/renombrar funcionan de extremo a extremo.
+· Papelera correcta con timers.
+· Estética y animaciones indistinguibles del resto de la app.
+· Widget tests del catálogo y de la papelera.
+
+NO HAGAS
+· No implementes el visor ni el editor del mapa (fases 4 y 5).</pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= FASE 4 ================= -->
+    <section class="phase rise" id="f4" style="--i:4">
+      <div class="phase-head">
+        <span class="step">4</span>
+        <div>
+          <h3>Mapas mentales · visor y modo estudio</h3>
+          <div class="meta">
+            <span class="chip">Tamaño: <b>Medio-alto</b></span>
+            <span class="chip">Depende de: <b>3</b></span>
+            <span class="chip">Solo lectura</span>
+          </div>
+        </div>
+      </div>
+      <div class="card soft">
+        <dl class="spec">
+          <dt>Objetivo</dt>
+          <dd>Renderizar un mapa (nodos, ramas, categorías, tablas de solo lectura) e incluir el <strong>modo estudio</strong> (destapar datos). Sin edición.</dd>
+          <dt>Alcance web a leer</dt>
+          <dd><code>src/components/mapas/proto/**</code> (canvas, nodos, aristas, layout), <code>src/components/mapas/proto/utils/study.ts</code>, <code>mapas.css</code> (animación <code>estudio-ver</code>), <code>src/lib/mapas/graph.ts</code>, <code>layout.ts</code>.</dd>
+          <dt>Notas de implementación</dt>
+          <dd><ul>
+            <li>Construcción nativa con <code>CustomPainter</code> + <code>InteractiveViewer</code> (pan/zoom).</li>
+            <li>Layout determinista (no física): replica el cálculo de posiciones de la web.</li>
+            <li>Animación de entrada del mapa escalonada por profundidad (~460–520 ms).</li>
+          </ul></dd>
+          <dt>Criterios de aceptación</dt>
+          <dd><ul>
+            <li>Un mapa se ve con su jerarquía, colores y ramas correctos.</li>
+            <li>Pan/zoom fluidos; el modo estudio destapa datos con la animación de marca.</li>
+            <li>Rendimiento aceptable con mapas grandes.</li>
+          </ul></dd>
+        </dl>
+        <div class="prompt">
+          <div class="plabel">Prompt de la fase 4</div>
+          <button class="copy">Copiar prompt</button>
+<pre>CONTEXTO
+MIRDaily, app Flutter nativa (Dart). App: C:\Users\Alejandro\Desktop\Entorno mirdaily\mir-daily-app\Mirdaily APP V7  (rama v7).
+Stack: Flutter + provider, Supabase Auth, backend Express compartido.
+Web de referencia (LÉELA): C:\Users\Alejandro\Desktop\Entorno mirdaily\mir-daily-frontend
+Marca: fondo #FAF7F4, coral #E8A598, tinta #2C3E50, texto #3D4248, muted #7D8A96, éxito #8BA888, error #C4655A. Lexend 400/500/600/900. Kit sticker (borde tinta 2px + sombra dura). Curva Cubic(.22,1,.36,1); respeta MediaQuery.disableAnimations.
+Prerrequisito hecho: catálogo de mapas (fase 3).
+
+OBJETIVO
+Renderizar un mapa mental (nodos, ramas, categorías, tablas de solo lectura) + MODO ESTUDIO (destapar). Sin edición.
+
+LEE EN LA WEB
+· src/components/mapas/proto/**  (canvas, MindMapCanvas, nodos, AnimatedEdge, layout, store)
+· src/components/mapas/proto/utils/study.ts y reveal.ts
+· src/components/mapas/proto/mapas.css (keyframe estudio-ver)
+· src/lib/mapas/graph.ts, types.ts, layout.ts
+
+TAREAS
+1. Modelo de grafo Dart y parser del formato de mapa (mismo JSON que la web).
+2. Render nativo con CustomPainter + InteractiveViewer (pan/zoom). Layout determinista equivalente al de la web.
+3. Nodos con estilos/categorías y tablas en modo lectura.
+4. Modo estudio: destapar datos ocultos con animación (~260 ms ease-out).
+5. Animación de entrada escalonada por profundidad.
+
+CRITERIOS DE ACEPTACIÓN
+· La jerarquía, colores y ramas coinciden con la web.
+· Pan/zoom fluidos; modo estudio funcional.
+· Rendimiento aceptable en mapas grandes (evita reconstrucciones costosas).
+· Widget/golden tests del visor.
+
+NO HAGAS
+· No implementes edición (fase 5). Solo lectura + estudio.</pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= FASE 5 ================= -->
+    <section class="phase rise" id="f5" style="--i:5">
+      <div class="phase-head">
+        <span class="step">5</span>
+        <div>
+          <h3>Mapas mentales · editor</h3>
+          <div class="meta">
+            <span class="chip">Tamaño: <b>Muy alto</b></span>
+            <span class="chip">Depende de: <b>4</b></span>
+            <span class="chip">Puede subdividirse</span>
+          </div>
+        </div>
+      </div>
+      <div class="card soft">
+        <dl class="spec">
+          <dt>Objetivo</dt>
+          <dd>Editor completo del mapa: editar nodos y texto, crear ramas, tablas dentro de nodos, estilos/categorías, grupos y subgrupos, buscador, minimapa, atajos, autoguardado y exportación (PDF/PNG).</dd>
+          <dt>Alcance web a leer</dt>
+          <dd><code>src/components/mapas/MapEditor.tsx</code> y <code>src/components/mapas/proto/**</code> (toolbar, TableEditorDialog, estilo, grupos, subgrupos, física/animaciones), <code>src/lib/mapas/**</code> (table, subgroups, labelHtml, export/*).</dd>
+          <dt>Decisión abierta</dt>
+          <dd>Esta es la fase más grande. Antes de empezar, decide y justifica: <strong>(a)</strong> nativo completo, <strong>(b)</strong> nativo por sub-iteraciones (edición básica primero, tablas/estilos/export después) o <strong>(c)</strong> excepción WebView solo para el editor. Recomendado: <strong>(b)</strong>.</dd>
+          <dt>Criterios de aceptación</dt>
+          <dd><ul>
+            <li>Crear/editar/mover/borrar nodos y ramas con autoguardado fiable.</li>
+            <li>Estilos y categorías aplicables; tablas editables.</li>
+            <li>Export a PDF/PNG correcto.</li>
+            <li>Atajos y minimapa cómodos en tablet; gestos táctiles naturales.</li>
+          </ul></dd>
+        </dl>
+        <div class="prompt">
+          <div class="plabel">Prompt de la fase 5</div>
+          <button class="copy">Copiar prompt</button>
+<pre>CONTEXTO
+MIRDaily, app Flutter nativa (Dart). App: C:\Users\Alejandro\Desktop\Entorno mirdaily\mir-daily-app\Mirdaily APP V7  (rama v7).
+Stack: Flutter + provider, Supabase Auth, backend Express compartido.
+Web de referencia (LÉELA): C:\Users\Alejandro\Desktop\Entorno mirdaily\mir-daily-frontend
+Marca: fondo #FAF7F4, coral #E8A598, tinta #2C3E50, texto #3D4248, muted #7D8A96, éxito #8BA888, error #C4655A. Lexend 400/500/600/900. Kit sticker (borde tinta 2px + sombra dura). Curva Cubic(.22,1,.36,1); respeta MediaQuery.disableAnimations. Responsive 600/1024; tablet prioritario.
+Prerrequisito hecho: visor + modo estudio (fase 4).
+
+OBJETIVO
+Construir el EDITOR de mapas mentales. Es la fase más grande del plan.
+
+DECISIÓN PREVIA (oblígala y documéntala)
+Compara: (a) nativo completo; (b) nativo por sub-iteraciones (edición básica -> tablas/estilos -> grupos/subgrupos -> export); (c) excepción WebView solo para el editor. RECOMENDADO: (b). Escribe tu decisión y su porqué antes de codificar.
+
+LEE EN LA WEB
+· src/components/mapas/MapEditor.tsx
+· src/components/mapas/proto/**  (components/Toolbar/*, TableEditor/*, nodes/MindMapNode/*, store/*, utils/*, animations/*)
+· src/lib/mapas/**  (table.ts, subgroups.ts, labelHtml.ts, export/collect.ts, draw.ts, print.ts)
+
+SUBTAREAS (en este orden)
+1. Edición básica: crear/editar/mover/borrar nodos y ramas; edición de texto; autoguardado.
+2. Estilos y categorías + grupos/subgrupos (convertir, colores, plegado).
+3. Tablas dentro de nodos (TableEditor).
+4. Buscador, minimapa y atajos (reutiliza useMindMapShortcuts como referencia de comportamiento).
+5. Export PDF/PNG y print.
+
+CRITERIOS DE ACEPTACIÓN
+· Edición fluida con autoguardado fiable (sin pérdidas).
+· Estilos, categorías y tablas funcionales.
+· Export correcto y comparable al de la web.
+· Gestos táctiles naturales en tablet; atajos documentados.
+
+NO HAGAS
+· No mezcles IA en esta fase (es la fase 6).</pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= FASE 6 ================= -->
+    <section class="phase rise" id="f6" style="--i:6">
+      <div class="phase-head">
+        <span class="step">6</span>
+        <div>
+          <h3>Mapas IA (documento → mapa · rama IA)</h3>
+          <div class="meta">
+            <span class="chip">Tamaño: <b>Alto</b></span>
+            <span class="chip">Depende de: <b>0 · 5</b></span>
+            <span class="chip">IA: <b>sí</b></span>
+          </div>
+        </div>
+      </div>
+      <div class="card soft">
+        <dl class="spec">
+          <dt>Objetivo</dt>
+          <dd>Generar un mapa mental desde un documento (esquema o detalle, con tablas, o "libro" tema a tema), y operar sobre una rama con IA (detallar / resumir / rehacer). Crear flashcards desde una rama.</dd>
+          <dt>Alcance web a leer</dt>
+          <dd><code>src/components/mapas/ia/CrearConIA.tsx</code>, <code>ProgresoIA.tsx</code>, <code>AnadirDocumentoIA.tsx</code>, <code>RamaIADialog.tsx</code>, <code>MenuRamaIA.tsx</code>, <code>FlashcardsFromBranch.tsx</code>, <code>src/lib/mapas/ia/*</code>.</dd>
+          <dt>Criterios de aceptación</dt>
+          <dd><ul>
+            <li>Documento → mapa produce un mapa válido y editable.</li>
+            <li>Las operaciones de rama (detallar/resumir/rehacer) funcionan sobre el nodo elegido.</li>
+            <li>Crear flashcards desde una rama las añade a un mazo real.</li>
+          </ul></dd>
+        </dl>
+        <div class="prompt">
+          <div class="plabel">Prompt de la fase 6</div>
+          <button class="copy">Copiar prompt</button>
+<pre>CONTEXTO
+MIRDaily, app Flutter nativa (Dart). App: C:\Users\Alejandro\Desktop\Entorno mirdaily\mir-daily-app\Mirdaily APP V7  (rama v7).
+Stack: Flutter + provider, Supabase Auth, backend Express compartido. NO dupliques lógica de negocio.
+Web de referencia (LÉELA): C:\Users\Alejandro\Desktop\Entorno mirdaily\mir-daily-frontend
+Marca: fondo #FAF7F4, coral #E8A598, tinta #2C3E50, texto #3D4248, muted #7D8A96, éxito #8BA888, error #C4655A. Lexend 400/500/600/900. Kit sticker. Curva Cubic(.22,1,.36,1); respeta MediaQuery.disableAnimations.
+Prerrequisitos hechos: capa de IA + documentos (fase 0); editor de mapas (fase 5).
+
+OBJETIVO
+Mapas IA: documento -> mapa (esquema/detalle, con tablas, o "libro" tema a tema) y operaciones de rama (detallar/resumir/rehacer) + crear flashcards desde una rama.
+
+LEE EN LA WEB
+· src/components/mapas/ia/CrearConIA.tsx, ProgresoIA.tsx, AnadirDocumentoIA.tsx, RamaIADialog.tsx, MenuRamaIA.tsx, FlashcardsFromBranch.tsx
+· src/lib/mapas/ia/*  (api.ts, extract/*, libro.ts, stream.ts, rama.ts, revision.ts)
+
+TAREAS
+1. Flujo "Crear con IA": elegir documento (servicio de la fase 0), modalidad (esquema/detalle, con/sin tablas, libro por temas), progreso en vivo (streaming si el backend lo soporta).
+2. Resultado -> mapa nuevo editable (fase 5).
+3. Menú de rama con IA: detallar, resumir, rehacer sobre el nodo seleccionado.
+4. Crear flashcards desde una rama (integra con el módulo de flashcards existente).
+5. Respetar estado/interruptor/cupos del servidor; mensajes claros si está apagado.
+
+CRITERIOS DE ACEPTACIÓN
+· Documento -> mapa genera un mapa válido y editable.
+· Operaciones de rama correctas sobre el nodo elegido.
+· Crear flashcards desde rama añade tarjetas a un mazo real.
+· Progreso con animaciones de marca; errores claros.
+
+NO HAGAS
+· No reimplementes extracción de documentos ni el cliente IA (fase 0).</pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= FASE 7 ================= -->
+    <section class="phase rise" id="f7" style="--i:7">
+      <div class="phase-head">
+        <span class="step">7</span>
+        <div>
+          <h3>Flashcards IA</h3>
+          <div class="meta">
+            <span class="chip">Tamaño: <b>Alto</b></span>
+            <span class="chip">Depende de: <b>0</b> (+4 para "desde mapa")</span>
+            <span class="chip">IA: <b>sí</b></span>
+          </div>
+        </div>
+      </div>
+      <div class="card soft">
+        <dl class="spec">
+          <dt>Objetivo</dt>
+          <dd>Crear flashcards con IA desde un documento o desde un mapa, con niveles y densidad, vista previa y borradores locales; opción "más de este tema". La app ya tiene flashcards base y estudio SRS.</dd>
+          <dt>Alcance web a leer</dt>
+          <dd><code>src/components/flashcards/ia/CrearFlashcardsIA.tsx</code>, <code>VistaPreviaFlashcards.tsx</code>, <code>FuenteTarjeta.tsx</code>, <code>NivelBadge.tsx</code>, <code>src/lib/flashcards/ia/*</code>.</dd>
+          <dt>Criterios de aceptación</dt>
+          <dd><ul>
+            <li>Crear con IA desde documento produce tarjetas revisables y guardables en un mazo.</li>
+            <li>Crear desde mapa reutiliza la Fase 4/6.</li>
+            <li>Niveles, densidad y "más de este tema" operativos.</li>
+            <li>Borradores persistentes (Fase 0).</li>
+          </ul></dd>
+        </dl>
+        <div class="prompt">
+          <div class="plabel">Prompt de la fase 7</div>
+          <button class="copy">Copiar prompt</button>
+<pre>CONTEXTO
+MIRDaily, app Flutter nativa (Dart). App: C:\Users\Alejandro\Desktop\Entorno mirdaily\mir-daily-app\Mirdaily APP V7  (rama v7).
+Stack: Flutter + provider, Supabase Auth, backend Express compartido.
+Web de referencia (LÉELA): C:\Users\Alejandro\Desktop\Entorno mirdaily\mir-daily-frontend
+Marca: fondo #FAF7F4, coral #E8A598, tinta #2C3E50, texto #3D4248, muted #7D8A96, éxito #8BA888, error #C4655A. Lexend 400/500/600/900. Kit sticker. Curva Cubic(.22,1,.36,1); respeta MediaQuery.disableAnimations.
+Prerrequisito hecho: capa de IA + documentos (fase 0). Para "desde mapa" necesitarás las fases 4/6.
+
+OBJETIVO
+Crear flashcards con IA desde documento o desde mapa, con niveles y densidad, vista previa, borradores locales y "más de este tema".
+
+LEE EN LA WEB
+· src/components/flashcards/ia/CrearFlashcardsIA.tsx, VistaPreviaFlashcards.tsx, FuenteTarjeta.tsx, NivelBadge.tsx
+· src/lib/flashcards/ia/api.ts, tarjetas.ts, borrador.ts
+
+TAREAS
+1. Flujo "Crear con IA" desde documento (servicio de la fase 0): niveles y densidad; progreso.
+2. Flujo "desde mapa": elegir nodos/rama y generar tarjetas (según fase 4/6).
+3. Vista previa revisable con FuenteTarjeta y NivelBadge; aceptar/descartar.
+4. Guardar en un mazo (reutiliza el módulo de flashcards existente) + opción "más de este tema".
+5. Borradores persistentes (fase 0).
+
+CRITERIOS DE ACEPTACIÓN
+· Crear con IA desde documento produce tarjetas revisables y guardables.
+· Crear desde mapa funciona de extremo a extremo.
+· "Más de este tema" operativo.
+· Estética y animaciones de marca; respeta estado/interruptor/cupos.
+
+NO HAGAS
+· No reimplementes la capa de IA ni la extracción (fase 0).</pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= FASE 8 ================= -->
+    <section class="phase rise" id="f8" style="--i:8">
+      <div class="phase-head">
+        <span class="step">8</span>
+        <div>
+          <h3>Zen · sala de estudio social</h3>
+          <div class="meta">
+            <span class="chip">Tamaño: <b>Alto</b></span>
+            <span class="chip">Depende de: <b>—</b></span>
+            <span class="chip">Realtime</span>
+          </div>
+        </div>
+      </div>
+      <div class="card soft">
+        <dl class="spec">
+          <dt>Objetivo</dt>
+          <dd>Pomodoro social: elegir compañía y preset, entrar solo o en sala pública/privada; sala con avatares animados que estudian y descansan, chat efímero, notas fijadas, editor de personaje, temporizador sincronizado por el host y racha de sesiones.</dd>
+          <dt>Alcance web a leer</dt>
+          <dd><code>src/app/zen/page.tsx</code>, <code>src/app/zen/room/ZenRoomClient.tsx</code>, <code>src/components/zen/*</code>, <code>src/state/zenTimerStore.tsx</code>, <code>src/hooks/useZenRoom.ts</code>, las animaciones <code>zen-*</code> de <code>globals.css</code>.</dd>
+          <dt>Notas de implementación</dt>
+          <dd>Reutiliza el canal realtime de Supabase como en Versus (<code>realtime_client</code>). Reproduce las animaciones de avatar (idle/walk/study/pop/tumble) y el temporizador sincronizado.</dd>
+          <dt>Criterios de aceptación</dt>
+          <dd><ul>
+            <li>Entrar solo, en sala pública y privada funciona.</li>
+            <li>El temporizador se sincroniza con el host para todos.</li>
+            <li>Avatares, chat efímero y notas funcionan; la racha local persiste.</li>
+          </ul></dd>
+        </dl>
+        <div class="prompt">
+          <div class="plabel">Prompt de la fase 8</div>
+          <button class="copy">Copiar prompt</button>
+<pre>CONTEXTO
+MIRDaily, app Flutter nativa (Dart). App: C:\Users\Alejandro\Desktop\Entorno mirdaily\mir-daily-app\Mirdaily APP V7  (rama v7).
+Stack: Flutter + provider, Supabase Auth + realtime_client (usa el MISMO patrón que la feature Versus ya existente), backend Express compartido.
+Web de referencia (LÉELA): C:\Users\Alejandro\Desktop\Entorno mirdaily\mir-daily-frontend
+Marca: fondo #FAF7F4, coral #E8A598, tinta #2C3E50, texto #3D4248, muted #7D8A96, éxito #8BA888, error #C4655A. Lexend 400/500/600/900. Kit sticker. Curva Cubic(.22,1,.36,1); loops ambientales 6-36 s; respeta MediaQuery.disableAnimations.
+
+OBJETIVO
+Portar Zen: Pomodoro social con avatares animados, chat efímero, notas fijadas y temporizador sincronizado por el host.
+
+LEE EN LA WEB
+· src/app/zen/page.tsx  y  src/app/zen/room/ZenRoomClient.tsx
+· src/components/zen/*  (ZenRoom, ZenAvatar, ZenChat, ZenTimer, ZenControls, ZenDesk, ZenPinnedNote)
+· src/state/zenTimerStore.tsx, src/hooks/useZenRoom.ts
+· animaciones zen-* en src/app/globals.css
+
+TAREAS
+1. Lobby: elegir compañía (solo/bots/gente) y preset (clásico/profundo/personalizado); entrar solo o en sala pública/privada.
+2. Sala: temporizador Pomodoro sincronizado por el host (realtime); fases estudio/descanso.
+3. Avatares animados (idle/andar/estudiar/dormir/pop/tumble) con deriva y bocadillos.
+4. Chat efímero y notas fijadas; editor de personaje (color/ánimo); contador/racha de sesiones (local).
+5. Sala "solo con bots" jugable sin conexión real.
+
+CRITERIOS DE ACEPTACIÓN
+· Entrar solo, público y privado funciona; el reloj queda sincronizado para todos.
+· Avatares, chat y notas operativos; racha local persistente.
+· Animaciones equivalentes a zen-* y color de marca.
+· Manejo de reconexión y de host ausente.
+
+NO HAGAS
+· No crees un backend nuevo si el realtime de Supabase ya cubre el caso (mira Versus).</pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= FASE 9 ================= -->
+    <section class="phase rise" id="f9" style="--i:9">
+      <div class="phase-head">
+        <span class="step">9</span>
+        <div>
+          <h3>MedGuess · wordle médico diario</h3>
+          <div class="meta">
+            <span class="chip">Tamaño: <b>Medio</b></span>
+            <span class="chip">Depende de: <b>—</b></span>
+            <span class="chip">Fuente: <b>/medguess</b></span>
+          </div>
+        </div>
+      </div>
+      <div class="card soft">
+        <dl class="spec">
+          <dt>Objetivo</dt>
+          <dd>Juego diario tipo Wordle: adivinar un término médico de 5 letras con pistas por intento, teclado y resultado con explicación. Un intento al día.</dd>
+          <dt>Alcance web a leer</dt>
+          <dd><code>src/app/medguess/page.tsx</code>, <code>src/components/{Board,ClueCard,Keyboard,Tile,WordProgress,ResultModal}.tsx</code>, <code>src/hooks/useMedGuess.ts</code>, <code>src/services/medguessService.ts</code>.</dd>
+          <dt>Criterios de aceptación</dt>
+          <dd><ul>
+            <li>Un intento diario; el estado se conserva y se comparte la palabra del día con la web.</li>
+            <li>Animaciones de ficha (giro, "gelatina" al procesar, asentado) y teclado.</li>
+            <li>Resultado con explicación compartible.</li>
+          </ul></dd>
+        </dl>
+        <div class="prompt">
+          <div class="plabel">Prompt de la fase 9</div>
+          <button class="copy">Copiar prompt</button>
+<pre>CONTEXTO
+MIRDaily, app Flutter nativa (Dart). App: C:\Users\Alejandro\Desktop\Entorno mirdaily\mir-daily-app\Mirdaily APP V7  (rama v7).
+Stack: Flutter + provider, Supabase Auth, backend Express compartido.
+Web de referencia (LÉELA): C:\Users\Alejandro\Desktop\Entorno mirdaily\mir-daily-frontend
+Marca: fondo #FAF7F4, coral #E8A598, tinta #2C3E50, texto #3D4248, muted #7D8A96, éxito #8BA888, error #C4655A. Lexend 400/500/600/900. Kit sticker. Curva Cubic(.22,1,.36,1); respeta MediaQuery.disableAnimations.
+
+OBJETIVO
+Portar MedGuess: wordle médico diario (término de 5 letras, pistas por intento, teclado, resultado con explicación).
+
+LEE EN LA WEB
+· src/app/medguess/page.tsx y src/app/medguess/components/*  (Board, ClueCard, Keyboard, Tile, WordProgress, ResultModal)
+· src/app/medguess/hooks/useMedGuess.ts  y  src/app/medguess/services/medguessService.ts
+
+TAREAS
+1. Modelo y servicio de la palabra del día (misma fuente que la web para que coincidan).
+2. Tablero 6x5 con animaciones de ficha (giro al revelar, "gelatina" al procesar, asentado) y teclado en pantalla.
+3. Pistas por intento (ClueCard) y progreso de letras.
+4. Resultado con explicación y acción de compartir.
+5. Persistencia del intento diario; entrada desde el hub/minijuegos.
+
+CRITERIOS DE ACEPTACIÓN
+· La palabra del día coincide con la web.
+· Animaciones equivalentes a medguess-processing-tile/settle.
+· Un solo intento diario, persistente; compartir funciona.
+· Widget tests del flujo de juego.
+
+NO HAGAS
+· No cambies la lógica del backend; consúmela tal cual.</pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= FASE 10 ================= -->
+    <section class="phase rise" id="f10" style="--i:10">
+      <div class="phase-head">
+        <span class="step">10</span>
+        <div>
+          <h3>Minijuegos · hub + GramSwipe</h3>
+          <div class="meta">
+            <span class="chip">Tamaño: <b>Medio</b></span>
+            <span class="chip">Depende de: <b>—</b></span>
+            <span class="chip">Fuente: <b>/studio/minijuegos</b></span>
+          </div>
+        </div>
+      </div>
+      <div class="card soft">
+        <dl class="spec">
+          <dt>Objetivo</dt>
+          <dd>Sección de minijuegos con su listado y GramSwipe: clasificar antibióticos por espectro de cobertura deslizando (swipe), con pantallas de inicio, juego y resultados.</dd>
+          <dt>Alcance web a leer</dt>
+          <dd><code>src/app/studio/minijuegos/page.tsx</code>, <code>src/components/minijuegos/gramswipe/GramSwipeGame.tsx</code> y <code>data.ts</code>; imágenes en <code>public/img/gramswipe/</code>.</dd>
+          <dt>Criterios de aceptación</dt>
+          <dd><ul>
+            <li>Hub de minijuegos con al menos GramSwipe jugable.</li>
+            <li>Gestos de swipe y feedback (acierto/fallo) con marca; resultados al final.</li>
+            <li>Funciona con datos y assets locales.</li>
+          </ul></dd>
+        </dl>
+        <div class="prompt">
+          <div class="plabel">Prompt de la fase 10</div>
+          <button class="copy">Copiar prompt</button>
+<pre>CONTEXTO
+MIRDaily, app Flutter nativa (Dart). App: C:\Users\Alejandro\Desktop\Entorno mirdaily\mir-daily-app\Mirdaily APP V7  (rama v7).
+Stack: Flutter + provider, Supabase Auth, backend Express compartido.
+Web de referencia (LÉELA): C:\Users\Alejandro\Desktop\Entorno mirdaily\mir-daily-frontend
+Marca: fondo #FAF7F4, coral #E8A598, tinta #2C3E50, texto #3D4248, muted #7D8A96, éxito #8BA888, error #C4655A. Lexend 400/500/600/900. Kit sticker. Curva Cubic(.22,1,.36,1); respeta MediaQuery.disableAnimations.
+
+OBJETIVO
+Portar la sección de Minijuegos y, al menos, GramSwipe (clasificar antibióticos por espectro de cobertura deslizando).
+
+LEE EN LA WEB
+· src/app/studio/minijuegos/page.tsx
+· src/components/minijuegos/gramswipe/GramSwipeGame.tsx y data.ts
+· imágenes en public/img/gramswipe/  (cópialas a assets/ si las necesitas)
+
+TAREAS
+1. Hub "Minijuegos" con tarjetas de juego (GramSwipe activo; espacio para futuros).
+2. GramSwipe: pantallas inicio / juego / resultados; gesto de swipe con cartas apilables y feedback de acierto/fallo.
+3. Puntuación y resumen final; opción de repetir.
+4. Consumir datos y assets locales (sin red).
+
+CRITERIOS DE ACEPTACIÓN
+· GramSwipe jugable con gestos naturales y feedback claro.
+· Resultados correctos; estética y animaciones de marca.
+· Widget tests del motor de juego.
+
+NO HAGAS
+· No dependas de red para el juego.</pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= FASE 11 ================= -->
+    <section class="phase rise" id="f11" style="--i:11">
+      <div class="phase-head">
+        <span class="step">11</span>
+        <div>
+          <h3>Biblioteca · guías al 100% y recursos</h3>
+          <div class="meta">
+            <span class="chip">Tamaño: <b>Bajo-medio</b></span>
+            <span class="chip">Depende de: <b>—</b></span>
+            <span class="chip">Contenido</span>
+          </div>
+        </div>
+      </div>
+      <div class="card soft">
+        <dl class="spec">
+          <dt>Objetivo</dt>
+          <dd>Completar las guías de estudio: pasar de 3 a las 17 asignaturas (generando los JSON en <code>assets/guides/</code> con el mismo proceso que las existentes) y añadir la lectura de recursos de biblioteca. Hoy el resto de asignaturas remite a la web.</dd>
+          <dt>Alcance web a leer</dt>
+          <dd><code>src/app/library/**</code> (guía por asignatura, recursos <code>/library/resources/[id]</code>), <code>src/lib/studyGuides/*</code>, <code>src/components/library/guide/*</code>.</dd>
+          <dt>Criterios de aceptación</dt>
+          <dd><ul>
+            <li>Las 17 asignaturas abren su guía en la app (sin remitir a la web).</li>
+            <li>Los recursos de biblioteca se leen con navegación anterior/siguiente.</li>
+            <li>El export de guías es reproducible (script documentado).</li>
+          </ul></dd>
+        </dl>
+        <div class="prompt">
+          <div class="plabel">Prompt de la fase 11</div>
+          <button class="copy">Copiar prompt</button>
+<pre>CONTEXTO
+MIRDaily, app Flutter nativa (Dart). App: C:\Users\Alejandro\Desktop\Entorno mirdaily\mir-daily-app\Mirdaily APP V7  (rama v7).
+Stack: Flutter + provider. Las guías son JSON estáticos en assets/guides/ (hoy solo cirugia-general, neurologia, reumatologia + index.json).
+Web de referencia (LÉELA): C:\Users\Alejandro\Desktop\Entorno mirdaily\mir-daily-frontend
+Marca: fondo #FAF7F4, coral #E8A598, tinta #2C3E50, texto #3D4248, muted #7D8A96, éxito #8BA888, error #C4655A. Lexend 400/500/600/900. Kit sticker. Curva Cubic(.22,1,.36,1); respeta MediaQuery.disableAnimations.
+Existe ya un script de export: tools/export_study_guides.mjs (revísalo y reutilízalo).
+
+OBJETIVO
+Completar las guías de estudio (3 -> 17 asignaturas) y añadir la lectura de recursos de biblioteca.
+
+LEE EN LA WEB
+· src/app/library/[subjectId]/guia/page.tsx y src/app/library/resources/[id]/page.tsx
+· src/lib/studyGuides/*  y  src/components/library/guide/*
+· tools/export_study_guides.mjs (en la app)
+
+TAREAS
+1. Generar los JSON que falten para las 17 asignaturas con el MISMO formato que los existentes; actualizar assets/guides/index.json.
+2. Actualizar library_screen.dart para que TODAS las asignaturas con guía abran (elimina el SnackBar "se abren en la web").
+3. Pantalla de recurso de biblioteca (Markdown) con navegación anterior/siguiente.
+4. Verificar que las guías se renderizan correctamente (incluye goldens si procede).
+
+CRITERIOS DE ACEPTACIÓN
+· Las 17 asignaturas abren su guía en la app.
+· Recursos legibles con navegación.
+· Export reproducible y documentado.
+· Sin regresiones en las 3 guías existentes.
+
+NO HAGAS
+· No cambies el formato de datos de las guías ya existentes.</pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= FASE 12 ================= -->
+    <section class="phase rise" id="f12" style="--i:12">
+      <div class="phase-head">
+        <span class="step">12</span>
+        <div>
+          <h3>Electros · Explorador 12 derivaciones</h3>
+          <div class="meta">
+            <span class="chip">Tamaño: <b>Medio</b></span>
+            <span class="chip">Depende de: <b>—</b></span>
+            <span class="chip">Fuente: <b>/studio/electros/explorador</b></span>
+          </div>
+        </div>
+      </div>
+      <div class="card soft">
+        <dl class="spec">
+          <dt>Objetivo</dt>
+          <dd>Añadir el Explorador de ECG: monitor animado + ECG 12 derivaciones sintetizado (eje, territorios, arritmias) y modo examen. La app ya tiene la Academia vía WebView; el Explorador puede seguir el mismo patrón (assets web) o hacerse nativo con canvas.</dd>
+          <dt>Alcance web a leer</dt>
+          <dd><code>src/app/studio/electros/explorador/page.tsx</code>, <code>src/components/electros/ExploradorClient.tsx</code>, <code>EcgCanvases.tsx</code>, <code>src/lib/electros/ecgCore.ts</code>, <code>render.ts</code>, <code>patterns.ts</code>.</dd>
+          <dt>Criterios de aceptación</dt>
+          <dd><ul>
+            <li>Explorador accesible desde el hub de Electros junto a la Academia.</li>
+            <li>Monitor + 12 derivaciones sintetizadas coherentes.</li>
+            <li>Modo examen funcional.</li>
+          </ul></dd>
+        </dl>
+        <div class="prompt">
+          <div class="plabel">Prompt de la fase 12</div>
+          <button class="copy">Copiar prompt</button>
+<pre>CONTEXTO
+MIRDaily, app Flutter nativa (Dart). App: C:\Users\Alejandro\Desktop\Entorno mirdaily\mir-daily-app\Mirdaily APP V7  (rama v7).
+Stack: Flutter + provider, webview_flutter + LocalAssetServer (así está hecha ya la Academia de Electros, en assets/electros/).
+Web de referencia (LÉELA): C:\Users\Alejandro\Desktop\Entorno mirdaily\mir-daily-frontend
+Marca: fondo #FAF7F4, coral #E8A598, tinta #2C3E50, muted #7D8A96. Lexend. Curva Cubic(.22,1,.36,1); respeta MediaQuery.disableAnimations. (La web embebida usa su propio CSS con la misma marca.)
+
+OBJETIVO
+Añadir el Explorador de ECG (monitor + 12 derivaciones + modo examen) al hub de Electros, que hoy solo tiene Academia.
+
+LEE EN LA WEB
+· src/app/studio/electros/explorador/page.tsx y src/components/electros/ExploradorClient.tsx, EcgCanvases.tsx
+· src/lib/electros/ecgCore.ts, render.ts, patterns.ts
+
+DECISIÓN
+Puedes seguir el patrón ya existente (empaquetar la herramienta como assets web servidos por LocalAssetServer en un WebView, como la Academia) o portarla a canvas nativo. Justifica la elección; prioriza consistencia con la Academia.
+
+TAREAS
+1. Explorador accesible desde electros_hub_screen (junto a Academia).
+2. Monitor animado + ECG 12 derivaciones sintetizado (eje, territorios, arritmias) según ecgCore/render/patterns.
+3. Modo examen.
+4. Puente JS si usas WebView (patrón open-simulador ya existente).
+
+CRITERIOS DE ACEPTACIÓN
+· Explorador funcional y accesible desde el hub.
+· Trazado y patrones coherentes con la web.
+· Modo examen operativo.
+· Sin romper la Academia existente.
+
+NO HAGAS
+· No refactorices la Academia; solo añade el Explorador.</pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= FASE 13 ================= -->
+    <section class="phase rise" id="f13" style="--i:13">
+      <div class="phase-head">
+        <span class="step">13</span>
+        <div>
+          <h3>Transversales y calidad</h3>
+          <div class="meta">
+            <span class="chip">Tamaño: <b>Medio</b></span>
+            <span class="chip">Depende de: <b>varias</b></span>
+            <span class="chip">4 sub-tareas</span>
+          </div>
+        </div>
+      </div>
+      <div class="card soft">
+        <dl class="spec">
+          <dt>Objetivo</dt>
+          <dd>Cerrar funcionalidades transversales de la web que faltan en la app: bandeja de notificaciones, reportar contenido, tutoriales de mascota y Smart Simulacro.</dd>
+          <dt>Sub-tareas</dt>
+          <dd><ul>
+            <li><strong>Notificaciones (inbox)</strong>: feed paginado, filtro todas/no leídas, marcar leída/todas, contador. Hoy hay un stub.</li>
+            <li><strong>Reportar contenido</strong>: botón/modal en preguntas, guías, simulacros y mazos (categoría, nota, snapshot, contexto).</li>
+            <li><strong>Tutoriales de mascota</strong>: overlay guiado por pantalla, reiniciable desde ajustes.</li>
+            <li><strong>Smart Simulacro</strong>: sesión centrada en el punto débil, accesible desde el hub.</li>
+          </ul></dd>
+          <dt>Alcance web a leer</dt>
+          <dd><code>src/app/notifications/page.tsx</code> + <code>NotificationsPopup.jsx</code> + providers; <code>src/components/report/*</code> + <code>src/lib/reports/*</code>; <code>src/components/tutorial/*</code> + <code>src/providers/TutorialProvider.tsx</code>; <code>src/components/simulacro/SmartSimulacroModal.tsx</code>.</dd>
+          <dt>Criterios de aceptación</dt>
+          <dd><ul>
+            <li>Inbox funcional con contador de no leídas.</li>
+            <li>Reportar contenido desde al menos preguntas y guías.</li>
+            <li>Tutoriales de mascota por pantalla, reiniciables.</li>
+            <li>Smart Simulacro crea una sesión centrada en el punto débil.</li>
+          </ul></dd>
+        </dl>
+        <div class="prompt">
+          <div class="plabel">Prompt de la fase 13</div>
+          <button class="copy">Copiar prompt</button>
+<pre>CONTEXTO
+MIRDaily, app Flutter nativa (Dart). App: C:\Users\Alejandro\Desktop\Entorno mirdaily\mir-daily-app\Mirdaily APP V7  (rama v7).
+Stack: Flutter + provider, Supabase Auth, backend Express compartido.
+Web de referencia (LÉELA): C:\Users\Alejandro\Desktop\Entorno mirdaily\mir-daily-frontend
+Marca: fondo #FAF7F4, coral #E8A598, tinta #2C3E50, texto #3D4248, muted #7D8A96, éxito #8BA888, error #C4655A. Lexend 400/500/600/900. Kit sticker. Curva Cubic(.22,1,.36,1); respeta MediaQuery.disableAnimations.
+
+OBJETIVO
+Cerrar las funcionalidades transversales que faltan en la app. Son 4 sub-tareas independientes; puedes hacerlas en el orden que prefieras.
+
+SUB-TAREA A — Notificaciones (inbox)
+· Leer src/app/notifications/page.tsx, src/components/NotificationsPopup.jsx, src/hooks/useNotificationsFeed.ts, src/providers/NotificationsProvider.tsx
+· Feed paginado, filtro todas/no leídas, marcar leída/todas, contador. Sustituir el stub actual (onTap vacío).
+
+SUB-TAREA B — Reportar contenido
+· Leer src/components/report/ReportButton.tsx, ReportModal.tsx, src/lib/reports/{api,categories}.ts
+· Botón + modal (categoría, nota, snapshot, contexto) en preguntas, guías, simulacros y mazos.
+
+SUB-TAREA C — Tutoriales de mascota
+· Leer src/components/tutorial/* (TutorialOverlay, MascotBubble, PreviewModo), src/lib/tutorials/*, src/providers/TutorialProvider.tsx
+· Overlay guiado por pantalla la primera vez (usa los assets de mascota en assets/images/), reiniciable desde Ajustes.
+
+SUB-TAREA D — Smart Simulacro
+· Leer src/components/simulacro/SmartSimulacroModal.tsx
+· Acción "Simulacro a tu medida" desde el hub: crea una sesión centrada en el punto débil (datos analíticos ya disponibles).
+
+CRITERIOS DE ACEPTACIÓN
+· Inbox funcional con contador de no leídas.
+· Reportar contenido desde al menos preguntas y guías.
+· Tutoriales de mascota por pantalla, reiniciables.
+· Smart Simulacro crea la sesión centrada en el punto débil.
+· Cada sub-tarea con sus widget tests.
+
+NO HAGAS
+· No mezcles las 4 sub-tareas en un único cambio enorme; entrega y verifica por separado.</pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====== CIERRE ====== -->
+    <section id="uso">
+      <div class="slabel">Cómo usar los prompts</div>
+      <div class="card rise" style="--i:0">
+        <ul class="clean">
+          <li><strong>Una sesión por fase.</strong> Pega el prompt al inicio de una sesión nueva (contexto vacío); ya incluye todo lo que el agente necesita saber.</li>
+          <li><strong>Respeta el orden</strong> cuando haya dependencias (0 → 1 → 2; 3 → 4 → 5 → 6). Las fases 9, 10, 11 y 12 son independientes.</li>
+          <li><strong>Verifica siempre.</strong> Cada fase define criterios de aceptación; no se cierra hasta cumplirlos y con los tests pasando.</li>
+          <li><strong>Trabaja en la rama <code>v7</code></strong> de la carpeta <code>Mirdaily APP V7</code>.</li>
+          <li><strong>No dupliques lógica:</strong> SRS, corrección, analítica e IA viven en el backend compartido.</li>
+        </ul>
+      </div>
+    </section>
+  </main>
+</div>
+
+<footer>
+  <div class="fin">
+    <span class="wordmark" style="font-size:18px;padding:5px 14px">MirDaily</span>
+    <span>Plan de adaptación web → app · 14 fases · rama <b style="color:#2C3E50">v7</b> · Octubre 2026</span>
+  </div>
+</footer>
+
+<script>
+// barra de progreso
+const prog = document.getElementById('progress');
+function onScroll(){
+  const h = document.documentElement;
+  const p = h.scrollTop / (h.scrollHeight - h.clientHeight);
+  prog.style.width = (p*100).toFixed(2) + '%';
+}
+document.addEventListener('scroll', onScroll, {passive:true}); onScroll();
+
+// copiar prompt (con feedback de marca)
+document.querySelectorAll('.copy').forEach(btn=>{
+  btn.addEventListener('click', async ()=>{
+    const pre = btn.parentElement.querySelector('pre');
+    const text = pre.innerText;
+    try{
+      if(navigator.clipboard && navigator.clipboard.writeText){ await navigator.clipboard.writeText(text); }
+      else{
+        const ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta);
+        ta.select(); document.execCommand('copy'); ta.remove();
+      }
+      const old = btn.textContent; btn.textContent='Copiado ✓'; btn.classList.add('done');
+      setTimeout(()=>{ btn.textContent=old; btn.classList.remove('done'); }, 1600);
+    }catch(e){ btn.textContent='Selecciona y copia'; }
+  });
+});
+
+// scroll-spy del índice
+const links = [...document.querySelectorAll('nav.toc a')];
+const map = new Map(links.map(a=>[a.getAttribute('href').slice(1), a]));
+const obs = new IntersectionObserver((entries)=>{
+  entries.forEach(en=>{
+    if(en.isIntersecting){
+      links.forEach(l=>l.classList.remove('active'));
+      const a = map.get(en.target.id); if(a) a.classList.add('active');
+    }
+  });
+},{rootMargin:'-15% 0px -75% 0px'});
+document.querySelectorAll('section[id]').forEach(s=>obs.observe(s));
+</script>
+</body>
+</html>
