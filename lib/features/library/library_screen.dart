@@ -4,9 +4,11 @@ import 'package:provider/provider.dart';
 import '../../core/models/analytics.dart';
 import '../../core/models/biblioteca.dart';
 import '../../core/models/flashcards.dart' show CategoriaAsignatura, kNombreCategoria, visualAsignatura;
+import '../../core/models/guias.dart';
 import '../../core/responsive/content_shell.dart';
 import '../../core/services/api_service.dart';
 import '../../core/services/carpetas.dart';
+import '../../core/services/guias_assets.dart';
 import '../../core/theme/app_theme.dart';
 import '../../shared/sticker/sticker.dart';
 import '../../shared/sticker/textures.dart';
@@ -29,6 +31,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
   Recuento? _recuento;
   String? _error;
   Map<int, SubjectHeatmapCell> _acierto = const {};
+
+  /// Qué asignaturas tienen guía de estudio (van dentro de la app: sin red).
+  IndiceGuias? _guias;
   final _busca = TextEditingController();
   CategoriaAsignatura? _filtro;
 
@@ -37,6 +42,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
     super.initState();
     _busca.addListener(() => setState(() {}));
     _cargar();
+    GuiasAssets.indice().then((i) {
+      if (mounted) setState(() => _guias = i);
+    }).catchError((Object _) {});
   }
 
   @override
@@ -211,6 +219,11 @@ class _LibraryScreenState extends State<LibraryScreen> {
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(a.nombre, style: const TextStyle(color: kInk, fontSize: 15.5, fontWeight: FontWeight.w900)),
+              if (_guias?.deAsignatura(a.id) != null)
+                const Padding(
+                  padding: EdgeInsets.only(top: 3),
+                  child: DocChip(label: 'Guía', icon: Icons.menu_book_rounded, tone: DocTone.accent),
+                ),
               const SizedBox(height: 2),
               Text(
                 a.subtitulo ?? (a.temas.isNotEmpty ? '${a.temas.length} temas en el catálogo' : 'Temas en camino'),

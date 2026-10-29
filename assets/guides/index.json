@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "origen": "mir-daily-frontend@b6896d9",
+  "guias": [
+    {
+      "clave": "neurologia",
+      "subjectId": 1478,
+      "titulo": "Neurología y Neurocirugía",
+      "examen": "MIR 2027"
+    },
+    {
+      "clave": "cirugia-general",
+      "subjectId": 3,
+      "titulo": "Digestivo y Cirugía General",
+      "examen": "MIR 2027"
+    },
+    {
+      "clave": "reumatologia",
+      "subjectId": 3080,
+      "titulo": "Reumatología",
+      "examen": "MIR 2027"
+    },
+    {
+      "clave": "inmunologia",
+      "subjectId": 4344,
+      "titulo": "Inmunología",
+      "examen": "MIR 2027"
+    },
+    {
+      "clave": "oftalmologia",
+      "subjectId": 4343,
+      "titulo": "Oftalmología",
+      "examen": "MIR 2027"
+    },
+    {
+      "clave": "urologia",
+      "subjectId": 764,
+      "titulo": "Urología",
+      "examen": "MIR 2027"
+    },
+    {
+      "clave": "dermatologia",
+      "subjectId": 1425,
+      "titulo": "Dermatología",
+      "examen": "MIR 2027"
+    }
+  ]
+}

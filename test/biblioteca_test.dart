@@ -5,7 +5,9 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -14,9 +16,12 @@ import 'package:mirdaily_app/core/models/biblioteca.dart';
 import 'package:mirdaily_app/core/services/api_service.dart';
 import 'package:mirdaily_app/core/services/auth_service.dart';
 import 'package:mirdaily_app/core/services/carpetas.dart';
+import 'package:mirdaily_app/core/services/guias_assets.dart';
+import 'package:mirdaily_app/core/services/reportes_api.dart';
 import 'package:mirdaily_app/core/theme/app_theme.dart';
 import 'package:mirdaily_app/features/library/asignatura_biblioteca_screen.dart';
 import 'package:mirdaily_app/features/library/carpeta_biblioteca_screen.dart';
+import 'package:mirdaily_app/features/library/guia/guia_screen.dart';
 import 'package:mirdaily_app/features/library/library_screen.dart';
 import 'package:mirdaily_app/features/library/sin_clasificar_screen.dart';
 import 'package:provider/provider.dart';
@@ -127,15 +132,31 @@ class _ApiFalsa extends ApiService {
       });
 }
 
+/// Los assets de las guías leídos del disco y de forma síncrona (con rootBundle, dentro del reloj falso
+/// de testWidgets la carga no termina).
+class _Disco extends AssetBundle {
+  @override
+  Future<ByteData> load(String key) async => ByteData.sublistView(File(key).readAsBytesSync());
+
+  @override
+  Future<String> loadString(String key, {bool cache = true}) => SynchronousFuture(File(key).readAsStringSync());
+}
+
 Widget _app(CarpetasApi carpetas, Widget home) => MultiProvider(
       providers: [
         Provider<CarpetasApi>.value(value: carpetas),
         Provider<ApiService>.value(value: _ApiFalsa()),
+        Provider<ReportesApi>.value(value: ReportesApi(token: () async => '', baseUrl: 'https://api.test')),
       ],
       child: MaterialApp(theme: AppTheme.lightTheme, home: home),
     );
 
 void main() {
+  setUp(() {
+    GuiasAssets.olvidar();
+    GuiasAssets.bundle = _Disco();
+  });
+
   group('lógica (casos de la web)', () {
     test('portada: TODAS las asignaturas, con lo que el usuario tiene en cada una', () {
       final recuento = Recuento.fromJson({
@@ -289,6 +310,7 @@ void main() {
         // La lista es perezosa: la tarjeta solo existe cuando se acerca a la vista.
         await tester.scrollUntilVisible(find.textContaining('75 %', findRichText: true), 200, scrollable: find.byType(Scrollable).first);
         expect(find.text('Reumatología'), findsOneWidget);
+        expect(find.text('Guía'), findsOneWidget, reason: 'Reumatología tiene guía de estudio');
         expect(find.text('en 2 carpetas'), findsOneWidget);
         expect(find.textContaining('75 % de acierto', findRichText: true), findsOneWidget);
         expect(tester.takeException(), isNull);
@@ -303,13 +325,25 @@ void main() {
         await tester.pumpWidget(_app(_carpetas([]), AsignaturaBibliotecaScreen(asignatura: reuma)));
         await tester.pumpAndSettle();
         expect(find.text('120'), findsNWidgets(2)); // la cabecera y la carpeta General («toda»)
+        expect(find.text('Guía de estudio MIR 2027'), findsOneWidget);
         expect(find.text('preguntas MIR'), findsOneWidget);
         expect(find.text('General'), findsOneWidget);
         expect(find.text('Lupus eritematoso sistémico'), findsOneWidget);
         expect(find.text('recordarías ~84 %'), findsOneWidget);
         await tester.scrollUntilVisible(find.textContaining('del catálogo sin material'), 200, scrollable: find.byType(Scrollable).first);
         expect(find.textContaining('del catálogo sin material'), findsOneWidget);
+        await tester.scrollUntilVisible(find.textContaining('1 de 1 carpeta con flashcards'), 200, scrollable: find.byType(Scrollable).first);
         expect(find.textContaining('1 de 1 carpeta con flashcards o resúmenes está bien llevada'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+
+        // El botón de la cabecera abre la guía de Reumatología.
+        await tester.scrollUntilVisible(find.text('Guía de estudio MIR 2027'), -200, scrollable: find.byType(Scrollable).first);
+        await tester.tap(find.text('Guía de estudio MIR 2027'));
+        for (var i = 0; i < 10; i++) {
+          await tester.pump(const Duration(milliseconds: 60));
+        }
+        expect(find.byType(GuiaScreen), findsOneWidget);
+        expect(find.text('Guía · Reumatología'), findsOneWidget);
         expect(tester.takeException(), isNull);
       });
 

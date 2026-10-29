@@ -59,7 +59,9 @@ class ReportesApi {
 
   /// Manda el reporte. Devuelve true si corrigió uno tuyo que seguía abierto.
   Future<bool> enviar({
-    required int questionId,
+    int? questionId,
+    String? guideRef,
+    Map<String, dynamic>? snapshot,
     required ContextoReporte contexto,
     required String categoria,
     String? subcategoria,
@@ -72,6 +74,8 @@ class ReportesApi {
       '',
       cuerpo: cuerpoReporte(
         questionId: questionId,
+        guideRef: guideRef,
+        snapshot: snapshot,
         contexto: contexto,
         categoria: categoria,
         subcategoria: subcategoria,
@@ -82,14 +86,17 @@ class ReportesApi {
       ),
       mensaje: 'No se pudo enviar el reporte',
     );
-    Reportadas.instancia.marcar(claveContenido(questionId));
+    Reportadas.instancia.marcar(guideRef != null ? claveGuia(guideRef) : claveContenido(questionId!));
     return r['updated'] == true;
   }
 
   /// Tus reportes abiertos de esa pregunta (el más reciente primero).
-  Future<List<MiReporte>> mios(int questionId) async {
+  Future<List<MiReporte>> mios(int questionId) => miosDe(claveContenido(questionId));
+
+  /// Tus reportes abiertos de un contenido por su clave (`q:12` o `g:reumatologia/q12`).
+  Future<List<MiReporte>> miosDe(String contentKey) async {
     final r = await _pedir(
-      '/mine?contentKey=${Uri.encodeQueryComponent(claveContenido(questionId))}',
+      '/mine?contentKey=${Uri.encodeQueryComponent(contentKey)}',
       mensaje: 'No se pudieron leer tus reportes',
     );
     final l = r['reports'];

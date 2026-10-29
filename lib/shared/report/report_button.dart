@@ -16,6 +16,12 @@ import '../sticker/sticker.dart';
 /// Puerto de src/components/report/ReportButton.tsx de la web.
 class ReportButton extends StatelessWidget {
   final int? questionId;
+
+  /// Reporte de una guía de estudio (en vez de una pregunta del banco): `<guía>/q12` o `<guía>/general`.
+  final String? guideRef;
+
+  /// La foto de lo reportado de la guía (la guía no está en la base de datos: la manda el cliente).
+  final Map<String, dynamic>? snapshot;
   final ContextoReporte contexto;
   final int optionCount;
   final String? subtitle;
@@ -26,6 +32,8 @@ class ReportButton extends StatelessWidget {
     super.key,
     required this.questionId,
     required this.contexto,
+    this.guideRef,
+    this.snapshot,
     this.optionCount = 4,
     this.subtitle,
     this.color = AppColors.textSecondary,
@@ -35,15 +43,18 @@ class ReportButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final id = questionId;
-    if (id == null || id <= 0) return const SizedBox.shrink();
+    final ref = guideRef;
+    if (ref == null && (id == null || id <= 0)) return const SizedBox.shrink();
     return ListenableBuilder(
       listenable: Reportadas.instancia,
       builder: (context, _) {
-        final reportada = Reportadas.instancia.contiene(claveContenido(id));
+        final reportada = Reportadas.instancia.contiene(ref != null ? claveGuia(ref) : claveContenido(id!));
         return IconButton(
           onPressed: () => showReportSheet(
             context,
             questionId: id,
+            guideRef: ref,
+            snapshot: snapshot,
             contexto: contexto,
             optionCount: optionCount,
             subtitle: subtitle,
@@ -66,7 +77,9 @@ class ReportButton extends StatelessWidget {
 /// Abre la ventana de reporte (hoja en móvil, diálogo en tablet). Necesita un [ReportesApi] en el árbol.
 Future<void> showReportSheet(
   BuildContext context, {
-  required int questionId,
+  int? questionId,
+  String? guideRef,
+  Map<String, dynamic>? snapshot,
   required ContextoReporte contexto,
   int optionCount = 4,
   String? subtitle,
@@ -78,6 +91,8 @@ Future<void> showReportSheet(
     builder: (_) => ReportSheet(
       api: api,
       questionId: questionId,
+      guideRef: guideRef,
+      snapshot: snapshot,
       contexto: contexto,
       optionCount: optionCount,
       subtitle: subtitle,
@@ -88,6 +103,7 @@ Future<void> showReportSheet(
 const _letras = ['A', 'B', 'C', 'D', 'E'];
 
 const _iconos = <String, IconData>{
+  'error': Icons.error_outline_rounded,
   'rule': Icons.rule_rounded,
   'menu_book': Icons.menu_book_rounded,
   'spellcheck': Icons.spellcheck_rounded,
@@ -101,7 +117,9 @@ const _iconos = <String, IconData>{
 /// dónde viene, qué respondió, versión) lo adjunta el sistema. No enseña nada de la respuesta correcta.
 class ReportSheet extends StatefulWidget {
   final ReportesApi api;
-  final int questionId;
+  final int? questionId;
+  final String? guideRef;
+  final Map<String, dynamic>? snapshot;
   final ContextoReporte contexto;
   final int optionCount;
   final String? subtitle;
@@ -109,7 +127,9 @@ class ReportSheet extends StatefulWidget {
   const ReportSheet({
     super.key,
     required this.api,
-    required this.questionId,
+    this.questionId,
+    this.guideRef,
+    this.snapshot,
     required this.contexto,
     this.optionCount = 4,
     this.subtitle,
@@ -120,7 +140,9 @@ class ReportSheet extends StatefulWidget {
 }
 
 class _ReportSheetState extends State<ReportSheet> {
-  late final List<CategoriaReporte> _categorias = categoriasVisibles(answered: widget.contexto.answered);
+  bool get _esGuia => widget.guideRef != null;
+  late final List<CategoriaReporte> _categorias = categoriasVisibles(answered: widget.contexto.answered, guia: _esGuia);
+  late final String _clave = _esGuia ? claveGuia(widget.guideRef!) : claveContenido(widget.questionId!);
   final _texto = TextEditingController();
   String? _categoria;
   String? _sub;
@@ -136,7 +158,7 @@ class _ReportSheetState extends State<ReportSheet> {
     super.initState();
     _texto.addListener(() => setState(() {}));
     // Si ya lo había reportado, se precarga lo suyo para que edite en vez de repetir.
-    widget.api.mios(widget.questionId).then((r) {
+    widget.api.miosDe(_clave).then((r) {
       if (!mounted || r.isEmpty) return;
       setState(() {
         _mios = r;
@@ -177,6 +199,8 @@ class _ReportSheetState extends State<ReportSheet> {
     try {
       final actualizado = await widget.api.enviar(
         questionId: widget.questionId,
+        guideRef: widget.guideRef,
+        snapshot: widget.snapshot,
         contexto: widget.contexto,
         categoria: cat!,
         subcategoria: _sub,
@@ -275,7 +299,8 @@ class _ReportSheetState extends State<ReportSheet> {
             const SizedBox(width: 12),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('Reportar pregunta', style: TextStyle(color: kInk, fontSize: 18, fontWeight: FontWeight.w900)),
+                Text(_esGuia ? 'Reportar un error' : 'Reportar pregunta',
+                    style: const TextStyle(color: kInk, fontSize: 18, fontWeight: FontWeight.w900)),
                 if (widget.subtitle != null)
                   Text(widget.subtitle!,
                       maxLines: 1,
@@ -322,7 +347,7 @@ class _ReportSheetState extends State<ReportSheet> {
                       ),
                   ],
                 ),
-                if (!widget.contexto.answered)
+                if (!widget.contexto.answered && !_esGuia)
                   const Padding(
                     padding: EdgeInsets.only(top: 8),
                     child: Text(

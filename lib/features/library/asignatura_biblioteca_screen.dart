@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 
 import '../../core/models/biblioteca.dart';
+import '../../core/models/guias.dart';
 import '../../core/responsive/content_shell.dart';
 import '../../core/services/carpetas.dart';
+import '../../core/services/guias_assets.dart';
 import '../../core/theme/app_theme.dart';
 import '../../shared/sticker/sticker.dart';
 import '../../shared/sticker/textures.dart';
 import 'carpeta_biblioteca_screen.dart';
+import 'guia/guia_screen.dart';
 import 'sin_clasificar_screen.dart';
 import 'widgets/biblioteca_ui.dart';
 import 'widgets/datos_asignatura.dart';
@@ -26,10 +29,16 @@ class AsignaturaBibliotecaScreen extends StatefulWidget {
 class _AsignaturaBibliotecaScreenState extends State<AsignaturaBibliotecaScreen> {
   late final CargaAsignatura _c = CargaAsignatura(widget.asignatura.id);
 
+  /// La guía de estudio de esta asignatura, si la tiene (va dentro de la app).
+  ({String clave, int subjectId, String titulo, String examen})? _guia;
+
   @override
   void initState() {
     super.initState();
     _cargar();
+    GuiasAssets.indice().then((IndiceGuias i) {
+      if (mounted) setState(() => _guia = i.deAsignatura(widget.asignatura.id));
+    }).catchError((Object _) {});
   }
 
   Future<void> _cargar() => _c.cargar(context, () {
@@ -119,6 +128,18 @@ class _AsignaturaBibliotecaScreenState extends State<AsignaturaBibliotecaScreen>
             ),
             _cifra('${total.total}', 'de tu material'),
           ]),
+          if (_guia != null) ...[
+            const SizedBox(height: 14),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: StickerButton(
+                label: 'Guía de estudio ${_guia!.examen}',
+                icon: Icons.menu_book_rounded,
+                compact: true,
+                onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => GuiaScreen(clave: _guia!.clave))),
+              ),
+            ),
+          ],
         ]),
       ),
       const SizedBox(height: 22),

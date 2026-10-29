@@ -32,6 +32,16 @@ const categoriasPregunta = <CategoriaReporte>[
   CategoriaReporte('otro', 'Otro', 'more_horiz', 'Cuéntanos qué pasa'),
 ];
 
+/// Los de una guía de estudio (la web: GUIDE_CATEGORIES). Sin imagen ni duplicada; con «Dato incorrecto».
+const categoriasGuia = <CategoriaReporte>[
+  CategoriaReporte('dato_incorrecto', 'Dato incorrecto', 'error', '¿Qué dato y dónde?'),
+  CategoriaReporte('respuesta_erronea', 'Respuesta correcta errónea', 'rule',
+      '¿Por qué? Si tienes una fuente, mejor.', needsAnswer: true),
+  CategoriaReporte('errata', 'Errata en enunciado u opciones', 'spellcheck', '¿Qué pone y qué debería poner?'),
+  CategoriaReporte('desactualizada', 'Desactualizada', 'update', '¿Qué ha cambiado? (guía, año…)'),
+  CategoriaReporte('otro', 'Otro', 'more_horiz', 'Cuéntanos qué pasa'),
+];
+
 const subcategoriasImagen = <({String key, String label})>[
   (key: 'no_carga', label: 'No carga'),
   (key: 'no_corresponde', label: 'No corresponde'),
@@ -42,7 +52,7 @@ const maxMensajeReporte = 1000;
 
 /// Etiqueta de una categoría (la del servidor si no se conoce).
 String etiquetaCategoria(String key) {
-  for (final c in categoriasPregunta) {
+  for (final c in [...categoriasPregunta, ...categoriasGuia]) {
     if (c.key == key) return c.label;
   }
   return key;
@@ -55,7 +65,8 @@ enum OrigenReporte {
   simulacro('simulacro'),
   simulacroReview('simulacro_review'),
   deck('deck'),
-  versus('versus');
+  versus('versus'),
+  guide('guide');
 
   final String valor;
   const OrigenReporte(this.valor);
@@ -83,17 +94,26 @@ class ContextoReporte {
 /// `q:<id>`, la clave con la que el servidor agrupa los reportes de una pregunta.
 String claveContenido(int questionId) => 'q:$questionId';
 
+/// `g:<guía>/<ref>` («g:reumatologia/q12»), la de un trozo de una guía de estudio.
+String claveGuia(String guideRef) => 'g:$guideRef';
+
 /// Antes de responder se ocultan las categorías que lo exigen.
-List<CategoriaReporte> categoriasVisibles({required bool answered}) =>
-    answered ? categoriasPregunta : categoriasPregunta.where((c) => !c.needsAnswer).toList();
+List<CategoriaReporte> categoriasVisibles({required bool answered, bool guia = false}) {
+  final todas = guia ? categoriasGuia : categoriasPregunta;
+  return answered ? todas : todas.where((c) => !c.needsAnswer).toList();
+}
 
 /// «Otro» obliga a escribir; el resto, no.
 bool puedeEnviarReporte({required String? categoria, required String mensaje, bool enviando = false}) =>
     categoria != null && !enviando && (categoria != 'otro' || mensaje.trim().isNotEmpty);
 
 /// Cuerpo de POST /api/reports, campo a campo como `submitReport` de la web, con `platform: 'app'`.
+/// Con [guideRef] es el reporte de una guía: la foto ([snapshot]) la manda el cliente, porque la guía no
+/// está en la base de datos.
 Map<String, dynamic> cuerpoReporte({
-  required int questionId,
+  int? questionId,
+  String? guideRef,
+  Map<String, dynamic>? snapshot,
   required ContextoReporte contexto,
   required String categoria,
   String? subcategoria,
@@ -103,8 +123,10 @@ Map<String, dynamic> cuerpoReporte({
   String? userAgent,
 }) =>
     {
-      'contentType': 'question',
-      'questionId': questionId,
+      'contentType': guideRef != null ? 'guide' : 'question',
+      if (guideRef == null) 'questionId': questionId,
+      if (guideRef != null) 'guideRef': guideRef,
+      if (guideRef != null) 'snapshot': snapshot ?? const <String, dynamic>{},
       'category': categoria,
       'subcategory': categoria == 'imagen' ? subcategoria : null,
       'suggestedAnswer': categoria == 'respuesta_erronea' ? sugerida : null,

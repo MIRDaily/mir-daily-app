@@ -36,7 +36,7 @@ void main() {
       ]);
       expect(subcategoriasImagen.map((s) => s.key), ['no_carga', 'no_corresponde', 'no_se_ve']);
       expect(OrigenReporte.values.map((o) => o.valor),
-          ['daily', 'daily_review', 'simulacro', 'simulacro_review', 'deck', 'versus']);
+          ['daily', 'daily_review', 'simulacro', 'simulacro_review', 'deck', 'versus', 'guide']);
     });
 
     test('antes de responder se ocultan respuesta y explicación', () {

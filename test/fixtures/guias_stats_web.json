@@ -1,0 +1,2816 @@
+{
+ "neurologia": {
+  "perYear": [
+   {
+    "year": 2015,
+    "count": 13
+   },
+   {
+    "year": 2016,
+    "count": 12
+   },
+   {
+    "year": 2017,
+    "count": 12
+   },
+   {
+    "year": 2018,
+    "count": 15
+   },
+   {
+    "year": 2019,
+    "count": 12
+   },
+   {
+    "year": 2020,
+    "count": 14
+   },
+   {
+    "year": 2021,
+    "count": 13
+   },
+   {
+    "year": 2022,
+    "count": 21
+   },
+   {
+    "year": 2023,
+    "count": 14
+   },
+   {
+    "year": 2024,
+    "count": 11
+   },
+   {
+    "year": 2025,
+    "count": 16
+   },
+   {
+    "year": 2026,
+    "count": 12
+   }
+  ],
+  "temas": [
+   {
+    "id": "neurocirugia",
+    "perYear": [
+     2,
+     1,
+     0,
+     4,
+     3,
+     2,
+     1,
+     8,
+     4,
+     4,
+     3,
+     4
+    ],
+    "stats": {
+     "historyCount": 32,
+     "lastExamCount": 4,
+     "totalCount": 36,
+     "recentCount": 23,
+     "recentAvg": 4.6,
+     "earlierAvg": 1.8571428571428572,
+     "recentHits": 5,
+     "trend": "sube",
+     "forecast": 3.7771428571428567
+    },
+    "forecastTexto": "≈4"
+   },
+   {
+    "id": "ictus",
+    "perYear": [
+     0,
+     1,
+     3,
+     3,
+     1,
+     2,
+     1,
+     3,
+     2,
+     1,
+     2,
+     0
+    ],
+    "stats": {
+     "historyCount": 19,
+     "lastExamCount": 0,
+     "totalCount": 19,
+     "recentCount": 8,
+     "recentAvg": 1.6,
+     "earlierAvg": 1.5714285714285714,
+     "recentHits": 4,
+     "trend": "estable",
+     "forecast": 1.5914285714285712
+    },
+    "forecastTexto": "≈2"
+   },
+   {
+    "id": "semiologia",
+    "perYear": [
+     2,
+     3,
+     0,
+     1,
+     1,
+     1,
+     1,
+     3,
+     2,
+     2,
+     2,
+     4
+    ],
+    "stats": {
+     "historyCount": 18,
+     "lastExamCount": 4,
+     "totalCount": 22,
+     "recentCount": 13,
+     "recentAvg": 2.6,
+     "earlierAvg": 1.2857142857142858,
+     "recentHits": 5,
+     "trend": "sube",
+     "forecast": 2.2057142857142855
+    },
+    "forecastTexto": "≈2"
+   },
+   {
+    "id": "movimiento",
+    "perYear": [
+     2,
+     0,
+     2,
+     1,
+     1,
+     1,
+     2,
+     1,
+     2,
+     1,
+     3,
+     1
+    ],
+    "stats": {
+     "historyCount": 16,
+     "lastExamCount": 1,
+     "totalCount": 17,
+     "recentCount": 8,
+     "recentAvg": 1.6,
+     "earlierAvg": 1.2857142857142858,
+     "recentHits": 5,
+     "trend": "estable",
+     "forecast": 1.5057142857142856
+    },
+    "forecastTexto": "≈2"
+   },
+   {
+    "id": "epilepsia",
+    "perYear": [
+     2,
+     1,
+     1,
+     1,
+     1,
+     3,
+     2,
+     1,
+     2,
+     1,
+     0,
+     1
+    ],
+    "stats": {
+     "historyCount": 15,
+     "lastExamCount": 1,
+     "totalCount": 16,
+     "recentCount": 5,
+     "recentAvg": 1,
+     "earlierAvg": 1.5714285714285714,
+     "recentHits": 4,
+     "trend": "baja",
+     "forecast": 1.1714285714285713
+    },
+    "forecastTexto": "≈1"
+   },
+   {
+    "id": "autoinmunes-snc",
+    "perYear": [
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     0,
+     1,
+     2,
+     1,
+     1
+    ],
+    "stats": {
+     "historyCount": 11,
+     "lastExamCount": 1,
+     "totalCount": 12,
+     "recentCount": 5,
+     "recentAvg": 1,
+     "earlierAvg": 1,
+     "recentHits": 4,
+     "trend": "estable",
+     "forecast": 1
+    },
+    "forecastTexto": "≈1"
+   },
+   {
+    "id": "demencias",
+    "perYear": [
+     0,
+     3,
+     1,
+     1,
+     1,
+     1,
+     4,
+     1,
+     0,
+     0,
+     1,
+     0
+    ],
+    "stats": {
+     "historyCount": 13,
+     "lastExamCount": 0,
+     "totalCount": 13,
+     "recentCount": 2,
+     "recentAvg": 0.4,
+     "earlierAvg": 1.5714285714285714,
+     "recentHits": 2,
+     "trend": "baja",
+     "forecast": 0.7514285714285713
+    },
+    "forecastTexto": "≈0,8"
+   },
+   {
+    "id": "cefalea",
+    "perYear": [
+     1,
+     1,
+     1,
+     0,
+     2,
+     1,
+     0,
+     2,
+     0,
+     0,
+     1,
+     1
+    ],
+    "stats": {
+     "historyCount": 9,
+     "lastExamCount": 1,
+     "totalCount": 10,
+     "recentCount": 4,
+     "recentAvg": 0.8,
+     "earlierAvg": 0.8571428571428571,
+     "recentHits": 3,
+     "trend": "estable",
+     "forecast": 0.8171428571428571
+    },
+    "forecastTexto": "≈0,8"
+   },
+   {
+    "id": "miopatias",
+    "perYear": [
+     0,
+     0,
+     1,
+     1,
+     0,
+     1,
+     0,
+     1,
+     0,
+     0,
+     1,
+     0
+    ],
+    "stats": {
+     "historyCount": 5,
+     "lastExamCount": 0,
+     "totalCount": 5,
+     "recentCount": 2,
+     "recentAvg": 0.4,
+     "earlierAvg": 0.42857142857142855,
+     "recentHits": 2,
+     "trend": "estable",
+     "forecast": 0.40857142857142853
+    },
+    "forecastTexto": "≈0,4"
+   },
+   {
+    "id": "placa-motora",
+    "perYear": [
+     0,
+     0,
+     2,
+     0,
+     1,
+     0,
+     0,
+     0,
+     0,
+     0,
+     1,
+     0
+    ],
+    "stats": {
+     "historyCount": 4,
+     "lastExamCount": 0,
+     "totalCount": 4,
+     "recentCount": 1,
+     "recentAvg": 0.2,
+     "earlierAvg": 0.42857142857142855,
+     "recentHits": 1,
+     "trend": "estable",
+     "forecast": 0.26857142857142857
+    },
+    "forecastTexto": "≈0,3"
+   },
+   {
+    "id": "neuropatias",
+    "perYear": [
+     1,
+     1,
+     0,
+     0,
+     0,
+     1,
+     0,
+     0,
+     0,
+     0,
+     1,
+     0
+    ],
+    "stats": {
+     "historyCount": 4,
+     "lastExamCount": 0,
+     "totalCount": 4,
+     "recentCount": 1,
+     "recentAvg": 0.2,
+     "earlierAvg": 0.42857142857142855,
+     "recentHits": 1,
+     "trend": "estable",
+     "forecast": 0.26857142857142857
+    },
+    "forecastTexto": "≈0,3"
+   },
+   {
+    "id": "nutricionales",
+    "perYear": [
+     2,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     1,
+     0,
+     0,
+     0
+    ],
+    "stats": {
+     "historyCount": 3,
+     "lastExamCount": 0,
+     "totalCount": 3,
+     "recentCount": 1,
+     "recentAvg": 0.2,
+     "earlierAvg": 0.2857142857142857,
+     "recentHits": 1,
+     "trend": "estable",
+     "forecast": 0.2257142857142857
+    },
+    "forecastTexto": "≈0,2"
+   },
+   {
+    "id": "coma",
+    "perYear": [
+     0,
+     0,
+     0,
+     1,
+     0,
+     0,
+     1,
+     1,
+     0,
+     0,
+     0,
+     0
+    ],
+    "stats": {
+     "historyCount": 3,
+     "lastExamCount": 0,
+     "totalCount": 3,
+     "recentCount": 1,
+     "recentAvg": 0.2,
+     "earlierAvg": 0.2857142857142857,
+     "recentHits": 1,
+     "trend": "estable",
+     "forecast": 0.2257142857142857
+    },
+    "forecastTexto": "≈0,2"
+   },
+   {
+    "id": "motoneurona",
+    "perYear": [
+     0,
+     0,
+     0,
+     1,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "stats": {
+     "historyCount": 1,
+     "lastExamCount": 0,
+     "totalCount": 1,
+     "recentCount": 0,
+     "recentAvg": 0,
+     "earlierAvg": 0.14285714285714285,
+     "recentHits": 0,
+     "trend": "estable",
+     "forecast": 0.04285714285714285
+    },
+    "forecastTexto": "0"
+   },
+   {
+    "id": "ataxia",
+    "perYear": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "stats": {
+     "historyCount": 0,
+     "lastExamCount": 0,
+     "totalCount": 0,
+     "recentCount": 0,
+     "recentAvg": 0,
+     "earlierAvg": 0,
+     "recentHits": 0,
+     "trend": "estable",
+     "forecast": 0
+    },
+    "forecastTexto": "0"
+   }
+  ]
+ },
+ "cirugia-general": {
+  "perYear": [
+   {
+    "year": 2015,
+    "count": 22
+   },
+   {
+    "year": 2016,
+    "count": 28
+   },
+   {
+    "year": 2017,
+    "count": 26
+   },
+   {
+    "year": 2018,
+    "count": 22
+   },
+   {
+    "year": 2019,
+    "count": 24
+   },
+   {
+    "year": 2020,
+    "count": 20
+   },
+   {
+    "year": 2021,
+    "count": 15
+   },
+   {
+    "year": 2022,
+    "count": 18
+   },
+   {
+    "year": 2023,
+    "count": 14
+   },
+   {
+    "year": 2024,
+    "count": 23
+   },
+   {
+    "year": 2025,
+    "count": 22
+   },
+   {
+    "year": 2026,
+    "count": 28
+   }
+  ],
+  "temas": [
+   {
+    "id": "esofago",
+    "perYear": [
+     1,
+     2,
+     1,
+     3,
+     2,
+     2,
+     1,
+     3,
+     3,
+     1,
+     2,
+     3
+    ],
+    "stats": {
+     "historyCount": 21,
+     "lastExamCount": 3,
+     "totalCount": 24,
+     "recentCount": 12,
+     "recentAvg": 2.4,
+     "earlierAvg": 1.7142857142857142,
+     "recentHits": 5,
+     "trend": "sube",
+     "forecast": 2.194285714285714
+    },
+    "forecastTexto": "≈2"
+   },
+   {
+    "id": "ccr",
+    "perYear": [
+     2,
+     3,
+     1,
+     2,
+     2,
+     1,
+     1,
+     0,
+     0,
+     5,
+     4,
+     3
+    ],
+    "stats": {
+     "historyCount": 21,
+     "lastExamCount": 3,
+     "totalCount": 24,
+     "recentCount": 12,
+     "recentAvg": 2.4,
+     "earlierAvg": 1.7142857142857142,
+     "recentHits": 3,
+     "trend": "sube",
+     "forecast": 2.194285714285714
+    },
+    "forecastTexto": "≈2"
+   },
+   {
+    "id": "plastica",
+    "perYear": [
+     0,
+     1,
+     2,
+     0,
+     2,
+     2,
+     1,
+     2,
+     1,
+     1,
+     4,
+     3
+    ],
+    "stats": {
+     "historyCount": 16,
+     "lastExamCount": 3,
+     "totalCount": 19,
+     "recentCount": 11,
+     "recentAvg": 2.2,
+     "earlierAvg": 1.1428571428571428,
+     "recentHits": 5,
+     "trend": "sube",
+     "forecast": 1.8828571428571428
+    },
+    "forecastTexto": "≈2"
+   },
+   {
+    "id": "eii",
+    "perYear": [
+     1,
+     2,
+     1,
+     2,
+     0,
+     2,
+     1,
+     1,
+     1,
+     1,
+     1,
+     3
+    ],
+    "stats": {
+     "historyCount": 13,
+     "lastExamCount": 3,
+     "totalCount": 16,
+     "recentCount": 7,
+     "recentAvg": 1.4,
+     "earlierAvg": 1.2857142857142858,
+     "recentHits": 5,
+     "trend": "estable",
+     "forecast": 1.3657142857142857
+    },
+    "forecastTexto": "≈1"
+   },
+   {
+    "id": "biliar",
+    "perYear": [
+     1,
+     1,
+     1,
+     1,
+     2,
+     4,
+     0,
+     1,
+     2,
+     2,
+     2,
+     1
+    ],
+    "stats": {
+     "historyCount": 17,
+     "lastExamCount": 1,
+     "totalCount": 18,
+     "recentCount": 8,
+     "recentAvg": 1.6,
+     "earlierAvg": 1.4285714285714286,
+     "recentHits": 5,
+     "trend": "estable",
+     "forecast": 1.5485714285714285
+    },
+    "forecastTexto": "≈2"
+   },
+   {
+    "id": "pancreas-tumores",
+    "perYear": [
+     1,
+     3,
+     0,
+     2,
+     2,
+     0,
+     2,
+     1,
+     2,
+     1,
+     0,
+     2
+    ],
+    "stats": {
+     "historyCount": 14,
+     "lastExamCount": 2,
+     "totalCount": 16,
+     "recentCount": 6,
+     "recentAvg": 1.2,
+     "earlierAvg": 1.4285714285714286,
+     "recentHits": 4,
+     "trend": "estable",
+     "forecast": 1.2685714285714285
+    },
+    "forecastTexto": "≈1"
+   },
+   {
+    "id": "cirrosis",
+    "perYear": [
+     1,
+     3,
+     2,
+     2,
+     1,
+     2,
+     0,
+     2,
+     0,
+     0,
+     2,
+     2
+    ],
+    "stats": {
+     "historyCount": 15,
+     "lastExamCount": 2,
+     "totalCount": 17,
+     "recentCount": 6,
+     "recentAvg": 1.2,
+     "earlierAvg": 1.5714285714285714,
+     "recentHits": 3,
+     "trend": "estable",
+     "forecast": 1.3114285714285714
+    },
+    "forecastTexto": "≈1"
+   },
+   {
+    "id": "higado-tumores",
+    "perYear": [
+     3,
+     1,
+     3,
+     1,
+     1,
+     0,
+     0,
+     2,
+     1,
+     2,
+     0,
+     0
+    ],
+    "stats": {
+     "historyCount": 14,
+     "lastExamCount": 0,
+     "totalCount": 14,
+     "recentCount": 5,
+     "recentAvg": 1,
+     "earlierAvg": 1.2857142857142858,
+     "recentHits": 3,
+     "trend": "estable",
+     "forecast": 1.0857142857142856
+    },
+    "forecastTexto": "≈1"
+   },
+   {
+    "id": "estomago",
+    "perYear": [
+     4,
+     3,
+     4,
+     1,
+     3,
+     1,
+     2,
+     3,
+     0,
+     0,
+     0,
+     1
+    ],
+    "stats": {
+     "historyCount": 21,
+     "lastExamCount": 1,
+     "totalCount": 22,
+     "recentCount": 4,
+     "recentAvg": 0.8,
+     "earlierAvg": 2.5714285714285716,
+     "recentHits": 2,
+     "trend": "baja",
+     "forecast": 1.3314285714285714
+    },
+    "forecastTexto": "≈1"
+   },
+   {
+    "id": "hepatopatias",
+    "perYear": [
+     2,
+     4,
+     0,
+     3,
+     5,
+     3,
+     2,
+     0,
+     0,
+     2,
+     0,
+     1
+    ],
+    "stats": {
+     "historyCount": 21,
+     "lastExamCount": 1,
+     "totalCount": 22,
+     "recentCount": 3,
+     "recentAvg": 0.6,
+     "earlierAvg": 2.7142857142857144,
+     "recentHits": 2,
+     "trend": "baja",
+     "forecast": 1.2342857142857142
+    },
+    "forecastTexto": "≈1"
+   },
+   {
+    "id": "intestino",
+    "perYear": [
+     0,
+     2,
+     1,
+     1,
+     2,
+     0,
+     2,
+     0,
+     0,
+     0,
+     0,
+     4
+    ],
+    "stats": {
+     "historyCount": 8,
+     "lastExamCount": 4,
+     "totalCount": 12,
+     "recentCount": 4,
+     "recentAvg": 0.8,
+     "earlierAvg": 1.1428571428571428,
+     "recentHits": 1,
+     "trend": "estable",
+     "forecast": 0.9028571428571428
+    },
+    "forecastTexto": "≈0,9"
+   },
+   {
+    "id": "abdomen-agudo",
+    "perYear": [
+     1,
+     1,
+     2,
+     2,
+     1,
+     1,
+     0,
+     1,
+     2,
+     0,
+     1,
+     2
+    ],
+    "stats": {
+     "historyCount": 12,
+     "lastExamCount": 2,
+     "totalCount": 14,
+     "recentCount": 6,
+     "recentAvg": 1.2,
+     "earlierAvg": 1.1428571428571428,
+     "recentHits": 4,
+     "trend": "estable",
+     "forecast": 1.1828571428571428
+    },
+    "forecastTexto": "≈1"
+   },
+   {
+    "id": "complicaciones",
+    "perYear": [
+     3,
+     0,
+     1,
+     0,
+     0,
+     1,
+     0,
+     2,
+     0,
+     2,
+     2,
+     0
+    ],
+    "stats": {
+     "historyCount": 11,
+     "lastExamCount": 0,
+     "totalCount": 11,
+     "recentCount": 6,
+     "recentAvg": 1.2,
+     "earlierAvg": 0.7142857142857143,
+     "recentHits": 3,
+     "trend": "sube",
+     "forecast": 1.0542857142857143
+    },
+    "forecastTexto": "≈1"
+   },
+   {
+    "id": "pared",
+    "perYear": [
+     1,
+     0,
+     1,
+     0,
+     1,
+     0,
+     0,
+     0,
+     0,
+     2,
+     2,
+     2
+    ],
+    "stats": {
+     "historyCount": 7,
+     "lastExamCount": 2,
+     "totalCount": 9,
+     "recentCount": 6,
+     "recentAvg": 1.2,
+     "earlierAvg": 0.42857142857142855,
+     "recentHits": 3,
+     "trend": "sube",
+     "forecast": 0.9685714285714285
+    },
+    "forecastTexto": "≈1"
+   },
+   {
+    "id": "anal",
+    "perYear": [
+     1,
+     0,
+     1,
+     1,
+     0,
+     0,
+     0,
+     0,
+     1,
+     2,
+     1,
+     0
+    ],
+    "stats": {
+     "historyCount": 7,
+     "lastExamCount": 0,
+     "totalCount": 7,
+     "recentCount": 4,
+     "recentAvg": 0.8,
+     "earlierAvg": 0.42857142857142855,
+     "recentHits": 3,
+     "trend": "estable",
+     "forecast": 0.6885714285714285
+    },
+    "forecastTexto": "≈0,7"
+   },
+   {
+    "id": "obstruccion",
+    "perYear": [
+     0,
+     1,
+     3,
+     0,
+     0,
+     0,
+     2,
+     0,
+     0,
+     2,
+     1,
+     0
+    ],
+    "stats": {
+     "historyCount": 9,
+     "lastExamCount": 0,
+     "totalCount": 9,
+     "recentCount": 3,
+     "recentAvg": 0.6,
+     "earlierAvg": 0.8571428571428571,
+     "recentHits": 2,
+     "trend": "estable",
+     "forecast": 0.677142857142857
+    },
+    "forecastTexto": "≈0,7"
+   },
+   {
+    "id": "pancreatitis",
+    "perYear": [
+     0,
+     1,
+     2,
+     1,
+     0,
+     1,
+     1,
+     0,
+     1,
+     0,
+     0,
+     1
+    ],
+    "stats": {
+     "historyCount": 7,
+     "lastExamCount": 1,
+     "totalCount": 8,
+     "recentCount": 2,
+     "recentAvg": 0.4,
+     "earlierAvg": 0.8571428571428571,
+     "recentHits": 2,
+     "trend": "baja",
+     "forecast": 0.5371428571428571
+    },
+    "forecastTexto": "≈0,5"
+   }
+  ]
+ },
+ "reumatologia": {
+  "perYear": [
+   {
+    "year": 2015,
+    "count": 12
+   },
+   {
+    "year": 2016,
+    "count": 12
+   },
+   {
+    "year": 2017,
+    "count": 9
+   },
+   {
+    "year": 2018,
+    "count": 10
+   },
+   {
+    "year": 2019,
+    "count": 8
+   },
+   {
+    "year": 2020,
+    "count": 9
+   },
+   {
+    "year": 2021,
+    "count": 15
+   },
+   {
+    "year": 2022,
+    "count": 6
+   },
+   {
+    "year": 2023,
+    "count": 12
+   },
+   {
+    "year": 2024,
+    "count": 9
+   },
+   {
+    "year": 2025,
+    "count": 9
+   },
+   {
+    "year": 2026,
+    "count": 8
+   }
+  ],
+  "temas": [
+   {
+    "id": "vasculitis",
+    "perYear": [
+     1,
+     1,
+     1,
+     1,
+     2,
+     2,
+     2,
+     1,
+     1,
+     2,
+     1,
+     2
+    ],
+    "stats": {
+     "historyCount": 15,
+     "lastExamCount": 2,
+     "totalCount": 17,
+     "recentCount": 7,
+     "recentAvg": 1.4,
+     "earlierAvg": 1.4285714285714286,
+     "recentHits": 5,
+     "trend": "estable",
+     "forecast": 1.4085714285714284
+    },
+    "forecastTexto": "≈1"
+   },
+   {
+    "id": "espondiloartritis",
+    "perYear": [
+     1,
+     3,
+     1,
+     2,
+     1,
+     0,
+     0,
+     0,
+     2,
+     1,
+     1,
+     2
+    ],
+    "stats": {
+     "historyCount": 12,
+     "lastExamCount": 2,
+     "totalCount": 14,
+     "recentCount": 6,
+     "recentAvg": 1.2,
+     "earlierAvg": 1.1428571428571428,
+     "recentHits": 4,
+     "trend": "estable",
+     "forecast": 1.1828571428571428
+    },
+    "forecastTexto": "≈1"
+   },
+   {
+    "id": "lupus",
+    "perYear": [
+     3,
+     2,
+     0,
+     1,
+     0,
+     1,
+     3,
+     0,
+     2,
+     0,
+     1,
+     1
+    ],
+    "stats": {
+     "historyCount": 13,
+     "lastExamCount": 1,
+     "totalCount": 14,
+     "recentCount": 4,
+     "recentAvg": 0.8,
+     "earlierAvg": 1.4285714285714286,
+     "recentHits": 3,
+     "trend": "baja",
+     "forecast": 0.9885714285714284
+    },
+    "forecastTexto": "≈1"
+   },
+   {
+    "id": "arteritis",
+    "perYear": [
+     0,
+     1,
+     1,
+     0,
+     0,
+     1,
+     1,
+     2,
+     0,
+     1,
+     1,
+     1
+    ],
+    "stats": {
+     "historyCount": 8,
+     "lastExamCount": 1,
+     "totalCount": 9,
+     "recentCount": 5,
+     "recentAvg": 1,
+     "earlierAvg": 0.5714285714285714,
+     "recentHits": 4,
+     "trend": "sube",
+     "forecast": 0.8714285714285713
+    },
+    "forecastTexto": "≈0,9"
+   },
+   {
+    "id": "esclerosis",
+    "perYear": [
+     1,
+     0,
+     0,
+     0,
+     0,
+     2,
+     2,
+     0,
+     2,
+     1,
+     1,
+     0
+    ],
+    "stats": {
+     "historyCount": 9,
+     "lastExamCount": 0,
+     "totalCount": 9,
+     "recentCount": 4,
+     "recentAvg": 0.8,
+     "earlierAvg": 0.7142857142857143,
+     "recentHits": 3,
+     "trend": "estable",
+     "forecast": 0.7742857142857142
+    },
+    "forecastTexto": "≈0,8"
+   },
+   {
+    "id": "miopatias",
+    "perYear": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     1,
+     1,
+     1,
+     1,
+     1,
+     2,
+     0
+    ],
+    "stats": {
+     "historyCount": 7,
+     "lastExamCount": 0,
+     "totalCount": 7,
+     "recentCount": 5,
+     "recentAvg": 1,
+     "earlierAvg": 0.2857142857142857,
+     "recentHits": 4,
+     "trend": "sube",
+     "forecast": 0.7857142857142857
+    },
+    "forecastTexto": "≈0,8"
+   },
+   {
+    "id": "osea",
+    "perYear": [
+     0,
+     1,
+     2,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     1,
+     0,
+     0
+    ],
+    "stats": {
+     "historyCount": 10,
+     "lastExamCount": 0,
+     "totalCount": 10,
+     "recentCount": 3,
+     "recentAvg": 0.6,
+     "earlierAvg": 1,
+     "recentHits": 3,
+     "trend": "baja",
+     "forecast": 0.72
+    },
+    "forecastTexto": "≈0,7"
+   },
+   {
+    "id": "cristales",
+    "perYear": [
+     1,
+     1,
+     1,
+     1,
+     0,
+     0,
+     1,
+     0,
+     1,
+     0,
+     1,
+     1
+    ],
+    "stats": {
+     "historyCount": 7,
+     "lastExamCount": 1,
+     "totalCount": 8,
+     "recentCount": 3,
+     "recentAvg": 0.6,
+     "earlierAvg": 0.7142857142857143,
+     "recentHits": 3,
+     "trend": "estable",
+     "forecast": 0.6342857142857142
+    },
+    "forecastTexto": "≈0,6"
+   },
+   {
+    "id": "ar",
+    "perYear": [
+     3,
+     1,
+     0,
+     1,
+     1,
+     0,
+     2,
+     0,
+     0,
+     1,
+     0,
+     0
+    ],
+    "stats": {
+     "historyCount": 9,
+     "lastExamCount": 0,
+     "totalCount": 9,
+     "recentCount": 1,
+     "recentAvg": 0.2,
+     "earlierAvg": 1.1428571428571428,
+     "recentHits": 1,
+     "trend": "baja",
+     "forecast": 0.48285714285714276
+    },
+    "forecastTexto": "≈0,5"
+   },
+   {
+    "id": "otras",
+    "perYear": [
+     0,
+     0,
+     0,
+     1,
+     0,
+     1,
+     1,
+     0,
+     0,
+     0,
+     1,
+     1
+    ],
+    "stats": {
+     "historyCount": 4,
+     "lastExamCount": 1,
+     "totalCount": 5,
+     "recentCount": 2,
+     "recentAvg": 0.4,
+     "earlierAvg": 0.42857142857142855,
+     "recentHits": 2,
+     "trend": "estable",
+     "forecast": 0.40857142857142853
+    },
+    "forecastTexto": "≈0,4"
+   },
+   {
+    "id": "sjogren",
+    "perYear": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     1,
+     1,
+     1,
+     0,
+     0
+    ],
+    "stats": {
+     "historyCount": 3,
+     "lastExamCount": 0,
+     "totalCount": 3,
+     "recentCount": 3,
+     "recentAvg": 0.6,
+     "earlierAvg": 0,
+     "recentHits": 3,
+     "trend": "sube",
+     "forecast": 0.42
+    },
+    "forecastTexto": "≈0,4"
+   },
+   {
+    "id": "autoinflamatorias",
+    "perYear": [
+     0,
+     0,
+     0,
+     1,
+     1,
+     0,
+     1,
+     0,
+     1,
+     0,
+     0,
+     0
+    ],
+    "stats": {
+     "historyCount": 4,
+     "lastExamCount": 0,
+     "totalCount": 4,
+     "recentCount": 1,
+     "recentAvg": 0.2,
+     "earlierAvg": 0.42857142857142855,
+     "recentHits": 1,
+     "trend": "estable",
+     "forecast": 0.26857142857142857
+    },
+    "forecastTexto": "≈0,3"
+   },
+   {
+    "id": "septica",
+    "perYear": [
+     1,
+     1,
+     1,
+     1,
+     1,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "stats": {
+     "historyCount": 5,
+     "lastExamCount": 0,
+     "totalCount": 5,
+     "recentCount": 0,
+     "recentAvg": 0,
+     "earlierAvg": 0.7142857142857143,
+     "recentHits": 0,
+     "trend": "baja",
+     "forecast": 0.21428571428571427
+    },
+    "forecastTexto": "≈0,2"
+   },
+   {
+    "id": "artrosis",
+    "perYear": [
+     1,
+     1,
+     1,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "stats": {
+     "historyCount": 3,
+     "lastExamCount": 0,
+     "totalCount": 3,
+     "recentCount": 0,
+     "recentAvg": 0,
+     "earlierAvg": 0.42857142857142855,
+     "recentHits": 0,
+     "trend": "baja",
+     "forecast": 0.12857142857142856
+    },
+    "forecastTexto": "≈0,1"
+   },
+   {
+    "id": "introduccion",
+    "perYear": [
+     0,
+     0,
+     0,
+     0,
+     1,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "stats": {
+     "historyCount": 1,
+     "lastExamCount": 0,
+     "totalCount": 1,
+     "recentCount": 0,
+     "recentAvg": 0,
+     "earlierAvg": 0.14285714285714285,
+     "recentHits": 0,
+     "trend": "estable",
+     "forecast": 0.04285714285714285
+    },
+    "forecastTexto": "0"
+   },
+   {
+    "id": "still",
+    "perYear": [
+     0,
+     0,
+     1,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "stats": {
+     "historyCount": 1,
+     "lastExamCount": 0,
+     "totalCount": 1,
+     "recentCount": 0,
+     "recentAvg": 0,
+     "earlierAvg": 0.14285714285714285,
+     "recentHits": 0,
+     "trend": "estable",
+     "forecast": 0.04285714285714285
+    },
+    "forecastTexto": "0"
+   }
+  ]
+ },
+ "inmunologia": {
+  "perYear": [
+   {
+    "year": 2015,
+    "count": 3
+   },
+   {
+    "year": 2016,
+    "count": 4
+   },
+   {
+    "year": 2017,
+    "count": 5
+   },
+   {
+    "year": 2018,
+    "count": 5
+   },
+   {
+    "year": 2019,
+    "count": 7
+   },
+   {
+    "year": 2020,
+    "count": 1
+   },
+   {
+    "year": 2021,
+    "count": 4
+   },
+   {
+    "year": 2022,
+    "count": 5
+   },
+   {
+    "year": 2023,
+    "count": 5
+   },
+   {
+    "year": 2024,
+    "count": 5
+   },
+   {
+    "year": 2025,
+    "count": 6
+   },
+   {
+    "year": 2026,
+    "count": 3
+   }
+  ],
+  "temas": [
+   {
+    "id": "patologia",
+    "perYear": [
+     2,
+     3,
+     2,
+     2,
+     4,
+     0,
+     1,
+     1,
+     2,
+     1,
+     2,
+     1
+    ],
+    "stats": {
+     "historyCount": 20,
+     "lastExamCount": 1,
+     "totalCount": 21,
+     "recentCount": 7,
+     "recentAvg": 1.4,
+     "earlierAvg": 2,
+     "recentHits": 5,
+     "trend": "baja",
+     "forecast": 1.5799999999999998
+    },
+    "forecastTexto": "≈2"
+   },
+   {
+    "id": "inmunoterapia",
+    "perYear": [
+     1,
+     0,
+     1,
+     0,
+     0,
+     1,
+     1,
+     1,
+     1,
+     2,
+     3,
+     2
+    ],
+    "stats": {
+     "historyCount": 11,
+     "lastExamCount": 2,
+     "totalCount": 13,
+     "recentCount": 9,
+     "recentAvg": 1.8,
+     "earlierAvg": 0.5714285714285714,
+     "recentHits": 5,
+     "trend": "sube",
+     "forecast": 1.4314285714285715
+    },
+    "forecastTexto": "≈1"
+   },
+   {
+    "id": "inmunidad-celular",
+    "perYear": [
+     0,
+     0,
+     0,
+     1,
+     1,
+     0,
+     0,
+     2,
+     1,
+     1,
+     1,
+     0
+    ],
+    "stats": {
+     "historyCount": 7,
+     "lastExamCount": 0,
+     "totalCount": 7,
+     "recentCount": 5,
+     "recentAvg": 1,
+     "earlierAvg": 0.2857142857142857,
+     "recentHits": 4,
+     "trend": "sube",
+     "forecast": 0.7857142857142857
+    },
+    "forecastTexto": "≈0,8"
+   },
+   {
+    "id": "inmunidad-humoral",
+    "perYear": [
+     0,
+     1,
+     2,
+     1,
+     0,
+     0,
+     1,
+     1,
+     1,
+     0,
+     0,
+     0
+    ],
+    "stats": {
+     "historyCount": 7,
+     "lastExamCount": 0,
+     "totalCount": 7,
+     "recentCount": 2,
+     "recentAvg": 0.4,
+     "earlierAvg": 0.7142857142857143,
+     "recentHits": 2,
+     "trend": "estable",
+     "forecast": 0.4942857142857142
+    },
+    "forecastTexto": "≈0,5"
+   },
+   {
+    "id": "generalidades",
+    "perYear": [
+     0,
+     0,
+     0,
+     1,
+     2,
+     0,
+     1,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "stats": {
+     "historyCount": 4,
+     "lastExamCount": 0,
+     "totalCount": 4,
+     "recentCount": 0,
+     "recentAvg": 0,
+     "earlierAvg": 0.5714285714285714,
+     "recentHits": 0,
+     "trend": "baja",
+     "forecast": 0.1714285714285714
+    },
+    "forecastTexto": "≈0,2"
+   },
+   {
+    "id": "trasplante",
+    "perYear": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     1,
+     0,
+     0
+    ],
+    "stats": {
+     "historyCount": 1,
+     "lastExamCount": 0,
+     "totalCount": 1,
+     "recentCount": 1,
+     "recentAvg": 0.2,
+     "earlierAvg": 0,
+     "recentHits": 1,
+     "trend": "estable",
+     "forecast": 0.13999999999999999
+    },
+    "forecastTexto": "≈0,1"
+   }
+  ]
+ },
+ "oftalmologia": {
+  "perYear": [
+   {
+    "year": 2015,
+    "count": 4
+   },
+   {
+    "year": 2016,
+    "count": 3
+   },
+   {
+    "year": 2017,
+    "count": 3
+   },
+   {
+    "year": 2018,
+    "count": 4
+   },
+   {
+    "year": 2019,
+    "count": 4
+   },
+   {
+    "year": 2020,
+    "count": 2
+   },
+   {
+    "year": 2021,
+    "count": 2
+   },
+   {
+    "year": 2022,
+    "count": 4
+   },
+   {
+    "year": 2023,
+    "count": 3
+   },
+   {
+    "year": 2024,
+    "count": 3
+   },
+   {
+    "year": 2025,
+    "count": 5
+   },
+   {
+    "year": 2026,
+    "count": 4
+   }
+  ],
+  "temas": [
+   {
+    "id": "retina",
+    "perYear": [
+     2,
+     3,
+     1,
+     1,
+     2,
+     1,
+     1,
+     2,
+     2,
+     0,
+     2,
+     1
+    ],
+    "stats": {
+     "historyCount": 17,
+     "lastExamCount": 1,
+     "totalCount": 18,
+     "recentCount": 7,
+     "recentAvg": 1.4,
+     "earlierAvg": 1.5714285714285714,
+     "recentHits": 4,
+     "trend": "estable",
+     "forecast": 1.4514285714285713
+    },
+    "forecastTexto": "≈1"
+   },
+   {
+    "id": "uveitis",
+    "perYear": [
+     1,
+     0,
+     1,
+     1,
+     1,
+     0,
+     0,
+     0,
+     0,
+     1,
+     0,
+     2
+    ],
+    "stats": {
+     "historyCount": 5,
+     "lastExamCount": 2,
+     "totalCount": 7,
+     "recentCount": 3,
+     "recentAvg": 0.6,
+     "earlierAvg": 0.5714285714285714,
+     "recentHits": 2,
+     "trend": "estable",
+     "forecast": 0.5914285714285714
+    },
+    "forecastTexto": "≈0,6"
+   },
+   {
+    "id": "neurooftalmologia",
+    "perYear": [
+     0,
+     0,
+     1,
+     1,
+     0,
+     1,
+     0,
+     0,
+     0,
+     1,
+     1,
+     0
+    ],
+    "stats": {
+     "historyCount": 5,
+     "lastExamCount": 0,
+     "totalCount": 5,
+     "recentCount": 2,
+     "recentAvg": 0.4,
+     "earlierAvg": 0.42857142857142855,
+     "recentHits": 2,
+     "trend": "estable",
+     "forecast": 0.40857142857142853
+    },
+    "forecastTexto": "≈0,4"
+   },
+   {
+    "id": "glaucoma",
+    "perYear": [
+     0,
+     0,
+     0,
+     1,
+     1,
+     0,
+     1,
+     1,
+     0,
+     0,
+     0,
+     1
+    ],
+    "stats": {
+     "historyCount": 4,
+     "lastExamCount": 1,
+     "totalCount": 5,
+     "recentCount": 2,
+     "recentAvg": 0.4,
+     "earlierAvg": 0.42857142857142855,
+     "recentHits": 2,
+     "trend": "estable",
+     "forecast": 0.40857142857142853
+    },
+    "forecastTexto": "≈0,4"
+   },
+   {
+    "id": "conjuntiva",
+    "perYear": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     1,
+     0,
+     0,
+     1,
+     0
+    ],
+    "stats": {
+     "historyCount": 2,
+     "lastExamCount": 0,
+     "totalCount": 2,
+     "recentCount": 2,
+     "recentAvg": 0.4,
+     "earlierAvg": 0,
+     "recentHits": 2,
+     "trend": "sube",
+     "forecast": 0.27999999999999997
+    },
+    "forecastTexto": "≈0,3"
+   },
+   {
+    "id": "cristalino",
+    "perYear": [
+     1,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     1,
+     0
+    ],
+    "stats": {
+     "historyCount": 2,
+     "lastExamCount": 0,
+     "totalCount": 2,
+     "recentCount": 1,
+     "recentAvg": 0.2,
+     "earlierAvg": 0.14285714285714285,
+     "recentHits": 1,
+     "trend": "estable",
+     "forecast": 0.18285714285714283
+    },
+    "forecastTexto": "≈0,2"
+   },
+   {
+    "id": "cornea",
+    "perYear": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     1,
+     0,
+     0,
+     0
+    ],
+    "stats": {
+     "historyCount": 1,
+     "lastExamCount": 0,
+     "totalCount": 1,
+     "recentCount": 1,
+     "recentAvg": 0.2,
+     "earlierAvg": 0,
+     "recentHits": 1,
+     "trend": "estable",
+     "forecast": 0.13999999999999999
+    },
+    "forecastTexto": "≈0,1"
+   },
+   {
+    "id": "refraccion",
+    "perYear": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     1,
+     0,
+     0
+    ],
+    "stats": {
+     "historyCount": 1,
+     "lastExamCount": 0,
+     "totalCount": 1,
+     "recentCount": 1,
+     "recentAvg": 0.2,
+     "earlierAvg": 0,
+     "recentHits": 1,
+     "trend": "estable",
+     "forecast": 0.13999999999999999
+    },
+    "forecastTexto": "≈0,1"
+   }
+  ]
+ },
+ "urologia": {
+  "perYear": [
+   {
+    "year": 2015,
+    "count": 6
+   },
+   {
+    "year": 2016,
+    "count": 3
+   },
+   {
+    "year": 2017,
+    "count": 5
+   },
+   {
+    "year": 2018,
+    "count": 10
+   },
+   {
+    "year": 2019,
+    "count": 8
+   },
+   {
+    "year": 2020,
+    "count": 5
+   },
+   {
+    "year": 2021,
+    "count": 2
+   },
+   {
+    "year": 2022,
+    "count": 2
+   },
+   {
+    "year": 2023,
+    "count": 5
+   },
+   {
+    "year": 2024,
+    "count": 5
+   },
+   {
+    "year": 2025,
+    "count": 6
+   },
+   {
+    "year": 2026,
+    "count": 8
+   }
+  ],
+  "temas": [
+   {
+    "id": "prostata",
+    "perYear": [
+     0,
+     0,
+     0,
+     3,
+     0,
+     0,
+     0,
+     0,
+     2,
+     1,
+     2,
+     3
+    ],
+    "stats": {
+     "historyCount": 8,
+     "lastExamCount": 3,
+     "totalCount": 11,
+     "recentCount": 8,
+     "recentAvg": 1.6,
+     "earlierAvg": 0.42857142857142855,
+     "recentHits": 4,
+     "trend": "sube",
+     "forecast": 1.2485714285714284
+    },
+    "forecastTexto": "≈1"
+   },
+   {
+    "id": "litiasis",
+    "perYear": [
+     3,
+     0,
+     2,
+     1,
+     2,
+     0,
+     1,
+     0,
+     0,
+     1,
+     1,
+     0
+    ],
+    "stats": {
+     "historyCount": 11,
+     "lastExamCount": 0,
+     "totalCount": 11,
+     "recentCount": 2,
+     "recentAvg": 0.4,
+     "earlierAvg": 1.2857142857142858,
+     "recentHits": 2,
+     "trend": "baja",
+     "forecast": 0.6657142857142857
+    },
+    "forecastTexto": "≈0,7"
+   },
+   {
+    "id": "infecciones",
+    "perYear": [
+     1,
+     1,
+     0,
+     1,
+     2,
+     1,
+     1,
+     0,
+     1,
+     0,
+     1,
+     1
+    ],
+    "stats": {
+     "historyCount": 9,
+     "lastExamCount": 1,
+     "totalCount": 10,
+     "recentCount": 3,
+     "recentAvg": 0.6,
+     "earlierAvg": 1,
+     "recentHits": 3,
+     "trend": "baja",
+     "forecast": 0.72
+    },
+    "forecastTexto": "≈0,7"
+   },
+   {
+    "id": "vias",
+    "perYear": [
+     0,
+     0,
+     1,
+     0,
+     1,
+     1,
+     0,
+     0,
+     1,
+     1,
+     0,
+     2
+    ],
+    "stats": {
+     "historyCount": 5,
+     "lastExamCount": 2,
+     "totalCount": 7,
+     "recentCount": 4,
+     "recentAvg": 0.8,
+     "earlierAvg": 0.42857142857142855,
+     "recentHits": 3,
+     "trend": "estable",
+     "forecast": 0.6885714285714285
+    },
+    "forecastTexto": "≈0,7"
+   },
+   {
+    "id": "incontinencia",
+    "perYear": [
+     0,
+     0,
+     0,
+     1,
+     0,
+     1,
+     0,
+     1,
+     1,
+     1,
+     0,
+     1
+    ],
+    "stats": {
+     "historyCount": 5,
+     "lastExamCount": 1,
+     "totalCount": 6,
+     "recentCount": 4,
+     "recentAvg": 0.8,
+     "earlierAvg": 0.2857142857142857,
+     "recentHits": 4,
+     "trend": "sube",
+     "forecast": 0.6457142857142857
+    },
+    "forecastTexto": "≈0,6"
+   },
+   {
+    "id": "hbp",
+    "perYear": [
+     1,
+     1,
+     1,
+     0,
+     1,
+     1,
+     0,
+     0,
+     0,
+     1,
+     0,
+     0
+    ],
+    "stats": {
+     "historyCount": 6,
+     "lastExamCount": 0,
+     "totalCount": 6,
+     "recentCount": 1,
+     "recentAvg": 0.2,
+     "earlierAvg": 0.7142857142857143,
+     "recentHits": 1,
+     "trend": "baja",
+     "forecast": 0.35428571428571426
+    },
+    "forecastTexto": "≈0,4"
+   },
+   {
+    "id": "andrologia",
+    "perYear": [
+     0,
+     1,
+     1,
+     1,
+     2,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "stats": {
+     "historyCount": 5,
+     "lastExamCount": 0,
+     "totalCount": 5,
+     "recentCount": 0,
+     "recentAvg": 0,
+     "earlierAvg": 0.7142857142857143,
+     "recentHits": 0,
+     "trend": "baja",
+     "forecast": 0.21428571428571427
+    },
+    "forecastTexto": "≈0,2"
+   },
+   {
+    "id": "renal",
+    "perYear": [
+     1,
+     0,
+     0,
+     1,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     1,
+     1
+    ],
+    "stats": {
+     "historyCount": 3,
+     "lastExamCount": 1,
+     "totalCount": 4,
+     "recentCount": 2,
+     "recentAvg": 0.4,
+     "earlierAvg": 0.2857142857142857,
+     "recentHits": 2,
+     "trend": "estable",
+     "forecast": 0.36571428571428566
+    },
+    "forecastTexto": "≈0,4"
+   },
+   {
+    "id": "testiculo",
+    "perYear": [
+     0,
+     0,
+     0,
+     1,
+     0,
+     1,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "stats": {
+     "historyCount": 2,
+     "lastExamCount": 0,
+     "totalCount": 2,
+     "recentCount": 0,
+     "recentAvg": 0,
+     "earlierAvg": 0.2857142857142857,
+     "recentHits": 0,
+     "trend": "estable",
+     "forecast": 0.0857142857142857
+    },
+    "forecastTexto": "≈0,1"
+   },
+   {
+    "id": "trauma",
+    "perYear": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     1,
+     0
+    ],
+    "stats": {
+     "historyCount": 1,
+     "lastExamCount": 0,
+     "totalCount": 1,
+     "recentCount": 1,
+     "recentAvg": 0.2,
+     "earlierAvg": 0,
+     "recentHits": 1,
+     "trend": "estable",
+     "forecast": 0.13999999999999999
+    },
+    "forecastTexto": "≈0,1"
+   },
+   {
+    "id": "trasplante",
+    "perYear": [
+     0,
+     0,
+     0,
+     1,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "stats": {
+     "historyCount": 1,
+     "lastExamCount": 0,
+     "totalCount": 1,
+     "recentCount": 0,
+     "recentAvg": 0,
+     "earlierAvg": 0.14285714285714285,
+     "recentHits": 0,
+     "trend": "estable",
+     "forecast": 0.04285714285714285
+    },
+    "forecastTexto": "0"
+   },
+   {
+    "id": "anatomia",
+    "perYear": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     1,
+     0,
+     0,
+     0,
+     0
+    ],
+    "stats": {
+     "historyCount": 1,
+     "lastExamCount": 0,
+     "totalCount": 1,
+     "recentCount": 1,
+     "recentAvg": 0.2,
+     "earlierAvg": 0,
+     "recentHits": 1,
+     "trend": "estable",
+     "forecast": 0.13999999999999999
+    },
+    "forecastTexto": "≈0,1"
+   }
+  ]
+ },
+ "dermatologia": {
+  "perYear": [
+   {
+    "year": 2015,
+    "count": 8
+   },
+   {
+    "year": 2016,
+    "count": 5
+   },
+   {
+    "year": 2017,
+    "count": 5
+   },
+   {
+    "year": 2018,
+    "count": 6
+   },
+   {
+    "year": 2019,
+    "count": 6
+   },
+   {
+    "year": 2020,
+    "count": 5
+   },
+   {
+    "year": 2021,
+    "count": 4
+   },
+   {
+    "year": 2022,
+    "count": 2
+   },
+   {
+    "year": 2023,
+    "count": 4
+   },
+   {
+    "year": 2024,
+    "count": 10
+   },
+   {
+    "year": 2025,
+    "count": 5
+   },
+   {
+    "year": 2026,
+    "count": 7
+   }
+  ],
+  "temas": [
+   {
+    "id": "neoplasias",
+    "perYear": [
+     1,
+     0,
+     1,
+     4,
+     0,
+     0,
+     2,
+     2,
+     0,
+     3,
+     1,
+     2
+    ],
+    "stats": {
+     "historyCount": 14,
+     "lastExamCount": 2,
+     "totalCount": 16,
+     "recentCount": 8,
+     "recentAvg": 1.6,
+     "earlierAvg": 1.1428571428571428,
+     "recentHits": 4,
+     "trend": "sube",
+     "forecast": 1.4628571428571426
+    },
+    "forecastTexto": "≈1"
+   },
+   {
+    "id": "sistemicas",
+    "perYear": [
+     5,
+     0,
+     1,
+     0,
+     2,
+     0,
+     0,
+     0,
+     2,
+     0,
+     0,
+     2
+    ],
+    "stats": {
+     "historyCount": 10,
+     "lastExamCount": 2,
+     "totalCount": 12,
+     "recentCount": 4,
+     "recentAvg": 0.8,
+     "earlierAvg": 1.1428571428571428,
+     "recentHits": 2,
+     "trend": "estable",
+     "forecast": 0.9028571428571428
+    },
+    "forecastTexto": "≈0,9"
+   },
+   {
+    "id": "infecciosas",
+    "perYear": [
+     0,
+     2,
+     0,
+     0,
+     2,
+     1,
+     0,
+     0,
+     1,
+     2,
+     2,
+     0
+    ],
+    "stats": {
+     "historyCount": 10,
+     "lastExamCount": 0,
+     "totalCount": 10,
+     "recentCount": 5,
+     "recentAvg": 1,
+     "earlierAvg": 0.7142857142857143,
+     "recentHits": 3,
+     "trend": "estable",
+     "forecast": 0.9142857142857143
+    },
+    "forecastTexto": "≈0,9"
+   },
+   {
+    "id": "eccemas",
+    "perYear": [
+     0,
+     0,
+     1,
+     0,
+     0,
+     1,
+     0,
+     0,
+     0,
+     2,
+     1,
+     2
+    ],
+    "stats": {
+     "historyCount": 5,
+     "lastExamCount": 2,
+     "totalCount": 7,
+     "recentCount": 5,
+     "recentAvg": 1,
+     "earlierAvg": 0.2857142857142857,
+     "recentHits": 3,
+     "trend": "sube",
+     "forecast": 0.7857142857142857
+    },
+    "forecastTexto": "≈0,8"
+   },
+   {
+    "id": "eritematoescamosas",
+    "perYear": [
+     0,
+     2,
+     0,
+     1,
+     0,
+     0,
+     1,
+     0,
+     0,
+     1,
+     1,
+     0
+    ],
+    "stats": {
+     "historyCount": 6,
+     "lastExamCount": 0,
+     "totalCount": 6,
+     "recentCount": 2,
+     "recentAvg": 0.4,
+     "earlierAvg": 0.5714285714285714,
+     "recentHits": 2,
+     "trend": "estable",
+     "forecast": 0.4514285714285714
+    },
+    "forecastTexto": "≈0,5"
+   },
+   {
+    "id": "ampollares",
+    "perYear": [
+     2,
+     0,
+     1,
+     0,
+     0,
+     1,
+     0,
+     0,
+     0,
+     1,
+     0,
+     1
+    ],
+    "stats": {
+     "historyCount": 5,
+     "lastExamCount": 1,
+     "totalCount": 6,
+     "recentCount": 2,
+     "recentAvg": 0.4,
+     "earlierAvg": 0.5714285714285714,
+     "recentHits": 2,
+     "trend": "estable",
+     "forecast": 0.4514285714285714
+    },
+    "forecastTexto": "≈0,5"
+   },
+   {
+    "id": "toxicodermias",
+    "perYear": [
+     0,
+     1,
+     1,
+     0,
+     1,
+     2,
+     0,
+     0,
+     0,
+     1,
+     0,
+     0
+    ],
+    "stats": {
+     "historyCount": 6,
+     "lastExamCount": 0,
+     "totalCount": 6,
+     "recentCount": 1,
+     "recentAvg": 0.2,
+     "earlierAvg": 0.7142857142857143,
+     "recentHits": 1,
+     "trend": "baja",
+     "forecast": 0.35428571428571426
+    },
+    "forecastTexto": "≈0,4"
+   },
+   {
+    "id": "generalidades",
+    "perYear": [
+     0,
+     0,
+     0,
+     0,
+     1,
+     0,
+     1,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "stats": {
+     "historyCount": 2,
+     "lastExamCount": 0,
+     "totalCount": 2,
+     "recentCount": 0,
+     "recentAvg": 0,
+     "earlierAvg": 0.2857142857142857,
+     "recentHits": 0,
+     "trend": "estable",
+     "forecast": 0.0857142857142857
+    },
+    "forecastTexto": "≈0,1"
+   },
+   {
+    "id": "alopecias",
+    "perYear": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     1,
+     0,
+     0,
+     0
+    ],
+    "stats": {
+     "historyCount": 1,
+     "lastExamCount": 0,
+     "totalCount": 1,
+     "recentCount": 1,
+     "recentAvg": 0.2,
+     "earlierAvg": 0,
+     "recentHits": 1,
+     "trend": "estable",
+     "forecast": 0.13999999999999999
+    },
+    "forecastTexto": "≈0,1"
+   },
+   {
+    "id": "paniculitis",
+    "perYear": [
+     0,
+     0,
+     0,
+     1,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "stats": {
+     "historyCount": 1,
+     "lastExamCount": 0,
+     "totalCount": 1,
+     "recentCount": 0,
+     "recentAvg": 0,
+     "earlierAvg": 0.14285714285714285,
+     "recentHits": 0,
+     "trend": "estable",
+     "forecast": 0.04285714285714285
+    },
+    "forecastTexto": "0"
+   }
+  ]
+ }
+}
