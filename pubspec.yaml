@@ -7,6 +7,9 @@ version: 1.0.0+1
 
 environment:
   sdk: ^3.10.3
+  # Versión común a los dos ordenadores (29/10/2026): los goldens de test/
+  # se generan con ella y cambian de un SDK a otro.
+  flutter: ">=3.47.5"
 
 dependencies:
   audioplayers: ^6.8.1

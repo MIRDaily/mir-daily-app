@@ -90,8 +90,10 @@ Hecho cuando: hay una línea base escrita y el APK de `v7` funciona en el teléf
 - **Repo:** `v7` en `5e0c0f9`, al día con GitHub (`git pull`: «Already up to date»).
 - **Flutter de esta máquina: 3.47.5 (Dart 3.13.4).** Según `bdd1246`, el otro ordenador usaba 3.44.9.
   Con esa diferencia, `flutter pub get` reescribe `pubspec.lock` (matcher, meta, test_api, vector_math),
-  los registrantes de plugins de escritorio y `analysis_options.yaml`. **Esos cambios no se suben**
-  (se descartan con `git checkout --`) hasta que se decida qué versión manda.
+  los registrantes de plugins de escritorio y `analysis_options.yaml`. **Decidido el mismo día: manda
+  3.47.5.** El lock, `analysis_options.yaml` y el registrante de macOS (le faltaba `file_picker`) se
+  suben con los goldens regenerados. Al comparar viejo con nuevo solo cambia el suavizado de las esquinas
+  (98 píxeles de 2,2 millones en el golden que más cambiaba). Ahora `flutter test` da **375 en verde**.
 - **`flutter analyze`: 0 errores, 4 warnings, 287 info.**
   - Warnings: `assets/guides/` no existe (ver abajo); campos sin usar `_pointerDownPosition`
     (`main_navigation.dart:742`) y `_isPressed` (`studio_card.dart:20`); un import sin usar en
@@ -291,7 +293,7 @@ previsión sale igual en las dos.
 | Decisión | Hace falta en |
 |---|---|
 | Subir desde el otro ordenador `assets/guides/` y `tools/export_study_guides.mjs` | Ya (rompe el aviso del build) |
-| Versión de Flutter común a los dos ordenadores (3.44.9 o 3.47.5) y regenerar los goldens con ella | Antes de la tanda 1 |
+| ~~Versión de Flutter común~~ **Decidido 29/10/2026: 3.47.5.** Fijada en `pubspec.yaml` (`flutter: ">=3.47.5"`), goldens regenerados y 375 tests en verde. El otro ordenador tiene que hacer `flutter upgrade` | Hecho |
 | Arreglar el 401 → renovar y reintentar en los clientes | Antes de la tanda 2 de Studio |
 | Guías: copiar a Dart o publicarlas como JSON desde la web | Tanda 7 |
 | Qué se hace con «Actualizar» en el mazo de fallos | Tanda 5 |
