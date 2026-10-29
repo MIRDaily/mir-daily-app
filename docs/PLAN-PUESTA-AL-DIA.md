@@ -13,7 +13,7 @@ esperar a que la web y el backend las dejen firmes.
 **Copia en el repo de la app:** `docs/PLAN-PUESTA-AL-DIA.md` (rama `v7`), para que el otro ordenador la
 tenga. Al cerrar cada tanda se actualizan las dos.
 
-**Estado:** tandas 0 a 6 y 7a hechas el 29/10/2026, salvo la prueba en el teléfono. Siguiente: 7b (guías).
+**Estado:** tandas 0 a 7 hechas (la 7b, el 30/10/2026), salvo la prueba en el teléfono. Siguiente: tanda 8 (tutoriales).
 
 ## Resumen del orden
 
@@ -487,6 +487,53 @@ previsión sale igual en las dos.
 - **Falta:** probarlo en el teléfono con tu cuenta (en prod, a 17/10 casi todo estaba en «Sin
   clasificar»). La entrada a la guía de cada asignatura llega con la 7b.
 
+### Resultado de la 7b (30/10/2026, commit `261e6e5` en v7)
+
+- **Las 7 guías dentro de la app:** Neurología, Digestivo, Reumatología, Inmunología, Oftalmología,
+  Urología y Dermatología. Van en `assets/guides/` (unos 300 KB) y salen de
+  `node tools/export_study_guides.mjs "<carpeta del frontend>"`, porque Node 24 ejecuta el TypeScript
+  sin herramientas. El script lee el registro de `index.ts`, exporta cada guía y escribe además
+  `test/fixtures/guias_stats_web.json` con las cifras calculadas por el **`stats.ts` real de la web**.
+  **Cuando la web añada o corrija una guía:** volver a lanzar el script, pasar los tests y sacar versión.
+- **Modelo y cifras en Dart:**
+  - `core/models/guias.dart` es el puerto de `stats.ts`, el orden de `GuideSortToggle` y lo que calcula
+    la página. Lleva ordenación estable como en JS: con `List.sort` de Dart dos temas empatados podían
+    salir en otro orden que en la web.
+  - `core/models/guia_esfuerzo.dart` lleva la matriz esfuerzo/recompensa con la misma búsqueda con
+    vuelta atrás para colocar los nombres.
+  - Los tests comprueban que **cada cifra de cada tema de las 7 guías coincide con la de la web** y que
+    en ningún gráfico se pisan los nombres.
+- **Pantalla nativa** (`features/library/guia/`): cabecera con las cuatro cifras e índice para saltar,
+  y después los apartados de la web:
+  - qué nos dice el último MIR;
+  - preguntas por año;
+  - qué sube y qué baja;
+  - mapa de prioridades y evolución tema a tema, ordenables por previsión, histórico o tendencia;
+  - esfuerzo frente a recompensa, dibujado a mano a la misma escala que la web, con scroll lateral por
+    debajo de 480 px como allí;
+  - plan de estudio;
+  - tema a tema, plegable;
+  - el MIR comentado, con el marcador, «Empezar de nuevo» y «Repasar el tema».
+
+  Donde la web reacciona al pasar el ratón, en la app se toca y el detalle sale debajo.
+- **Reportes de guía:** la tanda 4 se amplía a `contentType: 'guide'`, con `guideRef` `<guía>/q<n>` o
+  `<guía>/general` y la foto de la pregunta, como la web. Lleva los tipos de error de las guías («Dato
+  incorrecto» sí; imagen y duplicada no). Hay un botón en cada pregunta y otro al pie («¿Has visto un
+  error en esta guía?»).
+- **Entradas:** la marca «Guía» en la portada de la Biblioteca y el botón «Guía de estudio MIR 2027» en
+  la asignatura.
+- **Arreglos que destaparon los tests:**
+  - «Empezar de nuevo» no limpiaba las preguntas: el estado era `late` y se inicializaba ya con la
+    vuelta nueva.
+  - Dos desbordes a 360 px: la fila de los últimos MIR del mapa de prioridades y el gráfico de años en
+    asignaturas grandes.
+- **Tests:** 575 en verde (37 nuevos). Entre ellos, las 7 guías recorridas enteras en móvil y tablet sin
+  desbordes. `flutter analyze` baja a 295 y desaparece el aviso de `assets/guides/` que faltaba.
+- **Otro ordenador:** su `assets/guides/` y su script, sin seguimiento, chocan con los del repo. Antes de
+  `git pull`, apartarlos (renombrar la carpeta), bajar y comparar.
+- **Falta:** verlo en el teléfono, sobre todo el gráfico de esfuerzo (texto pequeño) y las imágenes de
+  las preguntas, que siguen bloqueadas en España por R2 (tanda 5 de Studio).
+
 ## Tanda 8 — Tutoriales de la mascota
 
 - Mismo sistema que la web: guiones (`src/lib/tutorials/scripts.ts`), superposición con la mascota y
@@ -553,7 +600,7 @@ previsión sale igual en las dos.
 
 | Decisión | Hace falta en |
 |---|---|
-| Subir desde el otro ordenador `assets/guides/` y `tools/export_study_guides.mjs` | Ya (rompe el aviso del build) |
+| ~~Subir desde el otro ordenador `assets/guides/` y `tools/export_study_guides.mjs`~~ **Ya están en el repo (7b, 30/10/2026).** En el otro ordenador, apartar los suyos antes de `git pull` y comparar | Hecho |
 | ~~Versión de Flutter común~~ **Decidido 29/10/2026: 3.47.5.** Fijada en `pubspec.yaml` (`flutter: ">=3.47.5"`), goldens regenerados y 375 tests en verde. El otro ordenador tiene que hacer `flutter upgrade` | Hecho |
 | Arreglar el 401 → renovar y reintentar en los clientes | Antes de la tanda 2 de Studio |
 | ~~Guías: copiar a Dart o publicarlas como JSON desde la web~~ **Decidido 29/10/2026: JSON dentro de la app, generado de la web con un script** | Hecho |
