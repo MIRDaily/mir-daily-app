@@ -13,7 +13,7 @@ esperar a que la web y el backend las dejen firmes.
 **Copia en el repo de la app:** `docs/PLAN-PUESTA-AL-DIA.md` (rama `v7`), para que el otro ordenador la
 tenga. Al cerrar cada tanda se actualizan las dos.
 
-**Estado:** tandas 0 y 1 hechas el 29/10/2026, salvo la prueba en el teléfono.
+**Estado:** tandas 0, 1 y 2 hechas el 29/10/2026, salvo la prueba en el teléfono.
 
 ## Resumen del orden
 
@@ -208,6 +208,27 @@ Hoy la app registra el repaso con la ruta de mazos (`/decks/:id/log`, sí/no).
 
 Hecho cuando: un repaso en la app y otro en la web dejan la tarjeta con la misma fecha siguiente, y la
 previsión sale igual en las dos.
+
+### Resultado (29/10/2026, commit `cb8dc98` en v7)
+
+- **Fallo de producción corregido:** la app registraba el repaso en `/decks/:id/log` (sí/no, escalera de
+  tres intervalos) y la web en `/flashcard-decks/:id/log` con grado FSRS: la misma tarjeta quedaba con
+  fechas distintas según dónde se repasara. Ahora la app usa la ruta de la web y la fecha la pone el servidor.
+- **Hecho:** cuatro notas con su intervalo (los manda el servidor con cada tarjeta), deshacer (también con
+  la sesión acabada), barra de avance, editar y borrar desde el estudio, «Ver de dónde sale» (sin abrir la
+  rama del mapa), resumen final con reparto y «Has desbloqueado…». Ajustes de la sesión (guardados por
+  grupo en el teléfono). Grupo con dominio y cubos, panel de escalera, temas en lista tipo Anki con la ruta
+  completa, alta rápida de varias tarjetas con tema y nivel, selección para copiar, mover o borrar, mover a
+  carpeta y papelera. Portada con previsión de 30 días, madurez y retención, y asignaturas por categoría
+  con buscador, orden y tres columnas.
+- **Código:** lógica pura en `lib/core/models/flashcards.dart` (puerto de sesion.ts, escalera.ts,
+  subjectVisuals y groupTopics); `matchSubjectKey` y el alias «mosaico» en `mir_weights.dart`.
+- **Tests:** 433 en verde (18 de lógica con los casos de la web, 7 de la API y 7 de pantallas en móvil y
+  tablet, que destaparon y arreglaron dos desbordes a 360 px).
+- **No incluido:** `/cards/bulk` (es de las flashcards con IA, tanda 14); abrir la rama del mapa (tanda
+  12); filtro por asignatura y tema y Smart Review (esperan a la tanda 12 de Studio).
+- **Falta:** probar en el teléfono que un repaso en la app y otro en la web dan la misma fecha siguiente y
+  que la previsión sale igual.
 
 ## Tanda 3 — Resúmenes activos al día
 
