@@ -13,7 +13,7 @@ esperar a que la web y el backend las dejen firmes.
 **Copia en el repo de la app:** `docs/PLAN-PUESTA-AL-DIA.md` (rama `v7`), para que el otro ordenador la
 tenga. Al cerrar cada tanda se actualizan las dos.
 
-**Estado:** tandas 0 a 5 hechas el 29/10/2026, salvo la prueba en el teléfono.
+**Estado:** tandas 0 a 6 hechas el 29/10/2026, salvo la prueba en el teléfono.
 
 ## Resumen del orden
 
@@ -379,6 +379,47 @@ previsión sale igual en las dos.
 - `POST /api/simulacro/smart`, con el mismo lanzador que la web (Studio → Simulacro).
 - **Ojo** con el widget de «más fallada», que en la web llevaba datos de ejemplo (memoria
   `tutoriales-y-simulacro-inteligente`): comprobar qué enseña con datos reales.
+
+### Resultado (29/10/2026, commit `a750ab4` en v7)
+
+- **El lanzador, como en la web:** la tarjeta destacada «Simulacro a tu medida» va en la portada de
+  Studio, sobre las herramientas. Dice en qué tema flojeas: «Una sesión de 30 preguntas centrada en
+  Lupus, de Reumatología…». Lo saca del desafío personalizado del día (`weak_topic_questions`), la misma
+  fuente que la web, así que no hace falta otra petición. Sin punto débil se pinta apagada y lo explica.
+  **Diferencia consciente:** en la web esa tarjeta no se puede pulsar; en la app sí, y decide el
+  servidor. Si no hay datos, la hoja lo dice. Además, en el hub toda tarjeta se pulsa, que es lo que
+  exige el test del hub.
+- **La hoja** es el popup de la web, y pide `POST /api/simulacro/smart` con `count: 30`:
+  - «Qué entra», con las preguntas por asignatura, y el aviso «Completado con asignaturas flojas» si
+    la cobertura es `mixed`.
+  - El modo de corrección; por defecto, al final.
+  - «Todavía no te conocemos lo suficiente» con «Crear un simulacro normal» si es `insufficient`.
+  - Si falla, el mensaje del servidor con «Reintentar» e «Ir al creador normal».
+
+  «Empezar» enseña el mismo «Antes de empezar» (clásico o deslizar) que el creador normal y pasa al
+  runner **exactamente esas preguntas**, sin volver a sortear. Es el papel del `sessionStorage` en la
+  web.
+- **El runner con tanda:** se titula «Simulacro a tu medida» y al acabar ofrece «Volver a Studio», como
+  la web, que vuelve a /studio. Si se abandona a medias, cae en el creador normal, igual que en la web.
+  Usa el `sessionId` normal: da XP por pregunta, pero con 30 preguntas no entra en el historial (hacen
+  falta 50).
+- **Lo de «la más fallada» con datos de ejemplo** ya quedó en la tanda 5: la tarjeta avisa cuando el
+  servidor manda `isPlaceholder`.
+- **Arreglos de paso (ya existían):**
+  - Al salir del simulacro a medias, `dispose` buscaba la música de fondo en un árbol ya desmontado:
+    salta una aserción en depuración. Ahora se guarda la referencia al callarla.
+  - La barra «Anterior / Comprobar» del modo clásico y la fila «Deslizar · NUEVO» de «Antes de empezar»
+    se desbordaban a 360 px con texto grande.
+- **Código:** la lógica pura está en `core/models/simulacro_a_medida.dart` (plan, punto débil y texto de
+  la tarjeta). La hoja es `features/simulacro/simulacro_a_medida_sheet.dart` (`abrirSimulacroAMedida`) y
+  la tarjeta `features/biblioteca/widgets/a_medida_card.dart`. `SimulacroScreen(aMedida: …)` arranca
+  directamente en el runner. `SimLayoutPickerDialog` pasa a ser público.
+- **Tests:** 518 en verde (12 nuevos): lógica, la ruta con MockClient, el camino entero (hoja → «Antes
+  de empezar» → runner con la misma tanda) en móvil y tablet, sin datos, error con reintento, y la
+  tarjeta con y sin punto débil. No cambia ningún golden.
+- **No incluido:** el modo carrusel tiene su propia barra de navegación y no se ha tocado. El test entra
+  por el clásico.
+- **Falta:** probarlo en el teléfono con una cuenta que tenga fallos, y otra sin ellos, para ver el aviso.
 
 # Fase 3 · Contenido
 
