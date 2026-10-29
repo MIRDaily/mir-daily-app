@@ -46,14 +46,58 @@ const TextStyle kExplanationStyle = TextStyle(
 /// preguntas llegan SIN la respuesta correcta y la corrección la valida el
 /// servidor en /check (inmediata por pregunta o diferida al final).
 class SimulacroScreen extends StatefulWidget {
-  const SimulacroScreen({super.key});
+  /// Una tanda ya armada («Simulacro a tu medida»): se salta el creador y empieza directamente.
+  final SimAMedida? aMedida;
+
+  const SimulacroScreen({super.key, this.aMedida});
 
   @override
   State<SimulacroScreen> createState() => _SimulacroScreenState();
 }
 
+/// Lo que el «Simulacro a tu medida» le pasa al runner: las preguntas que se enseñaron en el popup
+/// (las mismas, no otra tirada) y cómo jugarlas.
+class SimAMedida {
+  final List<SimQuestion> questions;
+  final String mode; // immediate | deferred
+  final String layout; // classic | carousel
+  final bool showSubject;
+
+  const SimAMedida({
+    required this.questions,
+    required this.mode,
+    required this.layout,
+    required this.showSubject,
+  });
+}
+
 class _SimulacroScreenState extends State<SimulacroScreen> {
   String _phase = 'builder'; // builder | running | results
+
+  /// La sesión en curso es un «Simulacro a tu medida». Al acabar se vuelve a Studio (donde está su
+  /// tarjeta), como en la web; si se abandona a medias, se cae en el creador normal.
+  bool _aMedida = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final t = widget.aMedida;
+    if (t != null && t.questions.isNotEmpty) {
+      _aMedida = true;
+      _questions = t.questions;
+      _answers = List<int?>.filled(t.questions.length, null);
+      _results = List<SimResult?>.filled(t.questions.length, null);
+      _times = List<int?>.filled(t.questions.length, null);
+      _mode = t.mode;
+      _layout = t.layout;
+      _showSubject = t.showSubject;
+      _sessionId = _genSessionId();
+      _phase = 'running';
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _ajustarMusica();
+      });
+    }
+  }
 
   /// La música de fondo se calla mientras se responde, no en el creador ni en
   /// los resultados. Por eso esta pantalla no usa el mixin
@@ -61,11 +105,15 @@ class _SimulacroScreenState extends State<SimulacroScreen> {
   /// a mano al cambiar de fase.
   bool _musicaCallada = false;
 
+  /// La música que se calló, guardada para devolverla en [dispose]: ahí el árbol ya está
+  /// desmontado y buscarla con `context.read` es una aserción («deactivated widget's ancestor»).
+  BackgroundMusic? _musica;
+
   void _ajustarMusica() {
     final callar = _phase == 'running';
     if (callar == _musicaCallada) return;
     _musicaCallada = callar;
-    final musica = context.read<BackgroundMusic?>();
+    final musica = _musica ??= context.read<BackgroundMusic?>();
     if (musica == null) return;
     callar ? musica.pushSilence() : musica.popSilence();
   }
@@ -75,7 +123,7 @@ class _SimulacroScreenState extends State<SimulacroScreen> {
     if (_musicaCallada) {
       _musicaCallada = false;
       // Salir del simulacro a medias también tiene que devolver la música.
-      context.read<BackgroundMusic?>()?.popSilence();
+      _musica?.popSilence();
     }
     super.dispose();
   }
@@ -259,8 +307,18 @@ class _SimulacroScreenState extends State<SimulacroScreen> {
     }
   }
 
+  /// «Crear otro» desde los resultados: el «a tu medida» no tiene creador aquí, se vuelve a Studio.
+  void _restartFromResults() {
+    if (_aMedida) {
+      Navigator.of(context).pop();
+    } else {
+      _handleRestart();
+    }
+  }
+
   void _handleRestart() {
     setState(() {
+      _aMedida = false;
       _questions = [];
       _answers = [];
       _results = [];
@@ -383,7 +441,7 @@ class _SimulacroScreenState extends State<SimulacroScreen> {
         appBar: AppBar(
           backgroundColor: AppColors.background,
           surfaceTintColor: Colors.transparent,
-          title: const Text('Simulacro'),
+          title: Text(_aMedida ? 'Simulacro a tu medida' : 'Simulacro'),
           leading: IconButton(
             icon: const Icon(Icons.arrow_back_rounded),
             onPressed: () async {
@@ -392,7 +450,7 @@ class _SimulacroScreenState extends State<SimulacroScreen> {
               } else if (_phase == 'running') {
                 if (await _confirmExit()) _handleRestart();
               } else {
-                _handleRestart();
+                _restartFromResults();
               }
             },
           ),
@@ -419,7 +477,9 @@ class _SimulacroScreenState extends State<SimulacroScreen> {
             questions: _questions,
             answers: _answers,
             results: _results,
-            onRestart: _handleRestart,
+            onRestart: _restartFromResults,
+            restartLabel: _aMedida ? 'Volver a Studio' : 'Crear otro simulacro',
+            restartIcon: _aMedida ? Icons.arrow_back_rounded : Icons.replay_rounded,
             onClose: () => Navigator.of(context).pop(),
           ),
         _ => _SimBuilder(
@@ -667,7 +727,7 @@ class _SimBuilderState extends State<_SimBuilder> {
   Future<void> _onGenerate() async {
     final choice = await showDialog<(String, bool)>(
       context: context,
-      builder: (_) => const _LayoutPickerDialog(),
+      builder: (_) => const SimLayoutPickerDialog(),
     );
     if (choice == null || !mounted) return;
     widget.onSubmit(
@@ -2533,19 +2593,28 @@ class _SimRunnerClassicState extends State<_SimRunnerClassic>
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
             child: Row(
+              // spaceBetween y no un Spacer: así «Anterior» se queda con todo el hueco libre.
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                OutlinedButton.icon(
-                  onPressed: _index == 0 ? null : () => _goToQuestion(_index - 1),
-                  icon: const Icon(Icons.arrow_back_rounded, size: 18),
-                  label: const Text('Anterior'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.textSecondary,
-                    side: const BorderSide(color: AppColors.border),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 14),
+                // Flexible: a 360 px con texto grande no cabían «Anterior» y «Comprobar».
+                Flexible(
+                  // Sin `.icon`: su fila interna no deja encoger el texto.
+                  child: OutlinedButton(
+                    onPressed: _index == 0 ? null : () => _goToQuestion(_index - 1),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.textSecondary,
+                      side: const BorderSide(color: AppColors.border),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 14),
+                    ),
+                    child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(Icons.arrow_back_rounded, size: 18),
+                      SizedBox(width: 8),
+                      Flexible(child: Text('Anterior', maxLines: 1, overflow: TextOverflow.ellipsis)),
+                    ]),
                   ),
                 ),
-                const Spacer(),
+                const SizedBox(width: 12),
                 Pressable(
                   onTap: (selected == null || widget.finishing || _checking)
                       ? null
@@ -3260,14 +3329,14 @@ class _SimDetailDialogState extends State<_SimDetailDialog> {
 // POPUP: elegir modo de visualización (clásico vs deslizar), gráfico
 // ==========================
 
-class _LayoutPickerDialog extends StatefulWidget {
-  const _LayoutPickerDialog();
+class SimLayoutPickerDialog extends StatefulWidget {
+  const SimLayoutPickerDialog({super.key});
 
   @override
-  State<_LayoutPickerDialog> createState() => _LayoutPickerDialogState();
+  State<SimLayoutPickerDialog> createState() => SimLayoutPickerDialogState();
 }
 
-class _LayoutPickerDialogState extends State<_LayoutPickerDialog> {
+class SimLayoutPickerDialogState extends State<SimLayoutPickerDialog> {
   // Ver la nota de `_SimulacroScreenState._showSubject`: viene apagado.
   bool _showSubject = false;
 
@@ -3372,13 +3441,18 @@ class _LayoutPickerDialogState extends State<_LayoutPickerDialog> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Flexible: a 360 px con texto grande «Deslizar» + «NUEVO» no cabía.
                   Row(
                     children: [
-                      Text(title,
-                          style: const TextStyle(
-                              color: AppColors.textPrimary,
-                              fontWeight: FontWeight.w800,
-                              fontSize: 16)),
+                      Flexible(
+                        child: Text(title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                                color: AppColors.textPrimary,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 16)),
+                      ),
                       if (badge != null) ...[
                         const SizedBox(width: 8),
                         Container(

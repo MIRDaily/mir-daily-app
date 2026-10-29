@@ -9,6 +9,7 @@ import '../data/mir_weights.dart';
 import '../models/flashcards.dart';
 import '../models/mazos_extra.dart';
 import '../models/progreso_semana.dart';
+import '../models/simulacro_a_medida.dart';
 import '../models/models.dart';
 import '../models/progress.dart';
 import 'auth_service.dart';
@@ -710,6 +711,11 @@ class ApiService {
         .map((e) => SimQuestion.fromJson(e as Map<String, dynamic>))
         .toList();
   }
+
+  /// «Simulacro a tu medida»: el servidor elige [count] preguntas (10-40, por defecto 30) de los
+  /// temas en que peor vas y manda el desglose por asignatura. Sin señal suficiente, `insufficient`.
+  Future<PlanAMedida> getSimulacroAMedida({int count = 30}) async =>
+      PlanAMedida.fromJson(await _request('POST', '/api/simulacro/smart', body: {'count': count}));
 
   /// Corrige en el servidor y revela la opción correcta + explicación.
   ///

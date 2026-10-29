@@ -14,6 +14,7 @@ import '../library/library_screen.dart';
 import '../resumenes/resumenes_screen.dart';
 import '../resumenes/widgets/prevision_resumenes.dart';
 import '../simulacro/simulacro_screen.dart';
+import 'widgets/a_medida_card.dart';
 import 'widgets/progreso_mensual.dart';
 import 'widgets/studio_card_art.dart';
 
@@ -49,6 +50,8 @@ class BibliotecaHubScreen extends StatelessWidget {
               subtitle: 'Repasa, ponte a prueba y consulta el temario.',
             ),
             const SizedBox(height: 18),
+            // «Simulacro a tu medida»: la tarjeta destacada de Studio en la web.
+            const AMedidaCard(),
             // «Progreso mensual», como en la portada de Studio de la web. No sale sin datos.
             const ProgresoMensualCard(),
             // «Tienes N párrafos para repasar» (resúmenes activos). No sale si no hay nada.
