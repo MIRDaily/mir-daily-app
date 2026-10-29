@@ -13,7 +13,7 @@ esperar a que la web y el backend las dejen firmes.
 **Copia en el repo de la app:** `docs/PLAN-PUESTA-AL-DIA.md` (rama `v7`), para que el otro ordenador la
 tenga. Al cerrar cada tanda se actualizan las dos.
 
-**Estado:** tandas 0 a 4 hechas el 29/10/2026, salvo la prueba en el teléfono.
+**Estado:** tandas 0 a 5 hechas el 29/10/2026, salvo la prueba en el teléfono.
 
 ## Resumen del orden
 
@@ -327,6 +327,53 @@ previsión sale igual en las dos.
   su imagen (`/stats/most-failed-week`).
 - **Nombre visible:** `POST /profile/display-name`, si la web lo deja editar.
 
+### Resultado (29/10/2026, commit `f2b6ff9` en v7)
+
+- **Papelera de preguntas del mazo:** un botón con el número junto a «Preguntas» abre la papelera.
+  Enseña el enunciado, la asignatura y «Expira en Xh Ym», como el TrashTimer de la web, y permite
+  «Restaurar» (`GET .../items/trash` y `POST .../items/:id/restore`). Quitar una pregunta ahora pide
+  confirmación («Podrás restaurarla desde la papelera durante 24 horas») y deja «Deshacer», como la
+  web. Antes se quitaba sin preguntar y sin vuelta atrás.
+- **Acierto por asignatura** (`GET .../subject-performance`): una barra por asignatura en el detalle
+  del mazo, debajo de «De qué se compone».
+- **Colocar a mano:** sale en Ajustes de la galería con dos o más mazos propios. Es una hoja aparte
+  donde se arrastran los mazos por el asa, y guarda con `POST /decks/reorder` (el mismo
+  `decks.position` que arrastra la web). Va en una hoja porque arrastrar dentro de la galería choca
+  con el scroll. Al guardar, la galería pasa a «Predeterminado», que es ese orden. Si el servidor
+  falla, vuelve atrás.
+- **«Actualizar» del mazo de fallos — decidido no portarlo.** La web no tiene ese botón: el servidor
+  rehace el mazo solo al abrirlo, como mucho una vez por minuto. Además, el fallo M1 de la auditoría
+  (que borraba el dominio) ya está corregido en producción: en el esquema del 16/09,
+  `refresh_failed_global` hace un diff con borrado suave. Se quita la fila de decisiones pendientes.
+- **Panel:** nueva sección «La más fallada», justo después de «Tu progreso global»
+  (`GET /stats/most-failed-week`).
+  - Enunciado e imagen.
+  - Se puede elegir una opción sin que se guarde y luego «Ver respuesta», que marca «Correcta» y «Tu
+    respuesta».
+  - La frase de cuando la hiciste, la explicación («Claves para no fallarla») y el aviso de «Datos de
+    ejemplo».
+  - Diferencia consciente con la web: si no hiciste aquel daily, la app marca la correcta al pulsar
+    «Ver respuesta»; la web no marca ninguna.
+- **Progreso mensual** (`GET /analytics/monthly-progress`): una tarjeta en la portada de Studio, que es
+  donde la pone la web, no en el Panel. Muestra «+N», la insignia «↑ +12,5%» y las del año, con el
+  formato numérico de `es-ES`. Sin datos no ocupa sitio.
+- **Nombre visible:** la web lo deja editar, así que entra en el editor de perfil. Se comprueba la regla
+  del servidor (2-16 letras, números y espacios) antes de enviar y se guarda aparte
+  (`POST /profile/display-name`), como el username. Ojo: la regla del backend **no admite tildes ni ñ**
+  («Álex», «Íñigo»). Es así también en la web; si se quiere cambiar, va al backend.
+- **Código:** la lógica pura está en `core/models/mazos_extra.dart` y `core/models/progreso_semana.dart`.
+  Las pantallas son `features/decks/deck_items_trash_screen.dart`,
+  `features/decks/widgets/deck_reorder_sheet.dart`, `features/premium/widgets/mas_fallada_section.dart`
+  y `features/biblioteca/widgets/progreso_mensual.dart`. Las rutas nuevas están en `ApiService`, que es
+  lo que simulan los tests de mazos.
+- **Tests:** 506 en verde (20 nuevos), con la lógica de la web, las rutas con MockClient y las pantallas
+  en móvil y tablet (papelera, detalle con quitar y deshacer, arrastrar para ordenar, la más fallada,
+  progreso mensual y nombre visible). Destaparon un desborde en «Claves para no fallarla» a 360 px, ya
+  corregido. Se regeneraron 4 goldens tras revisarlos: el detalle del mazo, por el botón de la
+  papelera, y Premium en tablet, por la sección nueva.
+- **Falta:** probarlo en el teléfono. En concreto, que el orden colocado en la app se vea igual en la
+  web y que una pregunta quitada en la app aparezca en la papelera de la web.
+
 ## Tanda 6 — Simulacro inteligente
 
 - `POST /api/simulacro/smart`, con el mismo lanzador que la web (Studio → Simulacro).
@@ -417,7 +464,7 @@ previsión sale igual en las dos.
 | ~~Versión de Flutter común~~ **Decidido 29/10/2026: 3.47.5.** Fijada en `pubspec.yaml` (`flutter: ">=3.47.5"`), goldens regenerados y 375 tests en verde. El otro ordenador tiene que hacer `flutter upgrade` | Hecho |
 | Arreglar el 401 → renovar y reintentar en los clientes | Antes de la tanda 2 de Studio |
 | Guías: copiar a Dart o publicarlas como JSON desde la web | Tanda 7 |
-| Qué se hace con «Actualizar» en el mazo de fallos | Tanda 5 |
+| ~~Qué se hace con «Actualizar» en el mazo de fallos~~ **Decidido 29/10/2026: no se porta** (la web no lo tiene; el servidor lo rehace solo y M1 ya está corregido) | Hecho |
 | Editor de mapas nativo, reducido o solo en web | Tanda 13 |
 | Cuentas de tienda (Google Play / App Store) y quién firma | Tanda 17 |
 
