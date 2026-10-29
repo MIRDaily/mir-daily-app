@@ -3,17 +3,19 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/models/models.dart';
+import '../../../core/models/progreso_semana.dart' show nombreVisibleValido, mensajeNombreVisible;
 import '../../../core/responsive/adaptive_modal.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/sticker/sticker.dart';
 import '../../../shared/sticker/textures.dart';
 
-/// Editor de los datos del perfil: objetivo, curso, especialidad,
-/// universidad, bio, visibilidad y username.
+/// Editor de los datos del perfil: nombre visible, objetivo, curso,
+/// especialidad, universidad, bio, visibilidad y username.
 ///
-/// Escribe contra `/api/profile/academic` (edición parcial) y, para el
-/// username, contra `/api/profile/username`. **No** usa `/onboarding`, que
+/// Escribe contra `/api/profile/academic` (edición parcial); el nombre
+/// visible, contra `/api/profile/display-name`, y el username, contra
+/// `/api/profile/username`. **No** usa `/onboarding`, que
 /// reescribe el perfil entero y reiniciaría el bloqueo de 30 días del
 /// username sin que el usuario lo haya pedido.
 ///
@@ -68,6 +70,8 @@ class _ProfileEditorSheetState extends State<_ProfileEditorSheet> {
       TextEditingController(text: widget.profile.bio ?? '');
   late final TextEditingController _username =
       TextEditingController(text: widget.profile.username ?? '');
+  late final TextEditingController _displayName =
+      TextEditingController(text: widget.profile.displayName ?? '');
 
   late String? _goal = widget.profile.mainGoal;
   late int? _year = widget.profile.medicalYear;
@@ -81,6 +85,7 @@ class _ProfileEditorSheetState extends State<_ProfileEditorSheet> {
   bool _saving = false;
   String? _error;
   String? _usernameError;
+  String? _displayNameError;
 
   ApiService get _api => context.read<ApiService>();
 
@@ -94,6 +99,7 @@ class _ProfileEditorSheetState extends State<_ProfileEditorSheet> {
   void dispose() {
     _bio.dispose();
     _username.dispose();
+    _displayName.dispose();
     super.dispose();
   }
 
@@ -122,12 +128,34 @@ class _ProfileEditorSheetState extends State<_ProfileEditorSheet> {
     return next.isNotEmpty && next != (widget.profile.username ?? '');
   }
 
+  bool get _displayNameChanged =>
+      _displayName.text.trim() != (widget.profile.displayName ?? '').trim();
+
   Future<void> _save() async {
+    // El nombre visible se comprueba antes de mandar nada (la misma regla que el servidor).
+    if (_displayNameChanged && !nombreVisibleValido(_displayName.text)) {
+      setState(() => _displayNameError = mensajeNombreVisible);
+      return;
+    }
     setState(() {
       _saving = true;
       _error = null;
       _usernameError = null;
+      _displayNameError = null;
     });
+
+    // Igual que el username: por separado, para que un rechazo no tire lo demás.
+    if (_displayNameChanged) {
+      try {
+        await _api.updateDisplayName(_displayName.text);
+      } on ApiException catch (e) {
+        if (!mounted) return;
+        setState(() => _displayNameError = e.message);
+      } catch (_) {
+        if (!mounted) return;
+        setState(() => _displayNameError = 'No se pudo actualizar el nombre.');
+      }
+    }
 
     // El username va primero y por separado: si lo rechazan (bloqueo o
     // repetido) el resto de datos se guarda igual, y así el usuario no pierde
@@ -154,8 +182,8 @@ class _ProfileEditorSheetState extends State<_ProfileEditorSheet> {
         bio: _bio.text.trim(),
       );
       if (!mounted) return;
-      // Si el username falló, se queda abierto enseñando por qué.
-      if (_usernameError != null) {
+      // Si el username o el nombre fallaron, se queda abierto enseñando por qué.
+      if (_usernameError != null || _displayNameError != null) {
         setState(() => _saving = false);
         return;
       }
@@ -224,6 +252,27 @@ class _ProfileEditorSheetState extends State<_ProfileEditorSheet> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      const _Label('Nombre visible'),
+                      InkInput(
+                        controller: _displayName,
+                        maxLength: 16,
+                        invalid: _displayNameError != null,
+                        onChanged: (_) => setState(() => _displayNameError = null),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        _displayNameError ?? 'Es el que ven los demás, por ejemplo en el ranking del daily.',
+                        style: TextStyle(
+                          color: _displayNameError != null
+                              ? const Color(0xFFC4655A)
+                              : kMuted.withValues(alpha: 0.9),
+                          fontSize: 11.5,
+                          height: 1.4,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+
                       const _Label('Nombre de usuario'),
                       InkInput(
                         controller: _username,

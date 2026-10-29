@@ -22,6 +22,7 @@ import 'deck_detail_screen.dart';
 import 'deck_trash_screen.dart';
 import 'widgets/construction_deck.dart';
 import 'widgets/deck_gradient.dart';
+import 'widgets/deck_reorder_sheet.dart';
 import 'widgets/deck_sort.dart';
 
 /// Sección Mazos — conectada al backend (/api/studio/decks): lista con estado
@@ -212,6 +213,35 @@ class _DecksScreenState extends State<DecksScreen>
   String _galleryStyleOf(AuthProvider auth) =>
       _pendingGalleryStyle ?? auth.profile?.deckGalleryStyle ?? 'default';
 
+  /// Lo que devuelve el panel de ajustes al tocar «Colocar a mano…».
+  static const Object _colocarAMano = 'colocar-a-mano';
+
+  /// Coloca a mano el orden de los mazos propios y lo guarda en el servidor (`decks.position`).
+  /// Se pinta al momento y vuelve atrás si el servidor falla, como la web.
+  Future<void> _reorder(ApiService api) async {
+    final todos = _decks ?? const <Deck>[];
+    final sistema = todos.where((d) => d.isSystemDeck).toList();
+    final propios = todos.where((d) => !d.isSystemDeck).toList();
+    final ids = await showDeckReorderSheet(context, propios);
+    if (ids == null || !mounted) return;
+
+    final porId = {for (final d in propios) d.id: d};
+    final previos = todos;
+    setState(() => _decks = [...sistema, for (final id in ids) porId[id]!]);
+    // Para verlo hay que estar en «Predeterminado», que es el orden a mano.
+    if (_sort != DeckSort.manual) await _applySort(DeckSort.manual);
+    try {
+      await api.reorderDecks(ids);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _decks = previos);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(e is ApiException ? e.message : 'No se pudo guardar el orden de mazos.'),
+        behavior: SnackBarBehavior.floating,
+      ));
+    }
+  }
+
   Future<void> _openGallerySettings() async {
     // Los providers se leen ANTES del await del panel: despues de un gap
     // asincrono el context puede haber quedado fuera del arbol.
@@ -262,6 +292,25 @@ class _DecksScreenState extends State<DecksScreen>
                   ),
                   onTap: () => Navigator.pop(ctx, sort),
                 ),
+              // Con menos de dos mazos propios no hay nada que colocar.
+              if ((_decks ?? const <Deck>[]).where((d) => !d.isSystemDeck).length > 1)
+                _GalleryStyleOption(
+                  title: 'Colocar a mano…',
+                  subtitle: 'Arrastra tus mazos al orden que quieras.',
+                  selected: false,
+                  preview: Container(
+                    width: 34,
+                    height: 34,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: kInk, width: 2),
+                    ),
+                    child: const Icon(Icons.drag_handle_rounded, size: 17, color: kInk),
+                  ),
+                  onTap: () => Navigator.pop(ctx, _colocarAMano),
+                ),
               const Padding(
                 padding: EdgeInsets.fromLTRB(20, 14, 20, 6),
                 child: SectionLabel('Textura'),
@@ -306,6 +355,11 @@ class _DecksScreenState extends State<DecksScreen>
     );
 
     if (chosen == null || !mounted) return;
+
+    if (identical(chosen, _colocarAMano)) {
+      await _reorder(api);
+      return;
+    }
 
     // El orden es local e instantáneo: no hay nada que pedirle al servidor.
     if (chosen is DeckSort) {

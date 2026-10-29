@@ -3,12 +3,14 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/models/mazos_extra.dart';
 import '../../core/models/models.dart';
 import '../../core/responsive/adaptive_modal.dart';
 import '../../core/services/api_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../shared/sticker/sticker.dart';
 import '../../shared/sticker/textures.dart';
+import 'deck_items_trash_screen.dart';
 import 'deck_study_screen.dart';
 import 'widgets/deck_gradient.dart';
 import 'widgets/deck_study_options.dart';
@@ -46,6 +48,12 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
 
   DeckSummary? _summary;
   List<DeckSubject> _subjects = const [];
+
+  /// Acierto por asignatura (último intento de cada pregunta), como «Acierto por asignatura» de la web.
+  List<SubjectPerformance> _performance = const [];
+
+  /// Preguntas en la papelera del mazo (recuperables 24 h): el número de su botón.
+  int _trashCount = 0;
   bool _loading = true;
   String? _error;
 
@@ -90,6 +98,11 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
         _api.getDeckSummary(_deck.id).catchError((_) => const DeckSummary(
             newCount: 0, failed: 0, learning: 0, mastered: 0)),
         _api.getDeckSubjects(_deck.id).catchError((_) => <DeckSubject>[]),
+        // Extras: si fallan, la pantalla sale igual sin ellos.
+        _api.getDeckSubjectPerformance(_deck.id).catchError((_) => <SubjectPerformance>[]),
+        _deck.isSystemDeck
+            ? Future.value(<DeckItemTrashEntry>[])
+            : _api.getDeckItemsTrash(_deck.id).catchError((_) => <DeckItemTrashEntry>[]),
       ]);
       if (!mounted) return;
       final page = results[0] as DeckItemsPage;
@@ -100,6 +113,8 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
         _itemsTotalPages = page.totalPages;
         _summary = results[1] as DeckSummary;
         _subjects = results[2] as List<DeckSubject>;
+        _performance = results[3] as List<SubjectPerformance>;
+        _trashCount = (results[4] as List<DeckItemTrashEntry>).length;
         _loading = false;
         _searching = false;
         _expandOverrides.clear();
@@ -359,17 +374,90 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
     _load();
   }
 
+  /// Como la web: se confirma, se quita al momento y se puede deshacer (va a la papelera 24 h).
   Future<void> _removeItem(DeckCard item) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('¿Eliminar esta pregunta del mazo?'),
+        content: Text(
+          '${item.statement.length > 140 ? '${item.statement.substring(0, 140)}…' : item.statement}\n\n'
+          'Podrás restaurarla desde la papelera durante 24 horas.',
+          style: const TextStyle(color: AppColors.textSecondary, height: 1.4),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+
+    final index = _items?.indexWhere((x) => x.itemId == item.itemId) ?? -1;
     setState(() {
       _items?.removeWhere((x) => x.itemId == item.itemId);
       if (_itemsTotal > 0) _itemsTotal--;
     });
     try {
       await _api.removeDeckItem(_deck.id, item.itemId);
+      if (!mounted) return;
+      setState(() => _trashCount++);
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(
+          content: const Text('Pregunta enviada a la papelera'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: AppColors.textPrimary,
+          action: SnackBarAction(
+            label: 'Deshacer',
+            textColor: AppColors.primary,
+            onPressed: () => _undoRemove(item, index),
+          ),
+        ));
     } catch (_) {
       if (!mounted) return;
       _toast('No se pudo quitar la pregunta.');
       _load();
+    }
+  }
+
+  Future<void> _undoRemove(DeckCard item, int index) async {
+    try {
+      await _api.restoreDeckItem(_deck.id, item.itemId);
+      if (!mounted) return;
+      setState(() {
+        final items = _items;
+        if (items != null && !items.any((x) => x.itemId == item.itemId)) {
+          items.insert(index.clamp(0, items.length), item);
+        }
+        _itemsTotal++;
+        if (_trashCount > 0) _trashCount--;
+      });
+      _toast('Pregunta restaurada');
+    } catch (e) {
+      _toast(e is ApiException ? e.message : 'No se pudo restaurar la pregunta.');
+    }
+  }
+
+  Future<void> _openTrash() async {
+    final restored = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => DeckItemsTrashScreen(deck: _deck)),
+    );
+    if (!mounted) return;
+    // Siempre se recarga: también cambia el número si alguna caducó mientras tanto.
+    if (restored == true) {
+      _load();
+    } else {
+      _api.getDeckItemsTrash(_deck.id).then((l) {
+        if (mounted) setState(() => _trashCount = l.length);
+      }).catchError((_) {});
     }
   }
 
@@ -427,10 +515,20 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
                         const SectionLabel('De qué se compone'),
                         _subjectsCard(),
                       ],
+                      if (_performance.isNotEmpty) ...[
+                        const SizedBox(height: 18),
+                        const SectionLabel('Acierto por asignatura'),
+                        _performanceCard(),
+                      ],
                       const SizedBox(height: 18),
-                      SectionLabel(_search.isEmpty
-                          ? 'Preguntas ($_itemsTotal)'
-                          : 'Resultados ($_itemsTotal)'),
+                      SectionLabel(
+                        _search.isEmpty
+                            ? 'Preguntas ($_itemsTotal)'
+                            : 'Resultados ($_itemsTotal)',
+                        trailing: canEdit
+                            ? _TrashChip(key: const ValueKey('papelera-del-mazo'), count: _trashCount, onTap: _openTrash)
+                            : null,
+                      ),
                       _toolbar(),
                       const SizedBox(height: 14),
                       if (_items?.isEmpty ?? true)
@@ -682,6 +780,62 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
 
   /// De qué está hecho el mazo. La web enseña este desglose en la galería;
   /// aquí va en la pantalla del mazo, que es donde hay sitio para leerlo.
+  /// Una barra por asignatura con su % de acierto (coral), como la tarjeta de la web.
+  Widget _performanceCard() {
+    return StickerCard(
+      depth: 3,
+      radius: 16,
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (final p in _performance) ...[
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    p.subject,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: kInk, fontSize: 12.5, fontWeight: FontWeight.w700),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '${p.accuracy}%',
+                  style: const TextStyle(color: kInk, fontSize: 12.5, fontWeight: FontWeight.w900),
+                ),
+              ],
+            ),
+            const SizedBox(height: 5),
+            Semantics(
+              label: '${p.subject}: ${p.accuracy}% de acierto en ${p.total} preguntas',
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(999),
+                child: Container(
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF5F1EF),
+                    border: Border.all(color: kHairline),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: FractionallySizedBox(
+                      widthFactor: p.accuracy / 100,
+                      child: Container(color: AppColors.primary),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            if (p != _performance.last) const SizedBox(height: 11),
+          ],
+        ],
+      ),
+    );
+  }
+
   Widget _subjectsCard() {
     final total = _subjects.fold<int>(0, (sum, s) => sum + s.count);
     if (total == 0) return const SizedBox.shrink();
@@ -738,6 +892,43 @@ class _DeckDetailScreenState extends State<DeckDetailScreen> {
             if (s != _subjects.last) const SizedBox(height: 11),
           ],
         ],
+      ),
+    );
+  }
+}
+
+/// Botón de la papelera del mazo, con cuántas preguntas hay dentro.
+class _TrashChip extends StatelessWidget {
+  final int count;
+  final VoidCallback onTap;
+
+  const _TrashChip({super.key, required this.count, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: 'Papelera del mazo, $count preguntas',
+      excludeSemantics: true,
+      onTap: onTap,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: kHairline, width: 2),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.delete_outline_rounded, size: 15, color: kMuted),
+              const SizedBox(width: 4),
+              Text('$count', style: const TextStyle(color: kMuted, fontSize: 11.5, fontWeight: FontWeight.w900)),
+            ],
+          ),
+        ),
       ),
     );
   }

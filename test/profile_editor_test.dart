@@ -100,10 +100,10 @@ void main() {
 
     // Por posicion y no por su texto: en cuanto se escribe, un finder que
     // busque el contenido anterior deja de encontrar el campo.
-    final bio = find.byType(TextField).at(1);
+    final bio = find.byType(TextField).at(2);
     expect(tester.widget<TextField>(bio).controller!.text,
         'Opositor de segunda vuelta.',
-        reason: 'el segundo campo es el de la bio');
+        reason: 'el tercer campo es el de la bio (tras nombre visible y username)');
 
     await tester.enterText(bio, 'una\ndos\ntres');
     await tester.pump();

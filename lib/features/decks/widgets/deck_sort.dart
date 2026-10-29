@@ -6,8 +6,9 @@ import '../../../core/models/models.dart';
 ///
 /// La web ordena arrastrando (guarda `decks.position`); en el móvil, arrastrar
 /// dentro de una lista que ya hace scroll es incómodo y frágil, así que aquí
-/// se ordena eligiendo. [manual] respeta el orden que venga del servidor, que
-/// es justo el que se colocó a mano en la web.
+/// se ordena eligiendo, y el orden a mano se coloca en una hoja aparte
+/// («Colocar a mano», deck_reorder_sheet.dart). [manual] respeta el orden que
+/// venga del servidor, que es justo ese.
 enum DeckSort {
   manual,
   recent,
@@ -40,7 +41,7 @@ extension DeckSortInfo on DeckSort {
   String get hint {
     switch (this) {
       case DeckSort.manual:
-        return 'El orden que colocaste en la web.';
+        return 'El que colocas a mano (aquí o en la web).';
       case DeckSort.recent:
         return 'Lo último que creaste, arriba.';
       case DeckSort.oldest:

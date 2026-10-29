@@ -14,6 +14,7 @@ import '../library/library_screen.dart';
 import '../resumenes/resumenes_screen.dart';
 import '../resumenes/widgets/prevision_resumenes.dart';
 import '../simulacro/simulacro_screen.dart';
+import 'widgets/progreso_mensual.dart';
 import 'widgets/studio_card_art.dart';
 
 /// Hub de Studio: punto de entrada a las herramientas de estudio — Mazos
@@ -48,6 +49,8 @@ class BibliotecaHubScreen extends StatelessWidget {
               subtitle: 'Repasa, ponte a prueba y consulta el temario.',
             ),
             const SizedBox(height: 18),
+            // «Progreso mensual», como en la portada de Studio de la web. No sale sin datos.
+            const ProgresoMensualCard(),
             // «Tienes N párrafos para repasar» (resúmenes activos). No sale si no hay nada.
             AvisoResumenes(onAbrir: () => _open(context, const ResumenesScreen())),
             const SizedBox(height: 8),

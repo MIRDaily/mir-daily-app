@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../core/models/analytics.dart';
 import '../../../core/models/models.dart';
 import '../../../core/services/api_service.dart';
+import 'mas_fallada_section.dart';
 import 'panel_charts.dart';
 import 'panel_subsections.dart';
 
@@ -78,6 +79,9 @@ class _PanelSectionState extends State<PanelSection> {
           error: _error,
           onRetry: _load,
         ),
+        const SizedBox(height: 32),
+        // ===== LA MÁS FALLADA DE LA SEMANA =====
+        const MasFalladaSubsection(),
         const SizedBox(height: 32),
         // En tablet apaisada el esfuerzo y los puntos débiles se leen mejor
         // en paralelo: son dos bloques cortos que, en columna, dejaban media

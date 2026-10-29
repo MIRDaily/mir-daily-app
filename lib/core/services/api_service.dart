@@ -7,6 +7,8 @@ import '../config/app_config.dart';
 import '../models/analytics.dart';
 import '../data/mir_weights.dart';
 import '../models/flashcards.dart';
+import '../models/mazos_extra.dart';
+import '../models/progreso_semana.dart';
 import '../models/models.dart';
 import '../models/progress.dart';
 import 'auth_service.dart';
@@ -219,6 +221,12 @@ class ApiService {
     );
   }
 
+  /// Nombre visible (el que ven los demás, p. ej. en el ranking del daily). El backend admite 2-16 letras,
+  /// números y espacios y responde 400 con el motivo si no.
+  Future<void> updateDisplayName(String displayName) async {
+    await _request('POST', '/api/profile/display-name', body: {'displayName': displayName.trim()});
+  }
+
   /// Borra la cuenta y TODOS sus datos (RGPD, derecho de supresión). El
   /// backend lo hace en una transacción: o se borra todo o nada. Tras esto
   /// la sesión ya no vale y hay que cerrarla.
@@ -371,6 +379,14 @@ class ApiService {
     final json = await _request('GET', '/api/stats/timeseries');
     return TimeSeriesResponse.fromJson(json);
   }
+
+  /// Preguntas repasadas en los últimos 30 días frente a los 30 anteriores, y en el año.
+  Future<ProgresoMensual> getMonthlyProgress() async =>
+      ProgresoMensual.fromJson(await _request('GET', '/api/analytics/monthly-progress'));
+
+  /// La pregunta más fallada de la semana pasada, con lo que respondiste tú. Null si no hay datos.
+  Future<MasFallada?> getMostFailedWeek() async =>
+      MasFallada.fromJson(await _request('GET', '/api/stats/most-failed-week'));
 
   /// Esfuerzo (volumen y reparto acierto/fallo/blanco) en una ventana.
   Future<EffortResponse> getEffort(AnalyticsWindow window) async {
@@ -550,6 +566,34 @@ class ApiService {
 
   Future<void> removeDeckItem(String deckId, String itemId) async {
     await _request('DELETE', '/api/studio/decks/$deckId/items/$itemId');
+  }
+
+  /// Preguntas quitadas del mazo que aún se pueden recuperar (24 h), la más reciente primero.
+  Future<List<DeckItemTrashEntry>> getDeckItemsTrash(String deckId) async {
+    final json = await _request('GET', '/api/studio/decks/$deckId/items/trash');
+    final l = json['trash'];
+    return ordenarPapelera(l is List
+        ? l.whereType<Map>().map((e) => DeckItemTrashEntry.fromJson(Map<String, dynamic>.from(e))).toList()
+        : const []);
+  }
+
+  /// Devuelve al mazo una pregunta de su papelera (400 si ya caducó).
+  Future<void> restoreDeckItem(String deckId, String itemId) async {
+    await _request('POST', '/api/studio/decks/$deckId/items/$itemId/restore');
+  }
+
+  /// Guarda el orden a mano de los mazos propios (`decks.position`), el mismo que se arrastra en la web.
+  Future<void> reorderDecks(List<String> orderedDeckIds) async {
+    await _request('POST', '/api/studio/decks/reorder', body: {'orderedDeckIds': orderedDeckIds});
+  }
+
+  /// Acierto por asignatura del mazo (último intento de cada pregunta).
+  Future<List<SubjectPerformance>> getDeckSubjectPerformance(String deckId) async {
+    final json = await _request('GET', '/api/studio/decks/$deckId/subject-performance');
+    final l = json['subjects'];
+    return l is List
+        ? l.whereType<Map>().map((e) => SubjectPerformance.fromJson(Map<String, dynamic>.from(e))).toList()
+        : const [];
   }
 
   Future<DeckSummary> getDeckSummary(String deckId) async {
