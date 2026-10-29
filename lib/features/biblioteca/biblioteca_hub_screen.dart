@@ -12,6 +12,7 @@ import '../electros/electros_hub_screen.dart';
 import '../flashcards/flashcards_screen.dart';
 import '../library/library_screen.dart';
 import '../resumenes/resumenes_screen.dart';
+import '../resumenes/widgets/prevision_resumenes.dart';
 import '../simulacro/simulacro_screen.dart';
 import 'widgets/studio_card_art.dart';
 
@@ -46,7 +47,10 @@ class BibliotecaHubScreen extends StatelessWidget {
               title: 'Tu centro de estudio',
               subtitle: 'Repasa, ponte a prueba y consulta el temario.',
             ),
-            const SizedBox(height: 26),
+            const SizedBox(height: 18),
+            // «Tienes N párrafos para repasar» (resúmenes activos). No sale si no hay nada.
+            AvisoResumenes(onAbrir: () => _open(context, const ResumenesScreen())),
+            const SizedBox(height: 8),
             const SectionLabel('Herramientas'),
             const SizedBox(height: 14),
             AdaptiveGrid(

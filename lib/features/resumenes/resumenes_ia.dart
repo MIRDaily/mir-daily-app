@@ -136,6 +136,7 @@ class ResumenesIa {
     required int cantidad,
     required List<String> existentes,
     required List<String> vecinos,
+    CobroIa? cobro,
   }) async {
     final datos = await ia.post(IaArea.resumenes, cuerpo: {
       'titulo': titulo,
@@ -145,6 +146,8 @@ class ResumenesIa {
       if (unidad != null) 'unidad': unidad,
       'niveles': niveles,
       'ampliar': {'tema': tema, 'cantidad': cantidad, 'existentes': existentes, 'vecinos': vecinos},
+      // Con créditos activos, sin esto el servidor rechaza la petición (precio_cambiado).
+      ...?cobro?.toJson(),
     });
     final st = datos['stats'] is Map ? datos['stats'] as Map : const {};
     int cuenta(dynamic v) => v is int && v >= 0 ? v : 0;
@@ -178,6 +181,7 @@ class ResumenesIa {
     required String tema,
     required String texto,
     required List<Hueco> huecos,
+    CobroIa? cobro,
   }) async {
     final datos = await ia.post(IaArea.resumenes, cuerpo: {
       'titulo': titulo,
@@ -186,6 +190,7 @@ class ResumenesIa {
       'paginas': paginas,
       if (unidad != null) 'unidad': unidad,
       'rehacer': {'tema': tema, 'texto': texto, 'huecos': huecos.map((h) => h.toJson()).toList()},
+      ...?cobro?.toJson(),
     });
     final lista = _parrafos([datos['parrafo']], 'r', null);
     if (lista.isEmpty) throw const IaException('La IA devolvió un resultado no válido. Inténtalo de nuevo.');

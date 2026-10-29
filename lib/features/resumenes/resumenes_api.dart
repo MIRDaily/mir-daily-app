@@ -12,6 +12,7 @@ import 'package:http/http.dart' as http;
 import '../../core/models/resumen.dart';
 import '../../core/models/resumen_ia.dart';
 import 'resumenes_huecos.dart';
+import 'resumenes_logica.dart' show PrevisionResumenes, sanearPrevision;
 
 class ResumenesApiError implements Exception {
   final String message;
@@ -243,6 +244,46 @@ class ResumenesApi {
       cuerpo: {if (name != null) 'name': name, if (color != null) 'color': color, if (icon != null) 'icon': icon},
       mensaje: 'No se pudo guardar el grupo',
     );
+  }
+
+  /// Una acción sobre varios párrafos del grupo a la vez (POST /:id/bloque): `borrar`, `tema` (con
+  /// [tema], null lo quita), `mover` o `copiar` (con [destino]). Si falla, no se hace nada; si no cabe
+  /// en el destino, el error trae `limite` y `caben`.
+  Future<({int hechos, int duplicados, String destino})> accionBloque(
+    String id,
+    String accion,
+    List<int> itemIds, {
+    String? tema,
+    String? destino,
+  }) async {
+    final r = await _pedir(
+      '/$id/bloque',
+      method: 'POST',
+      cuerpo: {
+        'accion': accion,
+        'itemIds': itemIds,
+        if (accion == 'tema') 'tema': tema,
+        if (destino != null) 'destino': destino,
+      },
+      mensaje: 'No se pudo completar la acción',
+    );
+    final d = r['destino'] is Map ? r['destino'] as Map : const {};
+    final hechos = switch (accion) {
+      'borrar' => _num(r['borrados']),
+      'tema' => _num(r['cambiados']),
+      'copiar' => _num(r['copiados']),
+      _ => _num(r['movidos']),
+    };
+    return (hechos: hechos, duplicados: _num(r['duplicados']), destino: d['name'] is String ? d['name'] as String : '');
+  }
+
+  /// La previsión y las estadísticas de todos los grupos (sin [grupoId]) o de uno.
+  Future<PrevisionResumenes> cargarPrevision([String? grupoId]) async {
+    final r = await _pedir(
+      grupoId == null ? '/prevision' : '/${Uri.encodeComponent(grupoId)}/prevision',
+      mensaje: 'No se pudo cargar la previsión',
+    );
+    return sanearPrevision(r['prevision']);
   }
 
   Future<void> borrarGrupo(String id) async {

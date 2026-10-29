@@ -1,6 +1,8 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/models/resumen.dart';
@@ -10,25 +12,38 @@ import 'resumenes_api.dart';
 import 'resumenes_filtro.dart';
 import 'resumenes_grupo.dart';
 import 'resumenes_huecos.dart';
+import 'resumenes_logica.dart';
 import 'widgets/parrafo_huecos.dart';
 
 /// Estudio de un grupo de resúmenes activos: cada párrafo sale con sus huecos
 /// tapados. Tocar destapa el siguiente; en cada hueco, «Lo sabía» / «No lo
 /// sabía». Al acabar el párrafo se propone la nota (se puede cambiar) y se pasa
 /// al siguiente. Al terminar, los párrafos fallados y cuándo vuelve cada uno.
+///
+/// Con los ajustes de la sesión (ajustes_estudio_resumen.dart): niveles que se tapan, temas, qué
+/// párrafos y cuántos, «Escribir la respuesta» y cajas del mismo ancho. Con un hueco destapado,
+/// deslizar a la derecha es «Lo sabía» y a la izquierda «No lo sabía».
 class ResumenStudyScreen extends StatefulWidget {
   final String grupoId;
   final String grupoName;
+  final AjustesResumen ajustes;
 
-  const ResumenStudyScreen({super.key, required this.grupoId, required this.grupoName});
+  /// Todos los temas del grupo (para no mandar el filtro de temas si van todos).
+  final List<String> todosLosTemas;
+
+  const ResumenStudyScreen({
+    super.key,
+    required this.grupoId,
+    required this.grupoName,
+    this.ajustes = const AjustesResumen(),
+    this.todosLosTemas = const [],
+  });
 
   @override
   State<ResumenStudyScreen> createState() => _ResumenEstudioScreenState();
 }
 
 enum _FinEstudio { fin, caducada, limite }
-
-const List<int> _nivelesEstudio = [1, 2, 3, 4];
 
 Color _colorNota(int n) {
   switch (n) {
@@ -98,6 +113,17 @@ class _ResumenEstudioScreenState extends State<ResumenStudyScreen> {
   final List<_Hecho> _pila = [];
   DateTime? _desde;
 
+  /// Lo que se pidió al servidor (para «Repasar ahora» con los mismos niveles).
+  AjustesEstudio _peticion = const AjustesEstudio();
+
+  /// Modo escribir: lo escrito en cada hueco del párrafo y cómo se compara con lo tapado.
+  final Map<int, ({String texto, Comparacion c})> _escritos = {};
+
+  /// Arrastre en curso sobre la tarjeta (para deslizar y contestar).
+  Offset _arrastre = Offset.zero;
+
+  List<int> get _niveles => widget.ajustes.niveles;
+
   ResumenesApi get _api => context.read<ResumenesApi>();
 
   @override
@@ -122,10 +148,9 @@ class _ResumenEstudioScreenState extends State<ResumenStudyScreen> {
       _nota = null;
     });
     try {
-      final ajustes = soloItemIds != null
-          ? AjustesEstudio(levels: _nivelesEstudio, soloHuecosFallados: true, itemIds: soloItemIds)
-          : const AjustesEstudio(levels: _nivelesEstudio);
-      final s = await _api.empezarSesion(widget.grupoId, ajustes);
+      final base = aPeticion(widget.ajustes, widget.todosLosTemas);
+      _peticion = soloItemIds != null ? repasarAhora(base, soloItemIds) : base;
+      final s = await _api.empezarSesion(widget.grupoId, _peticion);
       if (!mounted) return;
       setState(() => _sesion = s);
       await _cargarSiguiente(s);
@@ -162,8 +187,10 @@ class _ResumenEstudioScreenState extends State<ResumenStudyScreen> {
   void _mostrar(Parrafo p) {
     setState(() {
       _parrafo = p;
-      _estado = empezarParrafo(p.huecos, _nivelesEstudio);
+      // Con «solo huecos fallados» se tapan solo esos (de los niveles elegidos).
+      _estado = empezarParrafo(p.huecos, _niveles, _peticion.soloHuecosFallados == true ? p.huecosFallados : null);
       _destapado = null;
+      _escritos.clear();
       _nota = null;
       _desde = DateTime.now();
     });
@@ -183,10 +210,23 @@ class _ResumenEstudioScreenState extends State<ResumenStudyScreen> {
     }
   }
 
-  void _destapar(int k) {
+  Future<void> _destapar(int k) async {
     if (_destapado != null) return;
+    if (widget.ajustes.escribir && !_escritos.containsKey(k)) {
+      final p = _parrafo!;
+      final escrito = await _pedirRespuesta(p.huecos[k].n);
+      if (escrito == null || !mounted || _parrafo != p) return;
+      final correcta = p.texto.substring(p.huecos[k].i, p.huecos[k].f);
+      setState(() => _escritos[k] = (texto: escrito, c: compararRespuesta(escrito, correcta)));
+    }
     setState(() => _destapado = k);
+    final p = _parrafo!;
+    SemanticsService.sendAnnouncement(View.of(context), 'Destapado: ${p.texto.substring(p.huecos[k].i, p.huecos[k].f)}. ¿Lo sabías?', TextDirection.ltr);
   }
+
+  /// Modo escribir: lo que el usuario cree que va en el hueco (null si cancela).
+  Future<String?> _pedirRespuesta(int nivel) =>
+      showDialog<String>(context: context, builder: (_) => _EscribirRespuesta(nivel: nivel));
 
   void _destaparSiguiente() {
     final k = siguienteTapado(_estado!);
@@ -195,6 +235,7 @@ class _ResumenEstudioScreenState extends State<ResumenStudyScreen> {
 
   void _contestar(Respuesta r) {
     if (_destapado == null) return;
+    HapticFeedback.selectionClick();
     setState(() {
       _estado = responder(_estado!, _destapado!, r);
       _destapado = null;
@@ -366,12 +407,46 @@ class _ResumenEstudioScreenState extends State<ResumenStudyScreen> {
                   ],
                 ),
                 const SizedBox(height: 16),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24), border: Border.all(color: kInk, width: 2), boxShadow: inkShadow(5)),
-                  child: _textoEstudio(p, e),
+                LayoutBuilder(
+                  builder: (context, c) => GestureDetector(
+                    // Con un hueco destapado: deslizar a la derecha = «Lo sabía», a la izquierda = «No lo sabía».
+                    onHorizontalDragStart: _destapado == null ? null : (_) => _arrastre = Offset.zero,
+                    onHorizontalDragUpdate: _destapado == null ? null : (d) => setState(() => _arrastre += d.delta),
+                    onHorizontalDragEnd: _destapado == null
+                        ? null
+                        : (_) {
+                            final r = respuestaDeslizar(_arrastre.dx, _arrastre.dy, c.maxWidth);
+                            setState(() => _arrastre = Offset.zero);
+                            if (r != null) _contestar(r);
+                          },
+                    child: Transform.translate(
+                      offset: Offset(_destapado == null ? 0 : _arrastre.dx.clamp(-120.0, 120.0) * 0.5, 0),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(
+                            color: _arrastre.dx.abs() < 24 ? kInk : (_arrastre.dx > 0 ? kVerdeOk : kRojoKo),
+                            width: 2,
+                          ),
+                          boxShadow: inkShadow(5),
+                        ),
+                        child: _textoEstudio(p, e),
+                      ),
+                    ),
+                  ),
                 ),
+                if (_destapado != null)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 8),
+                    child: Text(
+                      'Desliza la tarjeta: a la derecha «Lo sabía», a la izquierda «No lo sabía».',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: kGrisAA, fontSize: 11.5),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -397,15 +472,23 @@ class _ResumenEstudioScreenState extends State<ResumenStudyScreen> {
       final h = p.huecos[k];
       final info = nivelInfoResumen[h.n]!;
       if (!e.tapados.contains(k)) {
-        children.add(TextSpan(text: s.t, style: TextStyle(color: kInk, decoration: TextDecoration.underline, decorationColor: info.soft, decorationThickness: 2)));
+        children.add(TextSpan(
+          text: s.t,
+          semanticsLabel: etiquetaHueco(EstadoHueco.visible, h.n, s.t),
+          style: TextStyle(color: kInk, decoration: TextDecoration.underline, decorationColor: info.color, decorationThickness: 2),
+        ));
         continue;
       }
       final r = e.respuestas[k];
       if (r != null) {
-        final color = r == Respuesta.sabia ? _colorNota(3) : _colorNota(1);
+        final color = r == Respuesta.sabia ? kVerdeOk : kRojoKo;
         children.add(WidgetSpan(
           alignment: PlaceholderAlignment.middle,
-          child: GestureDetector(
+          child: Semantics(
+            button: true,
+            label: etiquetaHueco(r == Respuesta.sabia ? EstadoHueco.sabia : EstadoHueco.no, h.n, s.t),
+            excludeSemantics: true,
+            child: GestureDetector(
             onTap: () => _corregir(k),
             child: Container(
               margin: const EdgeInsets.symmetric(horizontal: 1),
@@ -420,29 +503,41 @@ class _ResumenEstudioScreenState extends State<ResumenStudyScreen> {
               ),
             ),
           ),
+          ),
         ));
         continue;
       }
       if (_destapado == k) {
         children.add(WidgetSpan(
           alignment: PlaceholderAlignment.middle,
-          child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 1),
-            padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
-            decoration: BoxDecoration(color: info.soft, borderRadius: BorderRadius.circular(4)),
-            child: Text(s.t, style: TextStyle(color: info.color, fontWeight: FontWeight.w700, fontSize: 16)),
+          child: Semantics(
+            label: etiquetaHueco(EstadoHueco.destapado, h.n, s.t),
+            excludeSemantics: true,
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 1),
+              padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
+              decoration: BoxDecoration(color: info.soft, borderRadius: BorderRadius.circular(4), border: Border(bottom: BorderSide(color: info.color, width: 2))),
+              child: Text(s.t, style: TextStyle(color: kTintaNivel[h.n], fontWeight: FontWeight.w700, fontSize: 16)),
+            ),
           ),
         ));
         continue;
       }
       final esSiguiente = siguienteTapado(e) == k && _destapado == null;
+      // Sin «cajas del mismo ancho», la caja crece con la respuesta (como en la web).
+      final ancho = widget.ajustes.anchoFijo ? 72.0 : (s.t.length * 8.5).clamp(36.0, 220.0);
       children.add(WidgetSpan(
         alignment: PlaceholderAlignment.middle,
-        child: GestureDetector(
+        child: Semantics(
+          button: true,
+          label: etiquetaHueco(EstadoHueco.tapado, h.n, '', escribir: widget.ajustes.escribir),
+          excludeSemantics: true,
+          child: GestureDetector(
           onTap: () => _destapar(k),
           child: Container(
-            width: 72,
+            width: ancho,
             height: 20,
+            alignment: Alignment.center,
             margin: const EdgeInsets.symmetric(horizontal: 1, vertical: 3),
             decoration: BoxDecoration(
               color: info.soft,
@@ -450,7 +545,10 @@ class _ResumenEstudioScreenState extends State<ResumenStudyScreen> {
               border: Border.all(color: esSiguiente ? kInk : info.color, width: 2),
               boxShadow: esSiguiente ? const [BoxShadow(color: kInk, offset: Offset(2, 2), blurRadius: 0)] : null,
             ),
+            // Quien no distingue los colores lee el nivel.
+            child: Text(kNivelCorto[h.n]!, style: TextStyle(color: kTintaNivel[h.n], fontSize: 9.5, fontWeight: FontWeight.w900, height: 1)),
           ),
+        ),
         ),
       ));
     }
@@ -459,35 +557,62 @@ class _ResumenEstudioScreenState extends State<ResumenStudyScreen> {
 
   Widget _acciones(EstadoParrafo e, bool listo, int fallosN, int propuesta, int pendientes) {
     if (_destapado != null) {
-      return Row(
-        children: [
-          Expanded(
-            child: _RespuestaButton(
-              label: 'No lo sabía',
-              icon: Icons.close_rounded,
-              bg: Colors.white,
-              fg: _colorNota(1),
-              onPressed: () => _contestar(Respuesta.no),
-            ),
+      final escrito = _escritos[_destapado!];
+      // Con lo escrito se PROPONE una respuesta (resaltada); el usuario manda.
+      final propuestaSi = escrito == null ? null : propuestaSabia(escrito.c);
+      return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        if (escrito != null) ...[
+          Text.rich(
+            TextSpan(style: const TextStyle(color: kInk, fontSize: 13.5), children: [
+              const TextSpan(text: 'Escribiste: '),
+              TextSpan(text: escrito.texto.trim().isEmpty ? '(nada)' : escrito.texto.trim(), style: const TextStyle(fontWeight: FontWeight.w900)),
+              TextSpan(
+                text: switch (escrito.c) {
+                  Comparacion.igual => ' · coincide',
+                  Comparacion.casi => ' · casi (una letra)',
+                  Comparacion.distinta => ' · no coincide',
+                  Comparacion.vacia => '',
+                },
+                style: TextStyle(color: propuestaSi == true ? kVerdeOk : kRojoKo, fontWeight: FontWeight.w800),
+              ),
+            ]),
+            textAlign: TextAlign.center,
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: _RespuestaButton(
-              label: 'Lo sabía',
-              icon: Icons.check_rounded,
-              bg: _colorNota(3),
-              fg: Colors.white,
-              onPressed: () => _contestar(Respuesta.sabia),
-            ),
-          ),
+          const SizedBox(height: 10),
         ],
-      );
+        Row(
+          children: [
+            Expanded(
+              child: _RespuestaButton(
+                label: 'No lo sabía',
+                icon: Icons.close_rounded,
+                bg: propuestaSi == false ? kRojoKo : Colors.white,
+                fg: propuestaSi == false ? Colors.white : kRojoKo,
+                onPressed: () => _contestar(Respuesta.no),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _RespuestaButton(
+                label: 'Lo sabía',
+                icon: Icons.check_rounded,
+                bg: propuestaSi == false ? Colors.white : kVerdeOk,
+                fg: propuestaSi == false ? kVerdeOk : Colors.white,
+                onPressed: () => _contestar(Respuesta.sabia),
+              ),
+            ),
+          ],
+        ),
+      ]);
     }
 
     if (!listo) {
+      final escribir = widget.ajustes.escribir;
       return StickerButton(
-        label: pendientes > 1 ? 'Destapar (quedan $pendientes)' : 'Destapar el último',
-        icon: Icons.visibility_rounded,
+        label: escribir
+            ? (pendientes > 1 ? 'Escribir (quedan $pendientes)' : 'Escribir el último')
+            : (pendientes > 1 ? 'Destapar (quedan $pendientes)' : 'Destapar el último'),
+        icon: escribir ? Icons.edit_rounded : Icons.visibility_rounded,
         expand: true,
         onPressed: _destaparSiguiente,
       );
@@ -649,6 +774,45 @@ class _ResumenEstudioScreenState extends State<ResumenStudyScreen> {
           child: StickerButton(label: 'Repasar otra vez', icon: Icons.refresh_rounded, expand: true, onPressed: () => _arrancar()),
         ),
         GhostButton(label: 'Volver al grupo', icon: Icons.arrow_back_rounded, expand: true, onPressed: () => Navigator.of(context).pop()),
+      ],
+    );
+  }
+}
+
+/// El diálogo de «Escribir la respuesta». Tiene su propio estado para que el campo se libere cuando
+/// el diálogo termina de cerrarse, no antes.
+class _EscribirRespuesta extends StatefulWidget {
+  final int nivel;
+
+  const _EscribirRespuesta({required this.nivel});
+
+  @override
+  State<_EscribirRespuesta> createState() => _EscribirRespuestaState();
+}
+
+class _EscribirRespuestaState extends State<_EscribirRespuesta> {
+  final _ctrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text('¿Qué va aquí? (${nivelInfoResumen[widget.nivel]!.nombre.toLowerCase()})'),
+      content: TextField(
+        controller: _ctrl,
+        autofocus: true,
+        textInputAction: TextInputAction.done,
+        decoration: const InputDecoration(hintText: 'Escribe la respuesta'),
+        onSubmitted: (v) => Navigator.pop(context, v),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context, ''), child: const Text('No lo sé')),
+        TextButton(onPressed: () => Navigator.pop(context, _ctrl.text), child: const Text('Comprobar')),
       ],
     );
   }

@@ -20,6 +20,7 @@ import 'resumenes_borrador.dart';
 import 'resumenes_grupo.dart';
 import 'resumenes_guardado.dart';
 import 'resumenes_ia.dart';
+import 'resumenes_logica.dart';
 import 'widgets/parrafo_huecos.dart';
 
 enum _Paso { documento, opciones, generando, previa, guardando, resultado }
@@ -67,6 +68,12 @@ class _CrearResumenesIAScreenState extends State<CrearResumenesIAScreen> {
   // Carpeta del grupo nuevo: la sugerida por el título hasta que el usuario elige otra.
   List<AsignaturaCatalogo>? _arbol;
   Carpeta? _carpetaElegida;
+
+  // «Más de este tema» y «Rehacer» en la vista previa: qué se está pidiendo (clave del tema o del
+  // párrafo), la versión anterior de cada párrafo rehecho (para «Deshacer») y el último aviso.
+  String? _pidiendo;
+  final Map<String, ParrafoBorrador> _anteriores = {};
+  String? _avisoPrevia;
 
   // Guardado.
   bool _guardando = false;
@@ -690,8 +697,22 @@ class _CrearResumenesIAScreenState extends State<CrearResumenesIAScreen> {
               ]),
               const SizedBox(height: 6),
               const Text('Desmarca los que no quieras guardar y toca una palabra para ajustar los huecos.', style: TextStyle(color: AppColors.textSecondary, fontSize: 12.5, height: 1.4)),
+              if (_avisoPrevia != null) ...[
+                const SizedBox(height: 10),
+                Text(_avisoPrevia!, style: const TextStyle(color: kInk, fontSize: 13, fontWeight: FontWeight.w700)),
+              ],
+              if (_extraido == null) ...[
+                const SizedBox(height: 10),
+                const Text(
+                  'Para «Más» y «Rehacer» hace falta el documento: vuelve a elegirlo desde el principio.',
+                  style: TextStyle(color: kGrisAA, fontSize: 12),
+                ),
+              ],
               const SizedBox(height: 14),
-              for (var i = 0; i < _lista.length; i++) _tarjetaBorrador(i),
+              for (var i = 0; i < _lista.length; i++) ...[
+                if (i == 0 || _lista[i].tema != _lista[i - 1].tema || _lista[i].grupo != _lista[i - 1].grupo) _cabeceraTema(_lista[i]),
+                _tarjetaBorrador(i),
+              ],
             ],
           ),
         ),
@@ -708,9 +729,168 @@ class _CrearResumenesIAScreenState extends State<CrearResumenesIAScreen> {
     );
   }
 
+  int? get _precioMas => precioIa(_creditos.tarifa, clave: 'resumenes_mas');
+  int? get _precioRehacer => precioIa(_creditos.tarifa, clave: 'resumenes_rehacer');
+
+  /// Cabecera de un tema en la vista previa: su nombre y «Más de este tema».
+  Widget _cabeceraTema(ParrafoBorrador p) {
+    final clave = 'mas:${p.grupo ?? ''}|${p.tema}';
+    final cargando = _pidiendo == clave;
+    return Padding(
+      padding: const EdgeInsets.only(top: 6, bottom: 8),
+      child: Row(children: [
+        Expanded(
+          child: Text(p.tema.toUpperCase(), style: const TextStyle(color: kInk, fontSize: 12, fontWeight: FontWeight.w900, letterSpacing: 0.5)),
+        ),
+        TextButton.icon(
+          onPressed: _extraido == null || _pidiendo != null ? null : () => _pedirMas(p.grupo ?? '', p.tema),
+          icon: cargando
+              ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+              : const Icon(Icons.add_circle_outline_rounded, size: 18),
+          label: Text(cargando ? 'Pidiendo…' : 'Más'),
+        ),
+      ]),
+    );
+  }
+
+  /// «Más de este tema»: qué (de todo, más difíciles, más fáciles) y cuántos, con su precio; los
+  /// nuevos entran tras el último del tema, marcados como nuevos.
+  Future<void> _pedirMas(String grupo, String tema) async {
+    final e = _extraido;
+    if (e == null) return;
+    final generacion = nivelesDeLista(_lista);
+    var opcion = OpcionMas.todo;
+    var cantidad = 5;
+    final precio = _precioMas;
+    final elegido = await showAdaptiveModal<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setM) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              Text('Más de «$tema»', style: const TextStyle(color: kInk, fontSize: 18, fontWeight: FontWeight.w900)),
+              const SizedBox(height: 12),
+              for (final o in kOpcionesMas)
+                RadioListTile<OpcionMas>(
+                  contentPadding: EdgeInsets.zero,
+                  value: o.id,
+                  groupValue: opcion,
+                  onChanged: (v) => setM(() => opcion = v!),
+                  title: Text(o.titulo, style: const TextStyle(color: kInk, fontWeight: FontWeight.w800)),
+                  subtitle: Text(o.descripcion),
+                ),
+              const SizedBox(height: 4),
+              Wrap(spacing: 8, children: [
+                for (final c in kCantidadesMas)
+                  ChoiceChip(label: Text('$c párrafos'), selected: cantidad == c, onSelected: (_) => setM(() => cantidad = c)),
+              ]),
+              const SizedBox(height: 12),
+              if (_creditos.activo) PrecioIa(linea: lineaPrecio(precio, _creditos.saldo)),
+              const SizedBox(height: 12),
+              StickerButton(
+                label: 'Pedir',
+                icon: Icons.auto_awesome_rounded,
+                expand: true,
+                onPressed: _creditos.activo && !lineaPrecio(precio, _creditos.saldo).suficiente ? null : () => Navigator.pop(ctx, true),
+              ),
+            ]),
+          ),
+        ),
+      ),
+    );
+    if (elegido != true || !mounted) return;
+    final clave = 'mas:$grupo|$tema';
+    final delTema = parrafosDeTema(_lista, grupo, tema);
+    setState(() {
+      _pidiendo = clave;
+      _avisoPrevia = null;
+    });
+    try {
+      // Solo el fragmento de ese tema: las páginas de sus párrafos, con margen.
+      final secciones = fragmentoDeTema(e.secciones, tema, delTema);
+      final r = await _ia.mas(
+        titulo: _generado?.titulo ?? _tituloCtrl.text.trim(),
+        modo: _modo,
+        secciones: secciones,
+        paginas: paginasDeFragmento(secciones),
+        unidad: e.unidad == 'diapositiva' ? 'diapositiva' : null,
+        niveles: nivelesDeOpcion(opcion, generacion),
+        tema: tema,
+        cantidad: cantidad,
+        existentes: delTema.map((p) => p.texto).toList(),
+        vecinos: vecinosDeTema(_lista, grupo, tema),
+        cobro: _creditos.nuevaGeneracion(precio).cobro,
+      );
+      if (!mounted) return;
+      final quitados = r.repetidos + r.casiDuplicados;
+      if (r.parrafos.isEmpty) {
+        setState(() => _avisoPrevia = 'No han salido párrafos nuevos de este tema${quitados > 0 ? ' ($quitados repetían uno que ya tenías)' : ''}.');
+      } else {
+        final x = insertarNuevos(_lista, grupo, tema, r.parrafos, DateTime.now().millisecondsSinceEpoch.toRadixString(36));
+        setState(() {
+          _lista = x.lista;
+          _avisoPrevia = textoMas(r.parrafos.length, quitados);
+        });
+        await _guardarBorradorLocal();
+      }
+    } catch (err) {
+      if (mounted) setState(() => _avisoPrevia = mensajeErrorIa(err, 'No se pudieron generar más párrafos.'));
+    } finally {
+      if (mounted) setState(() => _pidiendo = null);
+      _creditos.refrescar();
+    }
+  }
+
+  /// «Rehacer este párrafo»: otra versión con los mismos datos en los huecos, en su sitio.
+  Future<void> _rehacer(ParrafoBorrador p) async {
+    final e = _extraido;
+    if (e == null || _pidiendo != null) return;
+    final precio = _precioRehacer;
+    if (_creditos.activo && !lineaPrecio(precio, _creditos.saldo).suficiente) {
+      setState(() => _avisoPrevia = 'No te llegan los créditos para rehacer un párrafo.');
+      return;
+    }
+    setState(() {
+      _pidiendo = p.key;
+      _avisoPrevia = null;
+    });
+    try {
+      final secciones = fragmentoDeParrafo(e.secciones, p, parrafosDeTema(_lista, p.grupo ?? '', p.tema));
+      final nuevo = await _ia.rehacer(
+        titulo: _generado?.titulo ?? _tituloCtrl.text.trim(),
+        modo: _modo,
+        secciones: secciones,
+        paginas: paginasDeFragmento(secciones),
+        unidad: e.unidad == 'diapositiva' ? 'diapositiva' : null,
+        tema: p.tema,
+        texto: p.texto,
+        huecos: p.huecos,
+        cobro: _creditos.nuevaGeneracion(precio).cobro,
+      );
+      if (!mounted) return;
+      setState(() {
+        _anteriores[p.key] = p;
+        _lista = rehacerEnSitio(_lista, p.key, nuevo);
+      });
+      await _guardarBorradorLocal();
+    } catch (err) {
+      if (mounted) setState(() => _avisoPrevia = mensajeErrorIa(err, 'No se pudo rehacer el párrafo.'));
+    } finally {
+      if (mounted) setState(() => _pidiendo = null);
+      _creditos.refrescar();
+    }
+  }
+
+  void _deshacerRehacer(ParrafoBorrador p) {
+    final anterior = _anteriores.remove(p.key);
+    if (anterior == null) return;
+    setState(() => _lista = deshacerEnSitio(_lista, p.key, anterior));
+    _guardarBorradorLocal();
+  }
+
   Widget _tarjetaBorrador(int i) {
     final p = _lista[i];
-    final info = nivelInfoResumen[p.huecos.isNotEmpty ? p.huecos.first.n : 2]!;
     return StickerCard(
       margin: const EdgeInsets.only(bottom: 12),
       depth: 3,
@@ -739,9 +919,31 @@ class _CrearResumenesIAScreenState extends State<CrearResumenesIAScreen> {
               Expanded(
                 child: Text(p.tema, style: const TextStyle(color: kMuted, fontSize: 12, fontWeight: FontWeight.w800)),
               ),
+              if (p.nuevo)
+                Container(
+                  margin: const EdgeInsets.only(right: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                  decoration: BoxDecoration(color: kInk, borderRadius: BorderRadius.circular(6)),
+                  child: const Text('NUEVO', style: TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.w900)),
+                ),
               if (p.ia?.dudoso != null)
                 const Tooltip(message: 'La IA lo marcó como dudoso', child: Icon(Icons.help_outline_rounded, size: 16, color: AppColors.warning)),
-              Text('${p.huecos.length} huecos', style: TextStyle(color: info.color, fontSize: 11.5, fontWeight: FontWeight.w700)),
+              Text('${p.huecos.length} huecos', style: TextStyle(color: kTintaNivel[2], fontSize: 11.5, fontWeight: FontWeight.w700)),
+              if (_anteriores.containsKey(p.key))
+                IconButton(
+                  tooltip: 'Deshacer: volver a la versión anterior',
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(Icons.undo_rounded, size: 19),
+                  onPressed: _pidiendo != null ? null : () => _deshacerRehacer(p),
+                ),
+              IconButton(
+                tooltip: 'Rehacer este párrafo',
+                visualDensity: VisualDensity.compact,
+                icon: _pidiendo == p.key
+                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.autorenew_rounded, size: 19),
+                onPressed: _extraido == null || _pidiendo != null ? null : () => _rehacer(p),
+              ),
             ],
           ),
           const SizedBox(height: 8),

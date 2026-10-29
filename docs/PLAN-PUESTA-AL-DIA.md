@@ -13,7 +13,7 @@ esperar a que la web y el backend las dejen firmes.
 **Copia en el repo de la app:** `docs/PLAN-PUESTA-AL-DIA.md` (rama `v7`), para que el otro ordenador la
 tenga. Al cerrar cada tanda se actualizan las dos.
 
-**Estado:** tandas 0, 1 y 2 hechas el 29/10/2026, salvo la prueba en el teléfono.
+**Estado:** tandas 0 a 3 hechas el 29/10/2026, salvo la prueba en el teléfono.
 
 ## Resumen del orden
 
@@ -242,6 +242,32 @@ previsión sale igual en las dos.
 - **Repasar contra el informe 85:** gestos para deslizar, niveles AA y tutorial `resumenes.v1`.
 - **Vista previa de la IA (informe 84):** «Más» y «Rehacer», varios borradores, tope por documento.
 - **Mirar en la web:** `src/app/resumenes/*` y `src/components/resumenes/*`.
+
+### Resultado (29/10/2026)
+
+- **Fallo de producción corregido:** «Más» y «Rehacer» de la vista previa no mandaban el cobro; con
+  los créditos encendidos el servidor los habría rechazado. Ahora llevan su precio (fijo de la tarifa) y
+  su clave, como la web, y no se ofrecen si no llega el saldo.
+- **Grupo:** previsión del grupo (lo que te espera, cómo lo llevas y los huecos que más se resisten);
+  filtros por nivel con etiqueta corta, «buscar solo en huecos» y orden (documento, más fallados, por
+  vencer); mantener pulsado un párrafo para seleccionar y cambiar el tema, mover, copiar o borrar en
+  bloque (`POST /resumenes/:id/bloque`); nombre, color e icono desde el menú.
+- **Lista y Studio:** previsión de todos los grupos en la lista y el aviso «Tienes N párrafos para
+  repasar» en la pestaña Studio (la app no tiene Panel; Studio es donde lo pone también la web).
+- **Estudio (informes 83 y 85):** ajustes al pulsar Estudiar (niveles que se tapan, temas, qué
+  párrafos, cuántos, escribir la respuesta, cajas del mismo ancho; se recuerdan por grupo); modo
+  escribir con la comparación de la web (sin tolerancia salvo una letra en palabras largas); deslizar
+  para contestar; colores AA, etiqueta corta del nivel en cada caja y lo que lee el lector de pantalla.
+  «Repasar ahora» tapa solo los huecos fallados (antes los tapaba todos).
+- **Vista previa (informe 84):** los párrafos por tema con «Más» (de todo, más difíciles o más
+  fáciles; 3, 5 o 10) y «Rehacer» con «Deshacer». Viaja solo el fragmento del documento. Los borradores
+  ya eran uno por documento. El tope de texto original lo valida el servidor y la app enseña su mensaje.
+- **Tests:** 455 en verde (12 de lógica con los casos de la web y 10 de API y pantallas en móvil y
+  tablet; destaparon un desborde en la fila de orden y el aviso de Flutter del interruptor sin
+  `Material`, los dos corregidos).
+- **No incluido:** el tutorial `resumenes.v1` (va con la tanda 8, tutoriales); «Más» y «Rehacer» al
+  retomar un borrador sin el documento (hay que volver a elegirlo; la web lo guarda en el navegador).
+- **Falta:** probarlo en el teléfono.
 
 ## Tanda 4 — Reportar pregunta y bandeja de avisos
 

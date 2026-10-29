@@ -8,8 +8,9 @@ import '../../shared/sticker/sticker.dart';
 import '../../shared/widgets/pressable.dart';
 import 'crear_resumenes_ia_screen.dart';
 import 'resumen_detail_screen.dart';
-import 'resumen_study_screen.dart';
 import 'resumenes_api.dart';
+import 'widgets/ajustes_estudio_resumen.dart';
+import 'widgets/prevision_resumenes.dart';
 import 'resumenes_grupo.dart';
 import 'resumenes_ia.dart';
 
@@ -42,7 +43,11 @@ class _ResumenesScreenState extends State<ResumenesScreen> {
     setState(() => _iaDisponible = e != null && e['disponible'] == true);
   }
 
+  /// Sube en cada recarga: la previsión se vuelve a pedir.
+  int _recarga = 0;
+
   Future<void> _load() async {
+    if (mounted) setState(() => _recarga++);
     if (mounted) {
       setState(() {
         _loading = _grupos == null;
@@ -68,7 +73,7 @@ class _ResumenesScreenState extends State<ResumenesScreen> {
   Future<void> _crear() async {
     final resultado = await showAdaptiveModal<(String, String, String)>(
       context: context,
-      builder: (_) => const _CrearGrupoSheet(),
+      builder: (_) => const GrupoResumenSheet(),
     );
     if (resultado == null || !mounted) return;
     final (nombre, color, icon) = resultado;
@@ -138,8 +143,9 @@ class _ResumenesScreenState extends State<ResumenesScreen> {
     Navigator.of(context).push(MaterialPageRoute(builder: (_) => ResumenDetailScreen(grupo: grupo)));
   }
 
-  void _estudiar(GrupoResumen grupo) {
-    Navigator.of(context).push(MaterialPageRoute(builder: (_) => ResumenStudyScreen(grupoId: grupo.id, grupoName: grupo.name)));
+  Future<void> _estudiar(GrupoResumen grupo) async {
+    await estudiarResumenes(context, grupoId: grupo.id, grupoName: grupo.name);
+    _load();
   }
 
   Future<void> _crearConIa() async {
@@ -277,6 +283,13 @@ class _ResumenesScreenState extends State<ResumenesScreen> {
                             ),
                           ),
                   ),
+                ),
+              ),
+              // Lo que te espera y cómo lo llevas, de todos los grupos (no sale sin párrafos).
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                  child: PanelPrevisionResumenes(recarga: _recarga),
                 ),
               ),
               ..._contenido(),
@@ -549,17 +562,22 @@ class _GrupoSkeletonState extends State<_GrupoSkeleton> with SingleTickerProvide
   }
 }
 
-/// Modal de crear grupo: nombre + color + icono.
-class _CrearGrupoSheet extends StatefulWidget {
-  const _CrearGrupoSheet();
+/// Modal de crear (o editar) un grupo: nombre + color + icono. Devuelve (nombre, color, icono).
+class GrupoResumenSheet extends StatefulWidget {
+  final String nombre;
+  final String? color;
+  final String? icon;
+  final bool editando;
+
+  const GrupoResumenSheet({super.key, this.nombre = '', this.color, this.icon, this.editando = false});
   @override
-  State<_CrearGrupoSheet> createState() => _CrearGrupoSheetState();
+  State<GrupoResumenSheet> createState() => _GrupoResumenSheetState();
 }
 
-class _CrearGrupoSheetState extends State<_CrearGrupoSheet> {
-  final _controller = TextEditingController();
-  String _color = colorGrupoPorDefecto;
-  String _icon = iconoResumenPorDefecto;
+class _GrupoResumenSheetState extends State<GrupoResumenSheet> {
+  late final _controller = TextEditingController(text: widget.nombre);
+  late String _color = widget.color ?? colorGrupoPorDefecto;
+  late String _icon = widget.icon != null && iconosResumen.contains(widget.icon) ? widget.icon! : iconoResumenPorDefecto;
 
   @override
   void dispose() {
@@ -583,7 +601,7 @@ class _CrearGrupoSheetState extends State<_CrearGrupoSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Nuevo grupo', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 19, color: kInk)),
+            Text(widget.editando ? 'Editar grupo' : 'Nuevo grupo', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 19, color: kInk)),
             const SizedBox(height: 16),
             Row(
               children: [
@@ -592,7 +610,7 @@ class _CrearGrupoSheetState extends State<_CrearGrupoSheet> {
                 Expanded(
                   child: TextField(
                     controller: _controller,
-                    autofocus: true,
+                    autofocus: !widget.editando,
                     textCapitalization: TextCapitalization.sentences,
                     onChanged: (_) => setState(() {}),
                     onSubmitted: (_) => _crear(),
@@ -662,7 +680,7 @@ class _CrearGrupoSheetState extends State<_CrearGrupoSheet> {
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white),
                     onPressed: _controller.text.trim().length < 3 ? null : _crear,
-                    child: const Text('Crear'),
+                    child: Text(widget.editando ? 'Guardar' : 'Crear'),
                   ),
                 ),
               ],
