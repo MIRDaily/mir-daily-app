@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import '../config/app_config.dart';
 import '../models/analytics.dart';
 import '../data/mir_weights.dart';
+import '../models/flashcards.dart';
 import '../models/models.dart';
 import '../models/progress.dart';
 import 'auth_service.dart';
@@ -834,6 +835,7 @@ class ApiService {
     required String front,
     required String back,
     String? topic,
+    int? level,
   }) async {
     await _request(
       'POST',
@@ -842,18 +844,24 @@ class ApiService {
         'front': front.trim(),
         'back': back.trim(),
         if (topic != null && topic.trim().isNotEmpty) 'topic': topic.trim(),
+        if (level != null) 'level': level,
       },
     );
   }
 
+  /// Edita una tarjeta. El nivel solo se manda si cambia ([setLevel]); con
+  /// `level: null` se le quita.
   Future<void> updateFlashcard({
     required String flashcardId,
     required String front,
     required String back,
+    bool setLevel = false,
+    int? level,
   }) async {
     await _request('PATCH', '/api/studio/flashcards/$flashcardId', body: {
       'front': front.trim(),
       'back': back.trim(),
+      if (setLevel) 'level': level,
     });
   }
 
@@ -867,17 +875,36 @@ class ApiService {
     );
   }
 
-  /// Siguiente tarjeta de la cola. El estudio arranca con
-  /// [startDeckSession] y se cierra con [endDeckSession], que son los mismos
-  /// del motor SRS de los mazos.
+  /// Abre (o reutiliza) la sesión de estudio de un grupo con sus ajustes:
+  /// niveles, escalera, temas, solo falladas/pendientes/nuevas y cuántas
+  /// tarjetas. Los aplica la cola del servidor; ver flashcards_sesion.dart.
+  Future<String> startFlashcardSession(
+    String deckId,
+    int limit, {
+    Map<String, dynamic> opciones = const {},
+  }) async {
+    final json = await _request(
+      'POST',
+      '/api/studio/decks/$deckId/start-session',
+      body: {'limit': limit, 'ladder': true, ...opciones},
+    );
+    final id = json['sessionId'];
+    if (id is! String || id.isEmpty) {
+      throw const ApiException(500, 'Respuesta inválida al iniciar la sesión');
+    }
+    return id;
+  }
+
+  /// Siguiente tarjeta de la cola, con los cuatro intervalos que le tocarían
+  /// según el grado (los calcula el servidor al servirla).
   Future<FlashNext> getNextFlashcard(String deckId, String sessionId) async {
     final json = await _request(
       'GET',
-      '/api/studio/flashcard-decks/$deckId/next?sessionId=$sessionId',
+      '/api/studio/flashcard-decks/$deckId/next?sessionId=${Uri.encodeQueryComponent(sessionId)}',
     );
-    if (json['item'] != null) {
-      final item = json['item'] as Map<String, dynamic>;
-      final card = (item['flashcard'] ?? const {}) as Map<String, dynamic>;
+    if (json['item'] is Map) {
+      final item = Map<String, dynamic>.from(json['item'] as Map);
+      final card = item['flashcard'] is Map ? Map<String, dynamic>.from(item['flashcard'] as Map) : const <String, dynamic>{};
       return FlashNext(
         FlashNextKind.card,
         Flashcard(
@@ -885,7 +912,11 @@ class ApiService {
           flashcardId: '${card['id']}',
           front: (card['front'] ?? '') as String,
           back: (card['back'] ?? '') as String,
+          topic: card['topic'] as String?,
+          level: Flashcard.levelDe(card['level']),
+          source: FlashSource.fromJson(card['source']),
         ),
+        GradePreview.mapFromJson(item['preview']),
       );
     }
     if (json['expired'] == true) return const FlashNext(FlashNextKind.expired);
@@ -895,23 +926,99 @@ class ApiService {
     return const FlashNext(FlashNextKind.done);
   }
 
-  /// Registra el repaso de una tarjeta. A diferencia de los mazos de
-  /// preguntas, aquí la corrección la decide el usuario ("¿me la sabía?"),
-  /// así que se manda `isCorrect` en vez de la opción elegida.
+  /// Registra el repaso de una tarjeta con su GRADO (1 Otra vez, 2 Difícil,
+  /// 3 Bien, 4 Fácil). Va a la ruta propia de flashcards, que planifica con
+  /// FSRS: la genérica de mazos (`/decks/:id/log`) espera un sí/no y usa la
+  /// escalera de tres intervalos fijos, así que repasar desde la app dejaba la
+  /// tarjeta con otra fecha que desde la web.
   Future<void> logFlashcard({
     required String deckId,
     required int deckItemId,
-    required bool isCorrect,
+    required int grade,
     required String sessionId,
+    int timeSpent = 0,
   }) async {
     await _request(
       'POST',
-      '/api/studio/decks/$deckId/log',
+      '/api/studio/flashcard-decks/$deckId/log',
       body: {
         'deckItemId': deckItemId,
-        'isCorrect': isCorrect,
+        'grade': grade,
         'sessionId': sessionId,
+        'timeSpent': timeSpent,
       },
     );
+  }
+
+  /// Deshace el último repaso de la sesión y devuelve la tarjeta con los
+  /// intervalos recalculados sobre el estado restaurado. Null si no hay nada
+  /// que deshacer o el repaso es anterior al sistema de deshacer (409).
+  Future<({int deckItemId, Map<int, GradePreview> preview})?> undoFlashcardReview(
+    String deckId,
+    String sessionId,
+  ) async {
+    try {
+      final json = await _request(
+        'POST',
+        '/api/studio/flashcard-decks/$deckId/undo',
+        body: {'sessionId': sessionId},
+      );
+      final id = json['deckItemId'];
+      if (id is! num) return null;
+      return (deckItemId: id.toInt(), preview: GradePreview.mapFromJson(json['preview']));
+    } on ApiException catch (e) {
+      if (e.statusCode == 409) return null;
+      rethrow;
+    }
+  }
+
+  /// Escalera de dificultad del grupo (la calcula el servidor).
+  Future<Escalera> getFlashcardLadder(String deckId) async {
+    final json = await _request('GET', '/api/studio/flashcard-decks/$deckId/ladder');
+    return sanearEscalera(json);
+  }
+
+  /// Cuántas tarjetas vencen cada día de los próximos [days] (día de Madrid),
+  /// con las ya vencidas aparte.
+  Future<FlashForecast> getFlashcardForecast({int days = 30}) async {
+    final json = await _request('GET', '/api/studio/flashcards/forecast?days=$days');
+    return FlashForecast.fromJson(json);
+  }
+
+  /// Madurez y retención de todas las flashcards del usuario.
+  Future<FlashStats> getFlashcardStats() async {
+    final json = await _request('GET', '/api/studio/flashcards/stats');
+    return FlashStats.fromJson(json);
+  }
+
+  /// Mueve tarjetas a otro grupo. Devuelve cuántas se movieron y cuántas ya
+  /// estaban allí.
+  Future<({int done, int alreadyThere})> moveFlashcards(List<int> itemIds, String targetDeckId) async {
+    final json = await _request('POST', '/api/studio/flashcard-cards/move', body: {
+      'itemIds': itemIds,
+      'targetDeckId': targetDeckId,
+    });
+    return (done: (json['moved'] as num?)?.toInt() ?? 0, alreadyThere: (json['alreadyThere'] as num?)?.toInt() ?? 0);
+  }
+
+  /// Duplica tarjetas en otro grupo (las que ya existan allí con el mismo
+  /// anverso y reverso no se duplican).
+  Future<({int done, int alreadyThere})> copyFlashcards(List<int> itemIds, String targetDeckId) async {
+    final json = await _request('POST', '/api/studio/flashcard-cards/copy', body: {
+      'itemIds': itemIds,
+      'targetDeckId': targetDeckId,
+    });
+    return (done: (json['copied'] as num?)?.toInt() ?? 0, alreadyThere: (json['alreadyThere'] as num?)?.toInt() ?? 0);
+  }
+
+  /// Borra tarjetas de golpe (recuperables 24 h).
+  Future<int> bulkDeleteFlashcards(List<int> itemIds) async {
+    final json = await _request('POST', '/api/studio/flashcard-cards/bulk-delete', body: {'itemIds': itemIds});
+    return (json['deleted'] as num?)?.toInt() ?? 0;
+  }
+
+  /// Manda un grupo a la papelera (recuperable 24 h): el borrado genérico de mazos.
+  Future<void> deleteFlashDeck(String deckId) async {
+    await _request('POST', '/api/studio/decks/$deckId/delete');
   }
 }

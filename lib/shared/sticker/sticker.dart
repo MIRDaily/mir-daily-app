@@ -824,10 +824,12 @@ class InkInput extends StatelessWidget {
   final List<TextInputFormatter>? formatters;
   final ValueChanged<String>? onChanged;
   final ValueChanged<String>? onSubmitted;
+  final FocusNode? focusNode;
 
   const InkInput({
     super.key,
     required this.controller,
+    this.focusNode,
     this.hint,
     this.prefix,
     this.maxLength,
@@ -870,6 +872,7 @@ class InkInput extends StatelessWidget {
             Expanded(
               child: TextField(
                 controller: controller,
+                focusNode: focusNode,
                 enabled: enabled,
                 autofocus: autofocus,
                 maxLines: maxLines,

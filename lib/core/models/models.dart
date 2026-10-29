@@ -974,6 +974,45 @@ class SimHistoryDetail {
 // los mazos (start-session / log / end) más una cola propia. Nada de esto
 // cuenta para las estadísticas globales del usuario.
 
+/// Los cuatro cubos del motor SRS, con los mismos nombres que los mazos de
+/// preguntas. El servidor los deriva (flashcardStatus de studio.js).
+enum FlashStatus { nueva, failed, learning, mastered }
+
+FlashStatus _flashStatus(dynamic v) => switch (v) {
+      'failed' => FlashStatus.failed,
+      'learning' => FlashStatus.learning,
+      'mastered' => FlashStatus.mastered,
+      _ => FlashStatus.nueva,
+    };
+
+int _flashInt(dynamic v) => v is num && v.isFinite ? v.toInt() : 0;
+
+/// Reparto de un grupo (o de un tema) en los cuatro cubos.
+class FlashSummary {
+  final int nuevas;
+  final int failed;
+  final int learning;
+  final int mastered;
+
+  const FlashSummary({this.nuevas = 0, this.failed = 0, this.learning = 0, this.mastered = 0});
+
+  factory FlashSummary.fromJson(Map<String, dynamic>? j) => j == null
+      ? const FlashSummary()
+      : FlashSummary(
+          nuevas: _flashInt(j['new']),
+          failed: _flashInt(j['failed']),
+          learning: _flashInt(j['learning']),
+          mastered: _flashInt(j['mastered']),
+        );
+
+  int of(FlashStatus s) => switch (s) {
+        FlashStatus.nueva => nuevas,
+        FlashStatus.failed => failed,
+        FlashStatus.learning => learning,
+        FlashStatus.mastered => mastered,
+      };
+}
+
 /// Un grupo de flashcards del usuario.
 class FlashDeck {
   final String id;
@@ -986,6 +1025,14 @@ class FlashDeck {
   /// Pendientes de repasar: nuevas, falladas o vencidas.
   final int dueCards;
 
+  /// Vencidas que ya se vieron alguna vez (dueCards menos las nuevas).
+  final int dueReviewCards;
+  final FlashSummary summary;
+
+  /// Carpeta del grupo (null = «Sin clasificar»).
+  final int? folderSubjectId;
+  final int? folderTopicId;
+
   const FlashDeck({
     required this.id,
     required this.name,
@@ -994,9 +1041,18 @@ class FlashDeck {
     this.icon,
     this.totalCards = 0,
     this.dueCards = 0,
+    this.dueReviewCards = 0,
+    this.summary = const FlashSummary(),
+    this.folderSubjectId,
+    this.folderTopicId,
   });
 
-  static int _int(dynamic v) => v is num ? v.toInt() : 0;
+  /// Lo que toca repasar sin contar nuevas ni falladas (la tercera columna de
+  /// la lista): así ninguna tarjeta sale en dos columnas.
+  int get repasos => dueReviewCards - summary.failed < 0 ? 0 : dueReviewCards - summary.failed;
+
+  /// Dominio: qué parte de sus tarjetas están dominadas (0-100).
+  int get dominio => totalCards <= 0 ? 0 : (summary.mastered * 100 / totalCards).round();
 
   factory FlashDeck.fromJson(Map<String, dynamic> j) => FlashDeck(
         id: '${j['id']}',
@@ -1004,12 +1060,49 @@ class FlashDeck {
         description: j['description'] as String?,
         color: j['color'] as String?,
         icon: j['icon'] as String?,
-        totalCards: _int(j['totalCards']),
-        dueCards: _int(j['dueCards']),
+        totalCards: _flashInt(j['totalCards']),
+        dueCards: _flashInt(j['dueCards']),
+        dueReviewCards: _flashInt(j['dueReviewCards']),
+        summary: FlashSummary.fromJson(j['summary'] is Map ? Map<String, dynamic>.from(j['summary'] as Map) : null),
+        folderSubjectId: j['folder_subject_id'] is num ? (j['folder_subject_id'] as num).toInt() : null,
+        folderTopicId: j['folder_topic_id'] is num ? (j['folder_topic_id'] as num).toInt() : null,
       );
 }
 
-/// Una tarjeta: anverso y reverso.
+/// De dónde sale una tarjeta de la IA: archivo, página o diapositiva, rama del
+/// mapa y un trozo corto del texto. Todo opcional.
+class FlashSource {
+  final String? name;
+  final int? page;
+  final String? unit;
+  final String? mapId;
+  final String? nodeId;
+  final String? snippet;
+
+  const FlashSource({this.name, this.page, this.unit, this.mapId, this.nodeId, this.snippet});
+
+  static FlashSource? fromJson(dynamic j) {
+    if (j is! Map) return null;
+    String? txt(dynamic v) => v is String && v.trim().isNotEmpty ? v : null;
+    final s = FlashSource(
+      name: txt(j['name']),
+      page: j['page'] is num ? (j['page'] as num).toInt() : null,
+      unit: j['unit'] == 'diapositiva' ? 'diapositiva' : (j['unit'] == 'pagina' ? 'pagina' : null),
+      mapId: txt(j['mapId']),
+      nodeId: txt(j['nodeId']),
+      snippet: txt(j['snippet']),
+    );
+    return s.name == null && s.page == null && s.mapId == null && s.snippet == null ? null : s;
+  }
+
+  /// «Tema 03 Vasculitis.pdf · pág. 12» (o «· diapositiva 4»).
+  String get lugar {
+    final donde = page != null ? '${unit == 'diapositiva' ? 'diapositiva' : 'pág.'} $page' : '';
+    return [name ?? '', donde].where((x) => x.isNotEmpty).join(' · ');
+  }
+}
+
+/// Una tarjeta: anverso y reverso, con su estado de repaso.
 class Flashcard {
   /// Id del `deck_item`, que es con el que se registra el repaso.
   final int itemId;
@@ -1018,21 +1111,90 @@ class Flashcard {
   final String back;
   final String? topic;
 
+  /// Dificultad del CONTENIDO (1 fácil … 4 demencial); null en las tarjetas
+  /// sin nivel. No es la «difficulty» de FSRS, que la calcula el repaso.
+  final int? level;
+  final bool aiGenerated;
+  final FlashSource? source;
+  final FlashStatus status;
+  final bool isDue;
+  final DateTime? nextDueAt;
+  final int totalReviews;
+
   const Flashcard({
     required this.itemId,
     required this.flashcardId,
     required this.front,
     required this.back,
     this.topic,
+    this.level,
+    this.aiGenerated = false,
+    this.source,
+    this.status = FlashStatus.nueva,
+    this.isDue = true,
+    this.nextDueAt,
+    this.totalReviews = 0,
   });
 
+  /// El tema como clave ('' = sin tema).
+  String get tema => (topic ?? '').trim();
+
+  /// Copia con otro texto o nivel. El nivel va envuelto para poder quitarlo
+  /// (`level: () => null`).
+  Flashcard copyWith({String? front, String? back, int? Function()? level}) => Flashcard(
+        itemId: itemId,
+        flashcardId: flashcardId,
+        front: front ?? this.front,
+        back: back ?? this.back,
+        topic: topic,
+        level: level != null ? level() : this.level,
+        aiGenerated: aiGenerated,
+        source: source,
+        status: status,
+        isDue: isDue,
+        nextDueAt: nextDueAt,
+        totalReviews: totalReviews,
+      );
+
+  /// Nivel válido (1-4) o null.
+  static int? levelDe(dynamic v) => v is num && v == v.toInt() && v >= 1 && v <= 4 ? v.toInt() : null;
+
   factory Flashcard.fromJson(Map<String, dynamic> j) => Flashcard(
-        itemId: (j['itemId'] as num?)?.toInt() ?? 0,
+        itemId: _flashInt(j['itemId']),
         flashcardId: '${j['flashcardId']}',
         front: (j['front'] ?? '') as String,
         back: (j['back'] ?? '') as String,
         topic: j['topic'] as String?,
+        level: levelDe(j['level']),
+        aiGenerated: j['aiGenerated'] == true,
+        source: FlashSource.fromJson(j['source']),
+        status: _flashStatus(j['status']),
+        isDue: j['isDue'] != false,
+        nextDueAt: j['nextDueAt'] is String ? DateTime.tryParse(j['nextDueAt'] as String) : null,
+        totalReviews: _flashInt(j['totalReviews']),
       );
+}
+
+/// Lo que pasaría con la tarjeta si se respondiera con un grado. Lo calcula el
+/// servidor al servirla: el botón nunca promete una fecha que no vaya a cumplir.
+class GradePreview {
+  final int scheduledDays;
+  final DateTime due;
+
+  const GradePreview(this.scheduledDays, this.due);
+
+  static Map<int, GradePreview> mapFromJson(dynamic raw) {
+    final out = <int, GradePreview>{};
+    if (raw is! Map) return out;
+    for (final g in const [1, 2, 3, 4]) {
+      final p = raw['$g'];
+      if (p is! Map) continue;
+      final due = p['due'] is String ? DateTime.tryParse(p['due'] as String) : null;
+      if (due == null) continue;
+      out[g] = GradePreview(_flashInt(p['scheduledDays']), due);
+    }
+    return out;
+  }
 }
 
 /// Cómo termina cada petición a la cola de estudio.
@@ -1042,5 +1204,8 @@ class FlashNext {
   final FlashNextKind kind;
   final Flashcard? card;
 
-  const FlashNext(this.kind, [this.card]);
+  /// Los cuatro futuros posibles de [card] (por grado, 1-4).
+  final Map<int, GradePreview> preview;
+
+  const FlashNext(this.kind, [this.card, this.preview = const {}]);
 }

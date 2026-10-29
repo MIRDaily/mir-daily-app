@@ -65,6 +65,8 @@ const Map<String, String> _aliases = {
   'inmuno': 'inmunologia',
   'infeccioso': 'infecciosas',
   'microbiologia': 'infecciosas',
+  // «Miscelánea y Ciencias Básicas» pasa a llamarse «Mosaico» (16/10/2026).
+  'mosaico': 'miscelanea',
 };
 
 /// Peso para una asignatura que no esté en la tabla.
@@ -103,6 +105,26 @@ List<String> _wordsOf(String name) => name
     .map(_normalize)
     .where((w) => w.length > 2 && w != 'del' && w != 'las' && w != 'los')
     .toList();
+
+/// Clave canónica de una asignatura entre [keys], o null si no se reconoce.
+/// Mismo algoritmo que [weightForSubject] con otro vocabulario: las
+/// flashcards reconocen también asignaturas sin peso MIR (Farmacología…).
+/// Puerto de `matchSubjectKey` (src/lib/subjectMatch.ts).
+String? matchSubjectKey(String name, List<String> keys, Map<String, String> aliases) {
+  final words = _wordsOf(name);
+  final known = keys.toSet();
+  for (final word in words) {
+    if (known.contains(word)) return word;
+    final alias = aliases[word];
+    if (alias != null && known.contains(alias)) return alias;
+    for (final candidate in keys) {
+      if (word.length >= 5 && (candidate.startsWith(word) || word.startsWith(candidate))) {
+        return candidate;
+      }
+    }
+  }
+  return null;
+}
 
 /// Peso de una asignatura por su nombre.
 ///

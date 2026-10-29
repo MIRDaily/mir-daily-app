@@ -1,6 +1,10 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/models/flashcards.dart';
 import '../../core/models/models.dart';
 import '../../core/responsive/breakpoints.dart';
 import '../../core/responsive/content_shell.dart';
@@ -9,16 +13,18 @@ import '../../core/services/api_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../shared/sticker/sticker.dart';
 import '../../shared/sticker/textures.dart';
-import '../../shared/widgets/misc_widgets.dart';
 import 'flashcard_deck_screen.dart';
 import 'widgets/flashcard_dialogs.dart';
+import 'widgets/flashcards_ui.dart';
+import 'widgets/progress_panel.dart';
 
-/// Flashcards personalizadas: los grupos de tarjetas del usuario.
+/// Flashcards personalizadas: los grupos («asignaturas») de tarjetas del usuario.
 ///
-/// Son mazos con `kind='flashcards'` en el backend y tienen endpoints propios
-/// (`/api/studio/flashcard-decks`) para no mezclarse con la biblioteca de
-/// mazos de preguntas. Reutilizan el motor SRS, pero **no cuentan para las
-/// estadísticas globales**: son notas del usuario, no preguntas del MIR.
+/// Van en lista tipo Anki, por categoría (Básicas, Médicas, Quirúrgicas, Otros) y con tres
+/// columnas siempre en el mismo sitio: nuevas, falladas y repasos. Encima, la previsión de los
+/// próximos 30 días y el estado de las tarjetas. Son mazos con `kind='flashcards'` en el backend,
+/// con endpoints propios, y **no cuentan para las estadísticas globales**.
+/// Puerto del nivel raíz de src/app/flashcards/page.tsx.
 class FlashcardsScreen extends StatefulWidget {
   const FlashcardsScreen({super.key});
 
@@ -26,10 +32,20 @@ class FlashcardsScreen extends StatefulWidget {
   State<FlashcardsScreen> createState() => _FlashcardsScreenState();
 }
 
+/// Preferencias de la lista (orden y secciones plegadas): si se pliega una categoría, se espera
+/// encontrarla plegada al volver.
+const _prefsKey = 'mirdaily.flashcards.listPrefs';
+
 class _FlashcardsScreenState extends State<FlashcardsScreen> {
   List<FlashDeck>? _decks;
   String? _error;
   bool _loading = true;
+  FlashForecast? _forecast;
+  FlashStats? _stats;
+
+  final _query = TextEditingController();
+  OrdenAsignaturas _orden = OrdenAsignaturas.pendientes;
+  final Set<CategoriaAsignatura> _plegadas = {};
 
   /// Grupo abierto en el panel derecho, en maestro-detalle (tablet grande).
   FlashDeck? _selectedDeck;
@@ -42,7 +58,40 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
   @override
   void initState() {
     super.initState();
+    _leerPrefs();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _query.dispose();
+    super.dispose();
+  }
+
+  Future<void> _leerPrefs() async {
+    try {
+      final raw = (await SharedPreferences.getInstance()).getString(_prefsKey);
+      if (raw == null || !mounted) return;
+      final j = jsonDecode(raw);
+      if (j is! Map) return;
+      setState(() {
+        _orden = OrdenAsignaturas.values.firstWhere((o) => o.name == j['orden'], orElse: () => _orden);
+        _plegadas
+          ..clear()
+          ..addAll(CategoriaAsignatura.values.where((c) => (j['plegadas'] is List) && (j['plegadas'] as List).contains(c.name)));
+      });
+    } catch (_) {
+      // Unas preferencias viejas no deben tumbar la pantalla.
+    }
+  }
+
+  Future<void> _guardarPrefs() async {
+    try {
+      await (await SharedPreferences.getInstance()).setString(
+        _prefsKey,
+        jsonEncode({'orden': _orden.name, 'plegadas': _plegadas.map((c) => c.name).toList()}),
+      );
+    } catch (_) {}
   }
 
   Future<void> _load() async {
@@ -52,19 +101,27 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
         _error = null;
       });
     }
+    // El panel es informativo: si falla, la pantalla sigue siendo usable.
+    _api.getFlashcardForecast().then((f) {
+      if (mounted) setState(() => _forecast = f);
+    }).catchError((_) {});
+    _api.getFlashcardStats().then((s) {
+      if (mounted) setState(() => _stats = s);
+    }).catchError((_) {});
     try {
       final decks = await _api.getFlashDecks();
       if (!mounted) return;
       setState(() {
         _decks = decks;
         _loading = false;
+        if (_selectedDeck != null) {
+          _selectedDeck = decks.where((d) => d.id == _selectedDeck!.id).firstOrNull;
+        }
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e is ApiException
-            ? e.message
-            : 'No se pudieron cargar tus grupos. Desliza para reintentar.';
+        _error = e is ApiException ? e.message : 'No se pudieron cargar tus grupos. Desliza para reintentar.';
         _loading = false;
       });
     }
@@ -91,11 +148,7 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
     );
     if (data == null) return;
     try {
-      await _api.updateFlashDeck(
-        deck.id,
-        name: data.name,
-        description: data.description,
-      );
+      await _api.updateFlashDeck(deck.id, name: data.name, description: data.description);
       await _load();
     } on ApiException catch (e) {
       _toast(e.message);
@@ -108,21 +161,17 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: kInk,
-      ),
+      SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating, backgroundColor: kInk),
     );
   }
 
-  Future<void> _open(FlashDeck deck) async {
-    if (context.usesTwoPane) {
+  Future<void> _open(FlashDeck deck, {bool estudiar = false}) async {
+    if (context.usesTwoPane && !estudiar) {
       setState(() => _selectedDeck = deck);
       return;
     }
     await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => FlashcardDeckScreen(deck: deck)),
+      MaterialPageRoute(builder: (_) => FlashcardDeckScreen(deck: deck, autoStudy: estudiar, onChanged: _load)),
     );
     _load();
   }
@@ -130,7 +179,6 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
   @override
   Widget build(BuildContext context) {
     final decks = _decks ?? const <FlashDeck>[];
-    final due = decks.fold<int>(0, (a, d) => a + d.dueCards);
     final twoPane = context.usesTwoPane;
 
     return Scaffold(
@@ -147,7 +195,7 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
           : Padding(
               padding: const EdgeInsets.only(bottom: 4, right: 4),
               child: StickerButton(
-                label: 'Nuevo grupo',
+                label: 'Nueva asignatura',
                 icon: Icons.add_rounded,
                 onPressed: _createDeck,
               ),
@@ -159,28 +207,27 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
                 masterTitle: 'Flashcards',
                 onBack: () => Navigator.of(context).maybePop(),
                 masterCollapsed: _masterCollapsed,
-                onToggleMaster: () =>
-                    setState(() => _masterCollapsed = !_masterCollapsed),
+                onToggleMaster: () => setState(() => _masterCollapsed = !_masterCollapsed),
                 masterActions: [
                   IconButton(
-                    tooltip: 'Nuevo grupo',
+                    tooltip: 'Nueva asignatura',
                     visualDensity: VisualDensity.compact,
                     icon: const Icon(Icons.add_rounded),
                     color: AppColors.primaryDark,
                     onPressed: _createDeck,
                   ),
                 ],
-                master: _gallery(decks, due),
+                master: _gallery(decks),
                 detail: _selectedDeck == null
                     ? const MasterDetailEmpty(
                         icon: Icons.style_rounded,
                         title: 'Elige un grupo',
-                        subtitle:
-                            'Selecciónalo en la lista para ver sus tarjetas.',
+                        subtitle: 'Selecciónalo en la lista para ver sus tarjetas.',
                       )
                     : FlashcardDeckScreen(
                         key: ValueKey(_selectedDeck!.id),
                         deck: _selectedDeck!,
+                        onChanged: _load,
                         onClose: () => setState(() {
                           if (_masterCollapsed) {
                             _masterCollapsed = false;
@@ -190,30 +237,38 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
                         }),
                       ),
               )
-            : BodyConstraint(child: _gallery(decks, due)),
+            : BodyConstraint(child: _gallery(decks)),
       ),
     );
   }
 
-  Widget _gallery(List<FlashDeck> decks, int due) {
+  Widget _gallery(List<FlashDeck> decks) {
+    final total = decks.fold<int>(0, (a, d) => a + d.totalCards);
+    final due = decks.fold<int>(0, (a, d) => a + d.dueCards);
+    final secciones = agruparAsignaturas(decks, _query.text, _orden);
+
     return RefreshIndicator(
       color: AppColors.primary,
       onRefresh: _load,
       child: ListView(
-        physics:
-            const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+        physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
         padding: const EdgeInsets.fromLTRB(20, 6, 20, 100),
         children: [
           StickerHero(
-            badge: 'Flashcards',
+            badge: 'Repaso espaciado',
             badgeIcon: Icons.style_rounded,
-            title: 'Tus tarjetas',
-            subtitle:
-                'Crea y repasa tus propias tarjetas, con anverso y reverso.',
-            aside:
-                due > 0 ? StatChip(value: '$due', label: 'por repasar') : null,
+            title: 'Mis flashcards',
+            subtitle: 'Tus propias tarjetas, por asignatura y tema. Cada repaso las reprograma para que vuelvan justo cuando toca.',
+            aside: due > 0 ? StatChip(value: '$due', label: 'para hoy') : const _CardStackArt(),
           ),
-          const SizedBox(height: 24),
+          if (decks.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Wrap(spacing: 6, runSpacing: 6, children: [
+              DocChip(label: '${decks.length} ${decks.length == 1 ? 'asignatura' : 'asignaturas'}', icon: Icons.folder_rounded),
+              DocChip(label: '$total tarjetas', icon: Icons.style_rounded),
+            ]),
+          ],
+          const SizedBox(height: 18),
           if (_loading)
             for (var i = 0; i < 3; i++) const _FlashDeckSkeleton()
           else if (_error != null)
@@ -221,110 +276,175 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
           else if (decks.isEmpty)
             const _EmptyFlashcards()
           else ...[
-            const SectionLabel('Tus grupos'),
-            for (var i = 0; i < decks.length; i++)
-              SlideFadeIn(
-                delay: Duration(milliseconds: 70 * (i % 8)),
-                beginOffset: const Offset(0, 0.12),
-                child: _FlashDeckCard(
-                  deck: decks[i],
-                  onTap: () => _open(decks[i]),
-                  onRename: () => _renameDeck(decks[i]),
+            FlashProgressPanel(forecast: _forecast, stats: _stats, accent: const Color(0xFFE8A598)),
+            const SizedBox(height: 16),
+            Row(children: [
+              Expanded(
+                child: InkInput(
+                  controller: _query,
+                  hint: 'Buscar asignatura…',
+                  onChanged: (_) => setState(() {}),
                 ),
               ),
+              const SizedBox(width: 8),
+              PopupMenuButton<OrdenAsignaturas>(
+                tooltip: 'Orden',
+                initialValue: _orden,
+                onSelected: (o) {
+                  setState(() => _orden = o);
+                  _guardarPrefs();
+                },
+                itemBuilder: (_) => [
+                  for (final o in OrdenAsignaturas.values) PopupMenuItem(value: o, child: Text(kNombreOrden[o]!)),
+                ],
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: kHairline, width: 2),
+                  ),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    const Icon(Icons.sort_rounded, size: 18, color: kMuted),
+                    const SizedBox(width: 4),
+                    Text(kNombreOrden[_orden]!, style: const TextStyle(color: kInk, fontSize: 13, fontWeight: FontWeight.w800)),
+                  ]),
+                ),
+              ),
+            ]),
+            const SizedBox(height: 14),
+            if (secciones.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 24),
+                child: Text(
+                  'Ninguna asignatura coincide con «${_query.text.trim()}».',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 13, fontWeight: FontWeight.w700),
+                ),
+              )
+            else ...[
+              const WorkCountsHeader(trailing: 38),
+              for (final s in secciones) ..._seccion(s.categoria, s.grupos),
+            ],
           ],
         ],
       ),
     );
   }
+
+  List<Widget> _seccion(CategoriaAsignatura cat, List<FlashDeck> grupos) {
+    final plegada = _plegadas.contains(cat);
+    final nuevas = grupos.fold<int>(0, (n, d) => n + d.summary.nuevas);
+    final falladas = grupos.fold<int>(0, (n, d) => n + d.summary.failed);
+    final repasos = grupos.fold<int>(0, (n, d) => n + d.repasos);
+    return [
+      InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: () {
+          setState(() => plegada ? _plegadas.remove(cat) : _plegadas.add(cat));
+          _guardarPrefs();
+        },
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(2, 12, 2, 8),
+          child: Row(children: [
+            Icon(plegada ? Icons.chevron_right_rounded : Icons.expand_more_rounded, size: 20, color: kMuted),
+            const SizedBox(width: 2),
+            Text(
+              '${kNombreCategoria[cat]!.toUpperCase()} · ${grupos.length}',
+              style: const TextStyle(color: kMuted, fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 1.4),
+            ),
+            const Spacer(),
+            if (plegada)
+              Text.rich(TextSpan(style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900), children: [
+                TextSpan(text: '$nuevas', style: TextStyle(color: kFlashStatusTone[FlashStatus.nueva]!.fg)),
+                const TextSpan(text: ' · ', style: TextStyle(color: kMuted)),
+                TextSpan(text: '$falladas', style: TextStyle(color: kFlashStatusTone[FlashStatus.failed]!.fg)),
+                const TextSpan(text: ' · ', style: TextStyle(color: kMuted)),
+                TextSpan(text: '$repasos', style: const TextStyle(color: Color(0xFF5C7A59))),
+              ])),
+          ]),
+        ),
+      ),
+      if (!plegada)
+        for (final d in grupos)
+          _DeckRow(
+            deck: d,
+            selected: _selectedDeck?.id == d.id,
+            onTap: () => _open(d),
+            onStudy: d.totalCards == 0 ? null : () => _open(d, estudiar: true),
+            onRename: () => _renameDeck(d),
+          ),
+    ];
+  }
 }
 
-/// Ficha de un grupo: nombre, cuántas tarjetas tiene y cuántas tocan hoy.
-class _FlashDeckCard extends StatelessWidget {
+/// Una asignatura en la lista: sigla en su color, nombre, dominio, las tres columnas y Estudiar.
+class _DeckRow extends StatelessWidget {
   final FlashDeck deck;
+  final bool selected;
   final VoidCallback onTap;
+  final VoidCallback? onStudy;
   final VoidCallback onRename;
 
-  const _FlashDeckCard({
-    required this.deck,
-    required this.onTap,
-    required this.onRename,
-  });
+  const _DeckRow({required this.deck, required this.selected, required this.onTap, required this.onStudy, required this.onRename});
 
   @override
   Widget build(BuildContext context) {
-    final hasDue = deck.dueCards > 0;
-
-    return StickerCard(
-      margin: const EdgeInsets.only(bottom: 14),
-      depth: 4,
-      radius: 20,
-      padding: const EdgeInsets.all(16),
-      // Cartulina rayada, como una ficha de estudio de verdad.
-      texture: ruledPaper(step: 24),
-      onTap: onTap,
-      child: Row(
-        children: [
-          const _CardStackArt(),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  deck.name,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: kInk,
-                    fontWeight: FontWeight.w900,
-                    fontSize: 16,
-                    height: 1.2,
-                  ),
+    final v = visualAsignatura(deck.name, deck.color, deck.icon);
+    final color = colorDeGrupo(deck);
+    final idle = deck.dueCards == 0;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Material(
+        color: selected ? color.soft : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          onLongPress: onRename,
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(8, 8, 2, 8),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: selected ? kInk : (idle ? const Color(0xFFEFEAE7) : const Color(0xFFE4DCD8)), width: 2),
+            ),
+            child: Row(children: [
+              Container(
+                width: 38,
+                height: 38,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: color.bg.withOpacity(idle ? 0.55 : 1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: kInk, width: 1.5),
                 ),
-                if ((deck.description ?? '').isNotEmpty) ...[
-                  const SizedBox(height: 3),
+                child: Text(v.sigla, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w900)),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(
-                    deck.description!,
+                    deck.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: kMuted,
-                      fontSize: 12,
-                      backgroundColor: Colors.white.withOpacity(0.6),
-                    ),
+                    style: TextStyle(color: idle ? const Color(0xFF9CA3AF) : kInk, fontSize: 14, fontWeight: FontWeight.w900),
                   ),
-                ],
-                const SizedBox(height: 9),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    DocChip(
-                      label: deck.totalCards == 1
-                          ? '1 tarjeta'
-                          : '${deck.totalCards} tarjetas',
-                      icon: Icons.style_rounded,
-                    ),
-                    if (hasDue)
-                      DocChip(
-                        label: '${deck.dueCards} por repasar',
-                        icon: Icons.bolt_rounded,
-                        tone: DocTone.accent,
-                      ),
-                  ],
-                ),
-              ],
-            ),
+                  const SizedBox(height: 4),
+                  MasteryBar(percent: deck.dominio, total: deck.totalCards),
+                ]),
+              ),
+              const SizedBox(width: 8),
+              WorkCounts(nuevas: deck.summary.nuevas, falladas: deck.summary.failed, repasos: deck.repasos),
+              IconButton(
+                tooltip: 'Estudiar ${deck.name}',
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(Icons.play_arrow_rounded),
+                color: AppColors.primaryDark,
+                onPressed: onStudy,
+              ),
+            ]),
           ),
-          const SizedBox(width: 4),
-          InkIconButton(
-            icon: Icons.edit_rounded,
-            tooltip: 'Renombrar',
-            size: 38,
-            onTap: onRename,
-          ),
-        ],
+        ),
       ),
     );
   }
