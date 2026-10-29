@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../main_navigation.dart' show NavItem;
+import '../../profile/screens/avisos_screen.dart' show GloboAvisos;
 import '../../progress/widgets/anillo_nivel.dart';
 
 /// Ancho del raíl. Estrecho a propósito: icono + etiqueta pequeña debajo,
@@ -155,9 +156,10 @@ class _RailPip extends StatelessWidget {
               );
               // Igual que en la barra inferior: el aro cabe dentro del hueco
               // que ya ocupaba el icono, no crece por fuera.
-              return item.anilloNivel
+              final conAro = item.anilloNivel
                   ? AnilloNivel(lado: 27, child: icono)
                   : icono;
+              return item.avisos ? GloboAvisos(child: conAro) : conAro;
             }),
           ),
           const SizedBox(height: 3),

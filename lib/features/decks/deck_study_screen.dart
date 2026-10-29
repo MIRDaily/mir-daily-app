@@ -8,6 +8,8 @@ import '../../core/providers/progress_provider.dart';
 import '../../core/services/api_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../shared/sticker/sticker.dart';
+import '../../core/models/reportes.dart';
+import '../../shared/report/report_button.dart';
 import '../../shared/sticker/textures.dart';
 import '../../shared/widgets/pressable.dart';
 import '../../shared/widgets/zoomable_image.dart';
@@ -273,8 +275,23 @@ class _DeckStudyScreenState extends State<DeckStudyScreen> with SilencesBackgrou
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (q.subject != null)
-            DocChip(label: q.subject!, tone: DocTone.accent),
+          Row(children: [
+            if (q.subject != null)
+              Flexible(child: DocChip(label: q.subject!, tone: DocTone.accent)),
+            const Spacer(),
+            ReportButton(
+              questionId: int.tryParse(q.questionId),
+              contexto: ContextoReporte(
+                origin: OrigenReporte.deck,
+                sessionRef: _sessionId,
+                answered: _revealed,
+                userAnswer: _revealed ? respuestaUnoBased(_selected) : null,
+                isCorrect: _revealed ? _lastCorrect : null,
+              ),
+              optionCount: q.options.length,
+              color: kMuted,
+            ),
+          ]),
           const SizedBox(height: 12),
           Text(
             q.statement,

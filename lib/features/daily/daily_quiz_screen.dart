@@ -9,6 +9,8 @@ import '../../core/providers/daily_provider.dart';
 import '../../core/responsive/content_shell.dart';
 import '../../core/theme/app_theme.dart';
 import '../decks/widgets/save_to_deck.dart';
+import '../../core/models/reportes.dart';
+import '../../shared/report/report_button.dart';
 import '../../shared/widgets/goo_fission_loader.dart';
 import '../../shared/widgets/misc_widgets.dart';
 import '../../shared/widgets/pressable.dart';
@@ -357,6 +359,14 @@ class _DailyQuizScreenState extends State<DailyQuizScreen> with SilencesBackgrou
               // en que una pregunta te llama la atención es mientras la lees.
               // Sale en TODAS, así que no adelanta nada de ninguna.
               const SizedBox(width: 2),
+              // Reportar también antes de responder (como la web): solo ofrece los tipos que no
+              // necesitan ver la corrección, así que no destripa nada.
+              ReportButton(
+                questionId: int.tryParse(question.id),
+                contexto: const ContextoReporte(origin: OrigenReporte.daily, answered: false),
+                optionCount: question.options.length,
+                subtitle: question.year != null ? 'MIR ${question.year}' : null,
+              ),
               SaveToDeckButton(questionId: question.id, size: 20),
             ],
           ),

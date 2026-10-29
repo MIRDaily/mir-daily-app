@@ -17,7 +17,9 @@ import '../../../shared/sticker/sticker.dart';
 import '../../onboarding/screens/onboarding_screen.dart';
 import '../../quiz/widgets/pack_style_selector.dart';
 import '../widgets/profile_card.dart';
+import 'avisos_screen.dart';
 import 'creditos_screen.dart';
+import '../../../core/services/avisos_service.dart';
 import '../widgets/progress_section.dart';
 import '../widgets/profile_card_fields.dart';
 import '../widgets/profile_editor_sheet.dart';
@@ -150,8 +152,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       color: Colors.blueAccent,
                       title: 'Inbox',
                       subtitle: 'Mensajes y avisos',
-                      trailing: _buildBadge('2'),
-                      onTap: () {},
+                      trailing: (context.watch<Avisos?>()?.noLeidas ?? 0) > 0
+                          ? _buildBadge('${context.watch<Avisos>().noLeidas}')
+                          : null,
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const AvisosScreen()),
+                      ),
                     ),
                     _MenuItemData(
                       icon: Icons.help_outline_rounded,

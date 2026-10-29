@@ -22,9 +22,11 @@ import 'core/services/api_service.dart';
 import 'core/services/ia_service.dart';
 import 'core/services/app_warmup.dart';
 import 'core/services/auth_service.dart';
+import 'core/services/avisos_service.dart';
 import 'core/services/carpetas.dart';
 import 'core/services/creditos_ia_service.dart';
 import 'core/services/notification_service.dart';
+import 'core/services/reportes_api.dart';
 import 'features/resumenes/resumenes_api.dart';
 import 'features/resumenes/resumenes_ia.dart';
 import 'features/focus/providers/focus_provider.dart';
@@ -136,6 +138,10 @@ class MIRDailyApp extends StatelessWidget {
         Provider<CarpetasApi>(
           create: (_) => CarpetasApi(token: apiService.validToken, baseUrl: AppConfig.apiBaseUrl),
         ),
+        // Reportar pregunta (POST /api/reports): lo abre el botón de cada pantalla de preguntas.
+        Provider<ReportesApi>(
+          create: (_) => ReportesApi(token: apiService.validToken, baseUrl: AppConfig.apiBaseUrl),
+        ),
         ChangeNotifierProvider(
           create: (_) => AuthProvider(
             authService: authService,
@@ -153,6 +159,18 @@ class MIRDailyApp extends StatelessWidget {
             ..setUsuario(
               auth.status == AuthStatus.authenticated ? auth.userId : null,
             ),
+        ),
+        // Bandeja de avisos del servidor: el contador de no leídas de la barra y del Inbox. Por cuenta,
+        // como los créditos; al cambiar de cuenta también se olvida qué preguntas se habían reportado.
+        ChangeNotifierProxyProvider<AuthProvider, Avisos>(
+          create: (_) => Avisos(
+            AvisosApi(token: apiService.validToken, baseUrl: AppConfig.apiBaseUrl),
+          ),
+          update: (_, auth, avisos) {
+            final usuario = auth.status == AuthStatus.authenticated ? auth.userId : null;
+            if (avisos!.usuario != usuario) Reportadas.instancia.olvidar();
+            return avisos..setUsuario(usuario);
+          },
         ),
         // Nivel, XP, racha y desafíos. Va detrás de AuthProvider porque se
         // enciende y se apaga con la sesión: sin sesión NO pide nada, que en

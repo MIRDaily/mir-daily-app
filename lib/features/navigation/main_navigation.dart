@@ -8,6 +8,9 @@ import '../../core/responsive/breakpoints.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/services/notification_service.dart';
 import 'widgets/nav_rail.dart';
+import 'pestana_pedida.dart';
+import '../../core/services/avisos_service.dart';
+import '../profile/screens/avisos_screen.dart' show GloboAvisos;
 import '../biblioteca/biblioteca_hub_screen.dart';
 import '../quiz/screens/quiz_screen.dart';
 import '../focus/providers/focus_provider.dart';
@@ -128,7 +131,7 @@ class _MainNavigationState extends State<MainNavigation>
     NavItem(icon: Icons.bolt_outlined, activeIcon: Icons.bolt, label: 'Versus'),
     NavItem(icon: Icons.quiz_outlined, activeIcon: Icons.quiz, label: 'Quiz'),
     NavItem(icon: Icons.workspace_premium_outlined, activeIcon: Icons.workspace_premium, label: 'Premium'),
-    NavItem(icon: Icons.person_outline, activeIcon: Icons.person, label: 'Perfil', anilloNivel: true),
+    NavItem(icon: Icons.person_outline, activeIcon: Icons.person, label: 'Perfil', anilloNivel: true, avisos: true),
   ];
 
   /// Último ancho del área de páginas, para detectar rotaciones / cambios de
@@ -160,6 +163,15 @@ class _MainNavigationState extends State<MainNavigation>
     });
 
     _pageController.addListener(_onPageScroll);
+
+    // Otra pantalla (la bandeja de avisos) pide ir a una pestaña tras volver a la raíz.
+    pestanaPedida.addListener(_onPestanaPedida);
+    // Al volver a la app, el contador de avisos al día (el servidor genera los del daily al pedirlo).
+    _ciclo = AppLifecycleListener(
+      onResume: () {
+        if (mounted) context.read<Avisos?>()?.refrescar();
+      },
+    );
 
     // La primera vez, ofrecer activar el recordatorio diario del daily.
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -302,8 +314,19 @@ class _MainNavigationState extends State<MainNavigation>
     ];
   }
 
+  AppLifecycleListener? _ciclo;
+
+  void _onPestanaPedida() {
+    final p = pestanaPedida.value;
+    if (p == null || !mounted) return;
+    pestanaPedida.value = null;
+    _onNavItemTapped(p.index);
+  }
+
   @override
   void dispose() {
+    pestanaPedida.removeListener(_onPestanaPedida);
+    _ciclo?.dispose();
     _pillCtrl.dispose();
     _barEntry.dispose();
     _tickerMask.dispose();
@@ -643,11 +666,16 @@ class NavItem {
   /// del aro sobre el avatar de la cabecera de la web.
   final bool anilloNivel;
 
+  /// Cuelga del icono el globo de avisos sin leer (lo lleva Perfil, donde está el Inbox): es la
+  /// campana de la cabecera de la web.
+  final bool avisos;
+
   const NavItem({
     required this.icon,
     required this.activeIcon,
     required this.label,
     this.anilloNivel = false,
+    this.avisos = false,
   });
 }
 
@@ -694,9 +722,10 @@ class _NavItem extends StatelessWidget {
               );
               // El aro cabe DENTRO del hueco del icono, encogiéndolo: si
               // creciera por fuera subiría el alto de toda la barra.
-              return item.anilloNivel
+              final conAro = item.anilloNivel
                   ? AnilloNivel(lado: 26, child: icono)
                   : icono;
+              return item.avisos ? GloboAvisos(child: conAro) : conAro;
             }),
           ),
           const SizedBox(height: 3),

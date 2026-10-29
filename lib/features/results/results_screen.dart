@@ -17,6 +17,8 @@ import '../../core/services/haptics_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/levels.dart';
 import '../decks/widgets/save_to_deck.dart';
+import '../../core/models/reportes.dart';
+import '../../shared/report/report_button.dart';
 import '../progress/widgets/llama_racha.dart';
 import '../progress/widgets/marco_nivel.dart';
 import '../progress/widgets/tarjeta_nivel.dart' show miles;
@@ -2700,6 +2702,17 @@ class _ReviewSlideState extends State<_ReviewSlide> {
                   // Guardar la pregunta en un mazo desde la propia revisión:
                   // es justo el momento en que uno decide que quiere volver a
                   // verla.
+                  ReportButton(
+                    questionId: int.tryParse(q.questionId ?? ''),
+                    contexto: ContextoReporte(
+                      origin: OrigenReporte.dailyReview,
+                      answered: true,
+                      userAnswer: respuestaUnoBased(q.selectedIndex),
+                      isCorrect: q.isCorrect,
+                    ),
+                    optionCount: q.options.length,
+                    size: 22,
+                  ),
                   SaveToDeckButton(questionId: q.questionId),
                 ],
               ),

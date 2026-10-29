@@ -15,6 +15,8 @@ import '../../core/responsive/content_shell.dart';
 import '../../core/services/api_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../decks/widgets/save_to_deck.dart';
+import '../../core/models/reportes.dart';
+import '../../shared/report/report_button.dart';
 import '../../core/data/mir_weights.dart';
 import '../../shared/sticker/sticker.dart';
 import 'widgets/count_slider.dart';
@@ -1666,6 +1668,11 @@ class _SimRunnerCarouselState extends State<_SimRunnerCarousel>
           // En la fila de progreso, no dentro de una página concreta: así está
           // a mano en el enunciado, en las opciones y en la corrección.
           const SizedBox(width: 4),
+          ReportButton(
+            questionId: widget.questions[_index].id,
+            contexto: _contextoReporte(OrigenReporte.simulacro, widget.answers, widget.results, _index),
+            optionCount: widget.questions[_index].options.length,
+          ),
           SaveToDeckButton(
             questionId: '${widget.questions[_index].id}',
             size: 20,
@@ -2328,6 +2335,11 @@ class _SimRunnerClassicState extends State<_SimRunnerClassic>
               // que no delata ninguna, y el momento de querer guardarla suele
               // ser mientras se lee, no después de corregir.
               const SizedBox(width: 4),
+              ReportButton(
+                questionId: q.id,
+                contexto: _contextoReporte(OrigenReporte.simulacro, widget.answers, widget.results, _index),
+                optionCount: q.options.length,
+              ),
               SaveToDeckButton(questionId: '${q.id}', size: 20),
             ],
           ),
@@ -2906,6 +2918,19 @@ class SimResultsView extends StatelessWidget {
   }
 }
 
+/// Contexto del reporte de la pregunta [i]: respondida = ya corregida (como `revealed` en la web).
+ContextoReporte _contextoReporte(
+    OrigenReporte origen, List<int?> answers, List<SimResult?> results, int i) {
+  final result = i < results.length ? results[i] : null;
+  final answered = result != null;
+  return ContextoReporte(
+    origin: origen,
+    answered: answered,
+    userAnswer: answered && i < answers.length ? respuestaUnoBased(answers[i]) : null,
+    isCorrect: result?.isCorrect,
+  );
+}
+
 class _SimDetailDialog extends StatefulWidget {
   final List<SimQuestion> questions;
   final List<int?> answers;
@@ -2962,6 +2987,12 @@ class _SimDetailDialogState extends State<_SimDetailDialog> {
                           fontSize: 11.5,
                           letterSpacing: 0.6),
                     ),
+                  ),
+                  ReportButton(
+                    questionId: q.id,
+                    contexto: _contextoReporte(
+                        OrigenReporte.simulacroReview, widget.answers, widget.results, _index),
+                    optionCount: q.options.length,
                   ),
                   SaveToDeckButton(questionId: '${q.id}', size: 20),
                   IconButton(
@@ -3123,31 +3154,36 @@ class _SimDetailDialogState extends State<_SimDetailDialog> {
               padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                // Flexible: con el texto del sistema grande los dos botones no caben a 360 px.
                 children: [
-                  TextButton.icon(
-                    onPressed: _index == 0
-                        ? null
-                        : () => setState(() {
-                              _index--;
-                              _showImage = false;
-                            }),
-                    icon: const Icon(Icons.arrow_back_rounded, size: 18),
-                    label: const Text('Anterior'),
+                  Flexible(
+                    child: TextButton.icon(
+                      onPressed: _index == 0
+                          ? null
+                          : () => setState(() {
+                                _index--;
+                                _showImage = false;
+                              }),
+                      icon: const Icon(Icons.arrow_back_rounded, size: 18),
+                      label: const Text('Anterior', overflow: TextOverflow.ellipsis),
+                    ),
                   ),
-                  TextButton(
-                    onPressed: _index == widget.questions.length - 1
-                        ? null
-                        : () => setState(() {
-                              _index++;
-                              _showImage = false;
-                            }),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text('Siguiente'),
-                        SizedBox(width: 4),
-                        Icon(Icons.arrow_forward_rounded, size: 18),
-                      ],
+                  Flexible(
+                    child: TextButton(
+                      onPressed: _index == widget.questions.length - 1
+                          ? null
+                          : () => setState(() {
+                                _index++;
+                                _showImage = false;
+                              }),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Flexible(child: Text('Siguiente', overflow: TextOverflow.ellipsis)),
+                          SizedBox(width: 4),
+                          Icon(Icons.arrow_forward_rounded, size: 18),
+                        ],
+                      ),
                     ),
                   ),
                 ],
