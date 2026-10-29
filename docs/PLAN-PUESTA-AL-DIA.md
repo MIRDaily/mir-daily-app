@@ -13,7 +13,7 @@ esperar a que la web y el backend las dejen firmes.
 **Copia en el repo de la app:** `docs/PLAN-PUESTA-AL-DIA.md` (rama `v7`), para que el otro ordenador la
 tenga. Al cerrar cada tanda se actualizan las dos.
 
-**Estado:** tandas 0 a 3 hechas el 29/10/2026, salvo la prueba en el teléfono.
+**Estado:** tandas 0 a 4 hechas el 29/10/2026, salvo la prueba en el teléfono.
 
 ## Resumen del orden
 
@@ -276,6 +276,46 @@ previsión sale igual en las dos.
 - **Mis reportes** (`GET /api/reports/mine`) en el Perfil, si la web lo enseña.
 - **Bandeja de notificaciones:** `GET /notifications`, el contador de no leídas en la navegación
   (`/unread-count`) y marcar leídas (`/:id/read` y `/read-all`). El recordatorio local se queda como está.
+
+### Resultado (29/10/2026, commit `3c945c7` en v7)
+
+- **Reportar pregunta:** el botón (bandera) está junto a «guardar en mazo» en el daily, en la revisión
+  de resultados, en los dos modos del simulacro (clásico y carrusel), en el detalle de la corrección
+  (también el del historial) y en el estudio de mazos. Es el mismo formulario que la web:
+  - tipos de error; «Respuesta errónea» y «Explicación» solo salen tras responder;
+  - la respuesta que crees correcta (A-D o A-E) y el problema de la imagen;
+  - texto, obligatorio en «Otro»;
+  - «Ya lo reportaste» con lo tuyo precargado y el botón «Actualizar»;
+  - la bandera rellena durante la sesión.
+
+  Manda `platform: 'app'`, la versión del build y el contexto que manda la web: origen, sesión del mazo,
+  si ya respondió, qué contestó y si acertó. El límite de 20 al día (429) y los 400 enseñan el mensaje
+  del servidor.
+- **«Mis reportes»:** la web no tiene una lista en el Perfil. `GET /api/reports/mine` solo sirve para
+  precargar la ventana, y así se ha portado.
+- **Bandeja de avisos:** Perfil → Inbox (antes era una maqueta con un «2» fijo).
+  - `GET /api/notifications` con «Todas» y «No leídas», el icono y la hora con las reglas de la web.
+  - Marcar una como leída (optimista, y se deshace si falla) y «Marcar todo como leído».
+  - El aviso del daily (`/dashboard`) lleva a la pestaña Quiz.
+  - El contador de no leídas va en Perfil, en la barra y en el raíl de tablet, y también en Inbox. Es
+    por cuenta y se pide al entrar, al volver a la app y al abrir la bandeja. Como en la web, no se
+    sondea.
+- **Código:** la lógica pura está en `core/models/reportes.dart` y `core/models/avisos.dart`. Los
+  clientes son `ReportesApi` (con `Reportadas`) y `AvisosApi`, con el almacén `Avisos`, en
+  `core/services/`. La ventana es `shared/report/report_button.dart` y la bandeja
+  `features/profile/screens/avisos_screen.dart`. Para cambiar de pestaña desde una pantalla apilada está
+  `features/navigation/pestana_pedida.dart`.
+- **Tests:** 486 en verde (31 nuevos). Hay lógica con los casos de `test/reportes.test.js` del backend,
+  los clientes con MockClient, la ventana y la bandeja en móvil y tablet, y el botón dentro del detalle
+  del simulacro y del estudio de mazo. Los tests destaparon tres problemas, ya corregidos:
+  - un desborde a 360 px en la fecha de la bandeja;
+  - «Enviar» quedaba fuera de la vista con el texto abierto (ahora va en un pie fijo);
+  - la fila «Anterior / Siguiente» del detalle del simulacro, que ya se salía con texto grande.
+
+  El golden de la cabecera del daily se regeneró tras revisarlo: solo cambia el icono nuevo.
+- **No incluido:** reportar en Versus (la web lo tiene, pero el modelo de la app no recibe el id de la
+  pregunta en el revelado; hay que leerlo del canal) y en las guías (llegan con la tanda 7).
+- **Falta:** probarlo en el teléfono.
 
 ## Tanda 5 — Mazos y Panel al día
 
