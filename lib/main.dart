@@ -22,6 +22,8 @@ import 'core/services/api_service.dart';
 import 'core/services/ia_service.dart';
 import 'core/services/app_warmup.dart';
 import 'core/services/auth_service.dart';
+import 'core/services/carpetas.dart';
+import 'core/services/creditos_ia_service.dart';
 import 'core/services/notification_service.dart';
 import 'features/resumenes/resumenes_api.dart';
 import 'features/resumenes/resumenes_ia.dart';
@@ -130,6 +132,10 @@ class MIRDailyApp extends StatelessWidget {
         Provider<ResumenesApi>.value(value: resumenesApi),
         // Resúmenes con IA (fase 2): generación desde documentos.
         Provider<ResumenesIa>.value(value: resumenesIa),
+        // Carpetas del material (asignatura y tema): dónde se guarda lo creado con IA.
+        Provider<CarpetasApi>(
+          create: (_) => CarpetasApi(token: apiService.validToken, baseUrl: AppConfig.apiBaseUrl),
+        ),
         ChangeNotifierProvider(
           create: (_) => AuthProvider(
             authService: authService,
@@ -137,6 +143,17 @@ class MIRDailyApp extends StatelessWidget {
           ),
         ),
         ChangeNotifierProvider(create: (_) => DailyProvider(apiService)),
+        // Créditos de IA (saldo y tarifa compartidos). Por cuenta: al cambiar de
+        // usuario se olvida el saldo y se vuelve a pedir al abrir algo con IA.
+        ChangeNotifierProxyProvider<AuthProvider, CreditosIa>(
+          create: (_) => CreditosIa(
+            CreditosApi(token: apiService.validToken, baseUrl: AppConfig.apiBaseUrl),
+          ),
+          update: (_, auth, creditos) => creditos!
+            ..setUsuario(
+              auth.status == AuthStatus.authenticated ? auth.userId : null,
+            ),
+        ),
         // Nivel, XP, racha y desafíos. Va detrás de AuthProvider porque se
         // enciende y se apaga con la sesión: sin sesión NO pide nada, que en
         // la web era un 401 en cada visita a la portada.

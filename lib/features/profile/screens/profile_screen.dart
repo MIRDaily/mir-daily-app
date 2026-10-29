@@ -17,6 +17,7 @@ import '../../../shared/sticker/sticker.dart';
 import '../../onboarding/screens/onboarding_screen.dart';
 import '../../quiz/widgets/pack_style_selector.dart';
 import '../widgets/profile_card.dart';
+import 'creditos_screen.dart';
 import '../widgets/progress_section.dart';
 import '../widgets/profile_card_fields.dart';
 import '../widgets/profile_editor_sheet.dart';
@@ -134,6 +135,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       title: 'Rehacer el perfil entero',
                       subtitle: 'Vuelve a pasar por el alta',
                       onTap: _openOnboarding,
+                    ),
+                    _MenuItemData(
+                      icon: Icons.bolt_rounded,
+                      color: const Color(0xFFC9A227),
+                      title: 'Créditos de IA',
+                      subtitle: 'Saldo, qué gasta y movimientos',
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const CreditosScreen()),
+                      ),
                     ),
                     _MenuItemData(
                       icon: Icons.inbox_rounded,

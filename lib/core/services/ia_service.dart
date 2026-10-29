@@ -51,7 +51,10 @@ class IaService {
   Future<Map<String, dynamic>?> estado(IaArea area) async {
     try {
       final req = await _peticion('GET', '${area.base}/estado');
-      final res = await _client.send(req).then(http.Response.fromStream);
+      final res = await _client
+          .send(req)
+          .then(http.Response.fromStream)
+          .timeout(const Duration(seconds: 20));
       final cuerpo = _json(res.body);
       if (res.statusCode < 200 || res.statusCode >= 300) return null;
       return cuerpo?['disponible'] == true ? cuerpo : null;
@@ -112,6 +115,7 @@ class IaService {
         error is String ? error : 'No se pudo completar la operación',
         status: status,
         codigo: codigo is String ? codigo : '',
+        datos: cuerpo,
       );
     }
     return cuerpo ?? <String, dynamic>{};
@@ -138,7 +142,7 @@ class IaService {
       if (e is EventoFin) {
         finDatos = e.datos;
       } else if (e is EventoError) {
-        fallo = IaException(e.error, status: e.status, codigo: e.codigo);
+        fallo = IaException(e.error, status: e.status, codigo: e.codigo, datos: e.datos);
       } else {
         onEvento(e);
       }

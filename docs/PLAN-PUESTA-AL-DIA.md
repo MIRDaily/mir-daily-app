@@ -13,7 +13,7 @@ esperar a que la web y el backend las dejen firmes.
 **Copia en el repo de la app:** `docs/PLAN-PUESTA-AL-DIA.md` (rama `v7`), para que el otro ordenador la
 tenga. Al cerrar cada tanda se actualizan las dos.
 
-**Estado:** tanda 0 hecha en esta máquina el 29/10/2026, salvo la prueba en el teléfono.
+**Estado:** tandas 0 y 1 hechas el 29/10/2026, salvo la prueba en el teléfono.
 
 ## Resumen del orden
 
@@ -150,6 +150,40 @@ ni `idempotencyKey` (son opcionales, así que funciona), pero el usuario **no ve
 Hecho cuando: con una cuenta con plan se ve el precio, se genera, el saldo baja lo mismo que en la web y
 el grupo aparece en su carpeta en la web. Con una cuenta sin plan sale el mensaje correcto y no se cobra
 nada.
+
+### Resultado (29/10/2026)
+
+- **Era un fallo en producción, no solo un hueco.** `ia_reservar` rechaza con `precio_cambiado` cualquier
+  generación sin `creditosAnunciados` (`sql/2026-10-creditos-ia.sql:374`). Con los créditos encendidos
+  desde el 16/10, **crear resúmenes con IA desde la app fallaba siempre**. Queda arreglado en cuanto se
+  instale el APK nuevo.
+- **Nuevo:**
+  - `core/models/creditos_ia.dart`: tarifa, precio, saneado de caracteres, saldo, historial y textos.
+    Es puerto de `lib/ia/precio.ts` y `creditosTexto.ts`.
+  - `core/services/creditos_ia_service.dart`: `CreditosApi` y el almacén `CreditosIa`, que es por cuenta
+    y se olvida al cambiar de usuario.
+  - `core/services/carpetas.dart`: árbol, mover y sugerencia de carpeta, puerto de `sugerir.ts`.
+  - `shared/ia/precio_ia.dart` y `shared/ia/destino_carpeta.dart`: los reutilizarán flashcards y mapas
+    con IA.
+  - `features/profile/screens/creditos_screen.dart`, con su entrada «Créditos de IA» en el Perfil.
+- **Crear resúmenes con IA:**
+  - Precio y saldo antes de generar; el botón se desactiva si no llega el saldo o no hay plan.
+  - Cobro con `idempotencyKey`, evento `reserva` y botón «Cancelar» (avisa al servidor antes; con el
+    aviso de la web si ya no quedan cancelaciones gratis).
+  - Errores 402, 403 y 409 con su mensaje y lo devuelto.
+  - «Dónde lo guardamos» con la carpeta sugerida por el título. Se aplica al grupo **nuevo** con
+    `PATCH /api/carpetas`; si se guarda en un grupo existente, no se mueve, igual que en la web.
+- **Pruebas:** 24 nuevas, con la misma tarifa y los mismos números que `test/creditosIA.test.ts` de la web.
+  La sugerencia de carpeta se prueba contra el mismo catálogo real (`test/fixtures/catalogo-2026-10-16.json`)
+  y propone exactamente lo mismo. La página de créditos se prueba en móvil y tablet sin desbordes.
+  `flutter test`: **399 en verde**. `flutter analyze`: sin avisos nuevos.
+- **Diferencia consciente con la web:** Dart no normaliza a NFC, así que con un texto descompuesto la app
+  cuenta algún carácter de más. El precio anunciado puede pasarse por arriba (el servidor cobra lo suyo),
+  pero nunca quedarse corto.
+- **No probado todavía:** generar de verdad desde el teléfono con una cuenta con plan (no hay Android en
+  esta máquina). Cuando se pruebe, comparar el saldo con `/profile/creditos` de la web.
+- **Queda para otras tandas:** «Más» y «Rehacer» de la vista previa (tanda 3; `ResumenesIa.mas` y
+  `rehacer` aún no mandan cobro, y ninguna pantalla los usa), «Qué parte usar» y el modo libro.
 
 ## Tanda 2 — Flashcards al día
 

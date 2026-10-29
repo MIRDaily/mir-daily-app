@@ -114,7 +114,18 @@ class EventoError extends EventoIa {
   final String error;
   final String codigo;
   final int status;
-  const EventoError({required this.error, required this.codigo, required this.status});
+
+  /// Lo demás que manda el servidor con el error (con créditos: lo cobrado y lo devuelto).
+  final Map<String, dynamic>? datos;
+  const EventoError({required this.error, required this.codigo, required this.status, this.datos});
+}
+
+/// Con créditos, el servidor avisa al empezar: el id de la reserva (para «Cancelar») y lo cobrado.
+class EventoReserva extends EventoIa {
+  final int usageId;
+  final int? cobrados;
+  final int? saldo;
+  const EventoReserva({required this.usageId, this.cobrados, this.saldo});
 }
 
 /// Un apartado dentro de un tema del índice (para el selector «Qué parte usar»).
@@ -196,7 +207,10 @@ class IaException implements Exception {
   final int status;
   final String codigo;
 
-  const IaException(this.message, {this.status = 0, this.codigo = ''});
+  /// El cuerpo del error (con créditos: `necesarios`, `saldo`, `creditos`…), para los mensajes.
+  final Map<String, dynamic>? datos;
+
+  const IaException(this.message, {this.status = 0, this.codigo = '', this.datos});
 
   @override
   String toString() => message;

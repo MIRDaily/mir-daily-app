@@ -1,0 +1,1125 @@
+[
+ {
+  "id": 2,
+  "nombre": "Cardiología y Cirugía Cardiovascular",
+  "nombreCorto": "Cardiología",
+  "sigla": "CD",
+  "subtitulo": null,
+  "temas": [
+   {
+    "id": 2,
+    "nombre": "Anatomía y fisiología cardiaca"
+   },
+   {
+    "id": 1042,
+    "nombre": "Bradicardias"
+   },
+   {
+    "id": 1043,
+    "nombre": "Cardiopatía isquémica"
+   },
+   {
+    "id": 1044,
+    "nombre": "Cardiopatías congénitas"
+   },
+   {
+    "id": 1045,
+    "nombre": "Enfermedades de la aorta y patología arterial"
+   },
+   {
+    "id": 1046,
+    "nombre": "Enfermedades de las venas y linfáticos"
+   },
+   {
+    "id": 1047,
+    "nombre": "Enfermedades del miocardio"
+   },
+   {
+    "id": 1048,
+    "nombre": "Enfermedades del pericardio"
+   },
+   {
+    "id": 1049,
+    "nombre": "Fármacos en Cardiología"
+   },
+   {
+    "id": 1050,
+    "nombre": "Hipertensión arterial"
+   },
+   {
+    "id": 1051,
+    "nombre": "Insuficiencia cardiaca"
+   },
+   {
+    "id": 1052,
+    "nombre": "Reanimación cardiopulmonar (RCP)"
+   },
+   {
+    "id": 1053,
+    "nombre": "Semiología cardiovascular"
+   },
+   {
+    "id": 1054,
+    "nombre": "Síncope"
+   },
+   {
+    "id": 1055,
+    "nombre": "Taquicardias"
+   },
+   {
+    "id": 1056,
+    "nombre": "Tumores cardiacos"
+   },
+   {
+    "id": 1057,
+    "nombre": "Valvulopatías"
+   }
+  ]
+ },
+ {
+  "id": 1425,
+  "nombre": "Dermatología",
+  "nombreCorto": "Dermatología",
+  "sigla": "DM",
+  "subtitulo": null,
+  "temas": [
+   {
+    "id": 1579,
+    "nombre": "Alopecias"
+   },
+   {
+    "id": 1580,
+    "nombre": "Dermatosis ampollares"
+   },
+   {
+    "id": 1581,
+    "nombre": "Dermatosis eritematoescamosas"
+   },
+   {
+    "id": 1582,
+    "nombre": "Eccemas"
+   },
+   {
+    "id": 1583,
+    "nombre": "Enfermedades infecciosas"
+   },
+   {
+    "id": 1584,
+    "nombre": "Generalidades"
+   },
+   {
+    "id": 1585,
+    "nombre": "Manifestaciones dermatológicas de enfermedades sistémicas"
+   },
+   {
+    "id": 1586,
+    "nombre": "Neoplasias cutáneas"
+   },
+   {
+    "id": 1587,
+    "nombre": "Paniculitis"
+   },
+   {
+    "id": 1588,
+    "nombre": "Toxicodermias"
+   }
+  ]
+ },
+ {
+  "id": 3,
+  "nombre": "Digestivo y Cirugía General",
+  "nombreCorto": "Digestivo",
+  "sigla": "DG",
+  "subtitulo": null,
+  "temas": [
+   {
+    "id": 3,
+    "nombre": "Anatomía y fisiología hepática"
+   },
+   {
+    "id": 9,
+    "nombre": "Técnicas diagnósticas"
+   },
+   {
+    "id": 2177,
+    "nombre": "Abdomen agudo"
+   },
+   {
+    "id": 2178,
+    "nombre": "Abscesos y tumores hepáticos"
+   },
+   {
+    "id": 2179,
+    "nombre": "Anatomía del esófago"
+   },
+   {
+    "id": 2180,
+    "nombre": "Anatomía y fisiología del intestino"
+   },
+   {
+    "id": 2181,
+    "nombre": "Anatomía y fisiología gástrica"
+   },
+   {
+    "id": 2183,
+    "nombre": "Apendicitis aguda"
+   },
+   {
+    "id": 2184,
+    "nombre": "Cirrosis hepática y sus complicaciones"
+   },
+   {
+    "id": 2185,
+    "nombre": "Cirugía mínimamente invasiva"
+   },
+   {
+    "id": 2186,
+    "nombre": "Cirugía plástica"
+   },
+   {
+    "id": 2187,
+    "nombre": "Complicaciones en Cirugía General"
+   },
+   {
+    "id": 2188,
+    "nombre": "Cáncer de esófago"
+   },
+   {
+    "id": 2189,
+    "nombre": "Diarrea"
+   },
+   {
+    "id": 2190,
+    "nombre": "Disfagia y trastornos motores del esófago"
+   },
+   {
+    "id": 2191,
+    "nombre": "Enfermedad diverticular"
+   },
+   {
+    "id": 2192,
+    "nombre": "Enfermedad hepática esteatósica asociada a disfunción metabólica o esteatosis hepática metabólica (MASLD)"
+   },
+   {
+    "id": 2193,
+    "nombre": "Enfermedad inflamatoria intestinal (EII)"
+   },
+   {
+    "id": 2194,
+    "nombre": "Enfermedades de la vesícula biliar"
+   },
+   {
+    "id": 2195,
+    "nombre": "Enfermedades inflamatorias del esófago"
+   },
+   {
+    "id": 2196,
+    "nombre": "Gastritis crónica"
+   },
+   {
+    "id": 2197,
+    "nombre": "Gastroparesia"
+   },
+   {
+    "id": 2198,
+    "nombre": "Hemorragia digestiva"
+   },
+   {
+    "id": 2199,
+    "nombre": "Hepatitis aguda viral"
+   },
+   {
+    "id": 2200,
+    "nombre": "Hepatitis autoinmune (HAI)"
+   },
+   {
+    "id": 2201,
+    "nombre": "Hepatitis viral crónica"
+   },
+   {
+    "id": 2202,
+    "nombre": "Hepatopatías metabólicas e infiltrativas"
+   },
+   {
+    "id": 2203,
+    "nombre": "Insuficiencia hepática aguda y grave (hepatitis fulminante)"
+   },
+   {
+    "id": 2204,
+    "nombre": "Lesiones hepáticas causadas por fármacos"
+   },
+   {
+    "id": 2205,
+    "nombre": "Malabsorción"
+   },
+   {
+    "id": 2206,
+    "nombre": "Obstrucción intestinal"
+   },
+   {
+    "id": 2207,
+    "nombre": "Otras causas de cirrosis"
+   },
+   {
+    "id": 2208,
+    "nombre": "Otras enfermedades esofágicas"
+   },
+   {
+    "id": 2209,
+    "nombre": "Pancreatitis aguda"
+   },
+   {
+    "id": 2210,
+    "nombre": "Pancreatitis crónica"
+   },
+   {
+    "id": 2211,
+    "nombre": "Patología anal y perianal"
+   },
+   {
+    "id": 2212,
+    "nombre": "Patología de la vía biliar"
+   },
+   {
+    "id": 2213,
+    "nombre": "Patología quirúrgica de la pared abdominal"
+   },
+   {
+    "id": 2214,
+    "nombre": "Patología vascular intestinal"
+   },
+   {
+    "id": 2215,
+    "nombre": "Síndrome de intestino irritable"
+   },
+   {
+    "id": 2216,
+    "nombre": "Trasplante hepático"
+   },
+   {
+    "id": 2217,
+    "nombre": "Tumores de estómago"
+   },
+   {
+    "id": 2218,
+    "nombre": "Tumores del intestino delgado y grueso"
+   },
+   {
+    "id": 2219,
+    "nombre": "Tumores pancreáticos"
+   },
+   {
+    "id": 2221,
+    "nombre": "Vólvulos"
+   },
+   {
+    "id": 2222,
+    "nombre": "Úlcera péptica"
+   }
+  ]
+ },
+ {
+  "id": 6,
+  "nombre": "Endocrinología",
+  "nombreCorto": "Endocrino",
+  "sigla": "ED",
+  "subtitulo": null,
+  "temas": [
+   {
+    "id": 10,
+    "nombre": "Hipotálamo-hipófisis"
+   },
+   {
+    "id": 1225,
+    "nombre": "Diabetes mellitus"
+   },
+   {
+    "id": 1226,
+    "nombre": "Glándulas suprarrenales"
+   },
+   {
+    "id": 1227,
+    "nombre": "Hipoglucemias"
+   },
+   {
+    "id": 1229,
+    "nombre": "Metabolismo del calcio"
+   },
+   {
+    "id": 1230,
+    "nombre": "Metabolismo y errores congénitos del metabolismo"
+   },
+   {
+    "id": 1231,
+    "nombre": "Nutrición y obesidad"
+   },
+   {
+    "id": 1232,
+    "nombre": "Síndrome metabólico"
+   },
+   {
+    "id": 1233,
+    "nombre": "Tiroides"
+   },
+   {
+    "id": 1234,
+    "nombre": "Trastornos del metabolismo lipídico"
+   },
+   {
+    "id": 1235,
+    "nombre": "Trastornos endocrinos múltiples"
+   },
+   {
+    "id": 1236,
+    "nombre": "Tumores neuroendocrinos"
+   }
+  ]
+ },
+ {
+  "id": 816,
+  "nombre": "Estadística y Epidemiología",
+  "nombreCorto": "Estadística",
+  "sigla": "ES",
+  "subtitulo": null,
+  "temas": [
+   {
+    "id": 929,
+    "nombre": "Contraste de hipótesis"
+   },
+   {
+    "id": 930,
+    "nombre": "Errores en los estudios epidemiológicos"
+   },
+   {
+    "id": 931,
+    "nombre": "Estadística descriptiva"
+   },
+   {
+    "id": 932,
+    "nombre": "Estadística inferencial"
+   },
+   {
+    "id": 933,
+    "nombre": "Estudios de validación de una prueba diagnóstica"
+   },
+   {
+    "id": 934,
+    "nombre": "Tipos de estudios epidemiológicos"
+   },
+   {
+    "id": 935,
+    "nombre": "Variables de medidas epidemiológicas"
+   }
+  ]
+ },
+ {
+  "id": 591,
+  "nombre": "Hematología",
+  "nombreCorto": "Hematología",
+  "sigla": "HM",
+  "subtitulo": null,
+  "temas": [
+   {
+    "id": 665,
+    "nombre": "Alteraciones de la coagulación"
+   },
+   {
+    "id": 666,
+    "nombre": "Anemia de tipo inflamatorio"
+   },
+   {
+    "id": 667,
+    "nombre": "Anemia ferropénica"
+   },
+   {
+    "id": 668,
+    "nombre": "Anemias hemolíticas"
+   },
+   {
+    "id": 669,
+    "nombre": "Anemias megaloblásticas"
+   },
+   {
+    "id": 670,
+    "nombre": "Anemias. Generalidades"
+   },
+   {
+    "id": 671,
+    "nombre": "Anticoagulantes"
+   },
+   {
+    "id": 672,
+    "nombre": "Aplasia medular"
+   },
+   {
+    "id": 673,
+    "nombre": "Hemostasia. Generalidades."
+   },
+   {
+    "id": 674,
+    "nombre": "Leucemias agudas"
+   },
+   {
+    "id": 675,
+    "nombre": "Linfoma de Hodgkin"
+   },
+   {
+    "id": 676,
+    "nombre": "Mieloma múltiple y otras gammapatías monoclonales"
+   },
+   {
+    "id": 677,
+    "nombre": "Neoplasias mieloproliferativas crónicas"
+   },
+   {
+    "id": 678,
+    "nombre": "Síndromes linfoproliferativos crónicos. Linfomas no Hodgkin."
+   },
+   {
+    "id": 679,
+    "nombre": "Síndromes mielodisplásicos"
+   },
+   {
+    "id": 680,
+    "nombre": "Terapia transfusional"
+   },
+   {
+    "id": 681,
+    "nombre": "Trasplante de progenitores hematopoyéticos (TPH)"
+   },
+   {
+    "id": 682,
+    "nombre": "Trombocitopatías"
+   },
+   {
+    "id": 683,
+    "nombre": "Trombocitopenias"
+   }
+  ]
+ },
+ {
+  "id": 338,
+  "nombre": "Infecciosas y Microbiología",
+  "nombreCorto": "Infecciosas",
+  "sigla": "IF",
+  "subtitulo": null,
+  "temas": [
+   {
+    "id": 390,
+    "nombre": "Cocos gram positivos y endocarditis"
+   },
+   {
+    "id": 391,
+    "nombre": "Generalidades"
+   },
+   {
+    "id": 392,
+    "nombre": "Infecciones abdominales y enterobacterias"
+   },
+   {
+    "id": 393,
+    "nombre": "Infecciones de transmisión sexual (ITS)"
+   },
+   {
+    "id": 394,
+    "nombre": "Infecciones del sistema nervioso central"
+   },
+   {
+    "id": 395,
+    "nombre": "Infecciones por hongos"
+   },
+   {
+    "id": 396,
+    "nombre": "Infecciones por micobacterias"
+   },
+   {
+    "id": 397,
+    "nombre": "Infecciones por parásitos"
+   },
+   {
+    "id": 398,
+    "nombre": "Infecciones por virus"
+   },
+   {
+    "id": 399,
+    "nombre": "Infecciones respiratorias"
+   },
+   {
+    "id": 400,
+    "nombre": "Infección de piel y partes blandas y anaerobios"
+   },
+   {
+    "id": 401,
+    "nombre": "Problemas especiales en Infecciosas"
+   },
+   {
+    "id": 402,
+    "nombre": "VIH-SIDA"
+   },
+   {
+    "id": 403,
+    "nombre": "Zoonosis"
+   }
+  ]
+ },
+ {
+  "id": 4344,
+  "nombre": "Inmunología",
+  "nombreCorto": "Inmunología",
+  "sigla": "IM",
+  "subtitulo": null,
+  "temas": [
+   {
+    "id": 4821,
+    "nombre": "Bases inmunológicas del trasplante"
+   },
+   {
+    "id": 4822,
+    "nombre": "Generalidades"
+   },
+   {
+    "id": 4823,
+    "nombre": "Inmunidad celular"
+   },
+   {
+    "id": 4824,
+    "nombre": "Inmunidad humoral"
+   },
+   {
+    "id": 4825,
+    "nombre": "Inmunoterapia"
+   },
+   {
+    "id": 4826,
+    "nombre": "Patología del sistema inmunitario"
+   }
+  ]
+ },
+ {
+  "id": 1224,
+  "nombre": "Mosaico",
+  "nombreCorto": "Mosaico",
+  "sigla": "MO",
+  "subtitulo": "Anestesia, Geriatría, Farmacología y más",
+  "temas": [
+   {
+    "id": 1370,
+    "nombre": "Anestesiología y cuidados críticos"
+   },
+   {
+    "id": 1371,
+    "nombre": "Farmacología"
+   },
+   {
+    "id": 1372,
+    "nombre": "Fisiología"
+   },
+   {
+    "id": 1373,
+    "nombre": "Genética"
+   },
+   {
+    "id": 1374,
+    "nombre": "Geriatría"
+   },
+   {
+    "id": 1375,
+    "nombre": "Medicina legal y bioética"
+   },
+   {
+    "id": 1376,
+    "nombre": "Medicina preventiva y salud pública"
+   },
+   {
+    "id": 1377,
+    "nombre": "Paciente terminal y cuidados paliativos"
+   },
+   {
+    "id": 1378,
+    "nombre": "Planificación y gestión sanitaria. Demografía sanitaria"
+   }
+  ]
+ },
+ {
+  "id": 670,
+  "nombre": "Nefrología",
+  "nombreCorto": "Nefrología",
+  "sigla": "NF",
+  "subtitulo": null,
+  "temas": [
+   {
+    "id": 762,
+    "nombre": "Fracaso renal agudo"
+   },
+   {
+    "id": 763,
+    "nombre": "Glomerulonefritis"
+   },
+   {
+    "id": 764,
+    "nombre": "Glomerulopatías secundarias"
+   },
+   {
+    "id": 765,
+    "nombre": "Insuficiencia renal crónica"
+   },
+   {
+    "id": 766,
+    "nombre": "Introducción. Recuerdo anatomofisiológico"
+   },
+   {
+    "id": 767,
+    "nombre": "Microangiopatía trombótica: síndrome hemolítico-urémico y púrpura trombótica trombocitopénica"
+   },
+   {
+    "id": 768,
+    "nombre": "Síndrome nefrítico"
+   },
+   {
+    "id": 769,
+    "nombre": "Síndrome nefrótico"
+   },
+   {
+    "id": 770,
+    "nombre": "Trasplante renal"
+   },
+   {
+    "id": 771,
+    "nombre": "Trastornos tubulointersticiales"
+   },
+   {
+    "id": 772,
+    "nombre": "Tubulopatías hereditarias"
+   }
+  ]
+ },
+ {
+  "id": 207,
+  "nombre": "Neumología y Cirugía Torácica",
+  "nombreCorto": "Neumología",
+  "sigla": "NM",
+  "subtitulo": null,
+  "temas": [
+   {
+    "id": 241,
+    "nombre": "Anatomía"
+   },
+   {
+    "id": 242,
+    "nombre": "Asma"
+   },
+   {
+    "id": 243,
+    "nombre": "Bronquiectasias"
+   },
+   {
+    "id": 244,
+    "nombre": "Bronquiolitis"
+   },
+   {
+    "id": 245,
+    "nombre": "Enfermedad del diafragma"
+   },
+   {
+    "id": 246,
+    "nombre": "Enfermedad pulmonar obstructiva crónica (EPOC)"
+   },
+   {
+    "id": 247,
+    "nombre": "Enfermedades de la pleura"
+   },
+   {
+    "id": 248,
+    "nombre": "Enfermedades del mediastino"
+   },
+   {
+    "id": 249,
+    "nombre": "Enfermedades intersticiales 1: neumonitis intersticiales idiopáticas"
+   },
+   {
+    "id": 250,
+    "nombre": "Enfermedades intersticiales 2: neumonitis de causa conocida"
+   },
+   {
+    "id": 251,
+    "nombre": "Enfermedades intersticiales 3: neumonitis asociadas a procesos no bien conocidos"
+   },
+   {
+    "id": 252,
+    "nombre": "Fisiología y fisiopatología"
+   },
+   {
+    "id": 253,
+    "nombre": "Hipertensión pulmonar (HTP)"
+   },
+   {
+    "id": 254,
+    "nombre": "Neoplasias pulmonares"
+   },
+   {
+    "id": 255,
+    "nombre": "Oxigenoterapia y ventilación mecánica"
+   },
+   {
+    "id": 256,
+    "nombre": "Semiología respiratoria"
+   },
+   {
+    "id": 257,
+    "nombre": "Síndrome de dificultad respiratoria aguda"
+   },
+   {
+    "id": 258,
+    "nombre": "Trastornos de la ventilación"
+   },
+   {
+    "id": 259,
+    "nombre": "Tromboembolismo pulmonar"
+   }
+  ]
+ },
+ {
+  "id": 1478,
+  "nombre": "Neurología y Neurocirugía",
+  "nombreCorto": "Neurología",
+  "sigla": "NR",
+  "subtitulo": null,
+  "temas": [
+   {
+    "id": 1641,
+    "nombre": "Cefalea"
+   },
+   {
+    "id": 1642,
+    "nombre": "Coma y muerte encefálica"
+   },
+   {
+    "id": 1643,
+    "nombre": "Enfermedad cerebrovascular"
+   },
+   {
+    "id": 1644,
+    "nombre": "Enfermedades autoinmunes del sistema nervioso central"
+   },
+   {
+    "id": 1645,
+    "nombre": "Enfermedades de la placa motora"
+   },
+   {
+    "id": 1646,
+    "nombre": "Enfermedades de motoneurona"
+   },
+   {
+    "id": 1647,
+    "nombre": "Enfermedades nutricionales y metábolicas"
+   },
+   {
+    "id": 1648,
+    "nombre": "Epilepsia"
+   },
+   {
+    "id": 1649,
+    "nombre": "Miopatías"
+   },
+   {
+    "id": 1650,
+    "nombre": "Neurocirugía"
+   },
+   {
+    "id": 1651,
+    "nombre": "Neuropatías"
+   },
+   {
+    "id": 1652,
+    "nombre": "Semiología"
+   },
+   {
+    "id": 1653,
+    "nombre": "Trastornos de la memoria y demencias"
+   },
+   {
+    "id": 1654,
+    "nombre": "Trastornos del movimiento"
+   }
+  ]
+ },
+ {
+  "id": 4343,
+  "nombre": "Oftalmología",
+  "nombreCorto": "Oftalmología",
+  "sigla": "OF",
+  "subtitulo": null,
+  "temas": [
+   {
+    "id": 4874,
+    "nombre": "Conjuntiva"
+   },
+   {
+    "id": 4875,
+    "nombre": "Córnea y esclera"
+   },
+   {
+    "id": 4876,
+    "nombre": "Glaucoma"
+   },
+   {
+    "id": 4877,
+    "nombre": "Neurooftalmología"
+   },
+   {
+    "id": 4878,
+    "nombre": "Patología de la retina"
+   },
+   {
+    "id": 4879,
+    "nombre": "Patología del cristalino"
+   },
+   {
+    "id": 4880,
+    "nombre": "Refracción"
+   },
+   {
+    "id": 4881,
+    "nombre": "Uveítis"
+   }
+  ]
+ },
+ {
+  "id": 1,
+  "nombre": "Otorrinolaringología",
+  "nombreCorto": "ORL",
+  "sigla": "OR",
+  "subtitulo": null,
+  "temas": [
+   {
+    "id": 1,
+    "nombre": "Oído"
+   },
+   {
+    "id": 4,
+    "nombre": "Nariz y senos paranasales"
+   },
+   {
+    "id": 1795,
+    "nombre": "Faringe"
+   },
+   {
+    "id": 1796,
+    "nombre": "Glándulas salivales y masas cervicales"
+   },
+   {
+    "id": 1797,
+    "nombre": "Laringe"
+   },
+   {
+    "id": 1800,
+    "nombre": "Patología maxilofacial"
+   }
+  ]
+ },
+ {
+  "id": 5,
+  "nombre": "Pediatría",
+  "nombreCorto": "Pediatría",
+  "sigla": "PD",
+  "subtitulo": null,
+  "temas": [
+   {
+    "id": 7,
+    "nombre": "Neonatología"
+   }
+  ]
+ },
+ {
+  "id": 7,
+  "nombre": "Psiquiatría",
+  "nombreCorto": "Psiquiatría",
+  "sigla": "PQ",
+  "subtitulo": null,
+  "temas": [
+   {
+    "id": 6,
+    "nombre": "Trastornos del estado de ánimo"
+   },
+   {
+    "id": 8,
+    "nombre": "Trastornos psicóticos"
+   }
+  ]
+ },
+ {
+  "id": 3080,
+  "nombre": "Reumatología",
+  "nombreCorto": "Reumatología",
+  "sigla": "RM",
+  "subtitulo": null,
+  "temas": [
+   {
+    "id": 3415,
+    "nombre": "Artritis por microcristales"
+   },
+   {
+    "id": 3416,
+    "nombre": "Artritis reumatoide"
+   },
+   {
+    "id": 3417,
+    "nombre": "Artritis sépticas"
+   },
+   {
+    "id": 3418,
+    "nombre": "Artrosis"
+   },
+   {
+    "id": 3419,
+    "nombre": "Enfermedad de Still y artritis idiopática juvenil"
+   },
+   {
+    "id": 3420,
+    "nombre": "Enfermedades autoinflamatorias y amiloidosis"
+   },
+   {
+    "id": 3421,
+    "nombre": "Enfermedades metabólicas óseas"
+   },
+   {
+    "id": 3422,
+    "nombre": "Esclerosis sistémica"
+   },
+   {
+    "id": 3423,
+    "nombre": "Espondiloartritis axial y periférica"
+   },
+   {
+    "id": 3424,
+    "nombre": "Introducción"
+   },
+   {
+    "id": 3425,
+    "nombre": "Lupus eritematoso sistémico"
+   },
+   {
+    "id": 3426,
+    "nombre": "Miopatías inflamatorias idiopáticas"
+   },
+   {
+    "id": 3427,
+    "nombre": "Otras enfermedades reumatológicas"
+   },
+   {
+    "id": 3428,
+    "nombre": "Síndrome de Sjögren"
+   },
+   {
+    "id": 3429,
+    "nombre": "Vasculitis"
+   }
+  ]
+ },
+ {
+  "id": 4,
+  "nombre": "Traumatología y Cirugía Ortopédica",
+  "nombreCorto": "Traumatología",
+  "sigla": "TR",
+  "subtitulo": null,
+  "temas": [
+   {
+    "id": 5,
+    "nombre": "Fracturas y luxaciones de la extremidad superior"
+   },
+   {
+    "id": 11,
+    "nombre": "Traumatología y ortopedia infantil"
+   },
+   {
+    "id": 23,
+    "nombre": "Fracturas y luxaciones de la extremidad inferior"
+   },
+   {
+    "id": 25,
+    "nombre": "Generalidades de las lesiones óseas traumáticas"
+   },
+   {
+    "id": 26,
+    "nombre": "Lesiones de partes blandas"
+   },
+   {
+    "id": 27,
+    "nombre": "Lesiones del sistema nervioso periférico"
+   },
+   {
+    "id": 28,
+    "nombre": "Manejo del paciente politraumatizado"
+   },
+   {
+    "id": 29,
+    "nombre": "Ortopedia del adulto"
+   },
+   {
+    "id": 30,
+    "nombre": "Traumatología y ortopedia del raquis"
+   },
+   {
+    "id": 32,
+    "nombre": "Tumores musculoesqueléticos"
+   }
+  ]
+ },
+ {
+  "id": 764,
+  "nombre": "Urología",
+  "nombreCorto": "Urología",
+  "sigla": "UR",
+  "subtitulo": null,
+  "temas": [
+   {
+    "id": 866,
+    "nombre": "Anatomía"
+   },
+   {
+    "id": 867,
+    "nombre": "Andrología"
+   },
+   {
+    "id": 868,
+    "nombre": "Cáncer de próstata"
+   },
+   {
+    "id": 869,
+    "nombre": "Cáncer renal"
+   },
+   {
+    "id": 870,
+    "nombre": "Hiperplasia benigna de próstata"
+   },
+   {
+    "id": 871,
+    "nombre": "Incontinencia urinaria"
+   },
+   {
+    "id": 872,
+    "nombre": "Infecciones urinarias"
+   },
+   {
+    "id": 873,
+    "nombre": "Lesiones traumáticas del aparato genitourinario"
+   },
+   {
+    "id": 874,
+    "nombre": "Litiasis urinaria"
+   },
+   {
+    "id": 875,
+    "nombre": "Trasplante renal. Aspectos quirúrgicos"
+   },
+   {
+    "id": 876,
+    "nombre": "Tumores de las vías urinarias"
+   },
+   {
+    "id": 877,
+    "nombre": "Tumores testiculares"
+   }
+  ]
+ }
+]

@@ -129,6 +129,17 @@ EventoIa? leerEvento(String linea) {
         error: e is String ? _recorta(e, 300) : 'No se pudo generar el mapa',
         codigo: c is String ? _recorta(c, 40) : '',
         status: _entero(r['status'], 0, 599) ?? 0,
+        datos: Map<String, dynamic>.from(r)..remove('tipo'),
+      );
+
+    case 'reserva':
+      final id = _entero(r['usageId'], 1, 4503599627370496);
+      if (id == null) return null;
+      final c = r['creditos'];
+      return EventoReserva(
+        usageId: id,
+        cobrados: c is Map ? _entero(c['cobrados'], 0, 1 << 30) : null,
+        saldo: c is Map ? _entero(c['saldo'], 0, 1 << 30) : null,
       );
 
     default:

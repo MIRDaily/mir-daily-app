@@ -2,6 +2,7 @@
 // Todo lo que llega del servidor se sanea (los huecos, con las mismas reglas).
 // Puerto de la web: src/lib/resumenes/ia.ts y src/lib/resumenes/borrador.ts.
 
+import '../../core/models/creditos_ia.dart';
 import '../../core/models/ia.dart';
 import '../../core/models/resumen.dart';
 import '../../core/models/resumen_ia.dart';
@@ -104,6 +105,7 @@ class ResumenesIa {
     required int paginas,
     String? unidad,
     List<({String titulo, int desde, int hasta})>? temas,
+    CobroIa? cobro,
     void Function(EventoIa)? onEvento,
   }) async {
     final cuerpo = <String, dynamic>{
@@ -115,6 +117,8 @@ class ResumenesIa {
       'paginas': paginas,
       if (unidad != null) 'unidad': unidad,
       if (temas != null) 'temas': temas.map((t) => {'titulo': t.titulo, 'desde': t.desde, 'hasta': t.hasta}).toList(),
+      // Con créditos, el precio que se enseñó (tope) y la clave para no cobrar dos veces.
+      ...?cobro?.toJson(),
     };
     final datos = await ia.post(IaArea.resumenes, cuerpo: cuerpo, onEvento: onEvento);
     return _parseGenerado(datos, titulo);

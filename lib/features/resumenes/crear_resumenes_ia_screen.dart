@@ -2,13 +2,18 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/models/creditos_ia.dart';
 import '../../core/models/ia.dart';
 import '../../core/models/resumen.dart';
 import '../../core/models/resumen_ia.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/responsive/adaptive_modal.dart';
+import '../../core/services/carpetas.dart';
+import '../../core/services/creditos_ia_service.dart';
 import '../../core/services/ia_extraccion.dart';
 import '../../core/theme/app_theme.dart';
+import '../../shared/ia/destino_carpeta.dart';
+import '../../shared/ia/precio_ia.dart';
 import '../../shared/sticker/sticker.dart';
 import 'resumenes_api.dart';
 import 'resumenes_borrador.dart';
@@ -48,12 +53,20 @@ class _CrearResumenesIAScreenState extends State<CrearResumenesIAScreen> {
   final List<int> _niveles = [1, 2, 3, 4];
   final TextEditingController _tituloCtrl = TextEditingController();
 
-  // Generación.
+  // Generación. `_gen` es la generación en curso (su cobro y el id para «Cancelar»): una respuesta
+  // que llega de una generación cancelada (o sustituida) se descarta.
+  GeneracionIa? _gen;
+  bool _cancelando = false;
+  String? _info;
   String _faseLabel = '';
   ResumenGenerado? _generado;
   List<ParrafoBorrador> _lista = [];
   List<FuenteFirmada> _fuentes = [];
   String? _error;
+
+  // Carpeta del grupo nuevo: la sugerida por el título hasta que el usuario elige otra.
+  List<AsignaturaCatalogo>? _arbol;
+  Carpeta? _carpetaElegida;
 
   // Guardado.
   bool _guardando = false;
@@ -61,13 +74,49 @@ class _CrearResumenesIAScreenState extends State<CrearResumenesIAScreen> {
 
   ResumenesApi get _api => context.read<ResumenesApi>();
   ResumenesIa get _ia => context.read<ResumenesIa>();
+  CreditosIa get _creditos => context.read<CreditosIa>();
   BorradorStore get _borradores => BorradorStore();
 
   @override
   void initState() {
     super.initState();
     _comprobarEstado();
+    // Saldo y tarifa al día al abrir (pudo gastarse en la web).
+    _creditos.refrescar();
+    _cargarArbol();
   }
+
+  Future<void> _cargarArbol() async {
+    try {
+      final a = await context.read<CarpetasApi>().arbol();
+      if (mounted) setState(() => _arbol = a);
+    } catch (_) {
+      // Sin catálogo no se ofrece carpeta: el grupo queda en «Sin clasificar».
+    }
+  }
+
+  String get _modoId => _modo == ModoResumen.literal ? 'literal' : 'resumen';
+
+  /// Precio de la generación con lo elegido (null sin tarifa o sin documento).
+  int? get _precio {
+    final e = _extraido;
+    if (e == null) return null;
+    return precioIa(
+      _creditos.tarifa,
+      clave: claveResumenes(_modoId),
+      caracteres: caracteresDocumento(e.secciones),
+      densidad: _densidad.id,
+    );
+  }
+
+  Sugerencia? get _sugerencia {
+    final arbol = _arbol;
+    if (arbol == null || arbol.isEmpty) return null;
+    final titulo = _tituloCtrl.text.trim().isNotEmpty ? _tituloCtrl.text.trim() : (_extraido?.titulo ?? '');
+    return sugerirCarpeta(arbol, textosDocumento(titulo));
+  }
+
+  Carpeta get _carpeta => _carpetaElegida ?? _sugerencia?.carpeta ?? Carpeta.sinClasificar;
 
   @override
   void dispose() {
@@ -128,10 +177,13 @@ class _CrearResumenesIAScreenState extends State<CrearResumenesIAScreen> {
 
   Future<void> _generar() async {
     final e = _extraido!;
+    final gen = _creditos.nuevaGeneracion(_precio);
     setState(() {
+      _gen = gen;
       _paso = _Paso.generando;
       _faseLabel = 'Preparando…';
       _error = null;
+      _info = null;
     });
     try {
       final g = await _ia.generar(
@@ -142,13 +194,16 @@ class _CrearResumenesIAScreenState extends State<CrearResumenesIAScreen> {
         secciones: e.secciones,
         paginas: e.paginas,
         unidad: e.unidad == 'diapositiva' ? 'diapositiva' : null,
+        cobro: gen.cobro,
         onEvento: (ev) {
+          if (ev is EventoReserva) gen.anotar(ev);
+          if (!identical(_gen, gen)) return;
           if (ev is EventoFase) {
             if (mounted) setState(() => _faseLabel = _labelFase(ev.fase));
           }
         },
       );
-      if (!mounted) return;
+      if (!mounted || !identical(_gen, gen)) return;
       final lista = g.esLibro
           ? g.temas.expand((t) => t.parrafos).toList()
           : g.parrafos;
@@ -159,19 +214,59 @@ class _CrearResumenesIAScreenState extends State<CrearResumenesIAScreen> {
         _paso = _Paso.previa;
       });
       await _guardarBorradorLocal();
-    } on IaException catch (e) {
-      if (!mounted) return;
+    } catch (err) {
+      if (!mounted || !identical(_gen, gen)) return;
       setState(() {
-        _error = e.message;
+        _error = mensajeErrorIa(err, 'No se pudo generar. Inténtalo de nuevo.');
         _paso = _Paso.opciones;
       });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _error = 'No se pudo generar. Inténtalo de nuevo.';
-        _paso = _Paso.opciones;
-      });
+    } finally {
+      if (mounted) _creditos.refrescar();
     }
+  }
+
+  /// «Cancelar»: avisa al servidor ANTES de dar la generación por perdida (así cuenta como cancelación
+  /// del usuario y devuelve lo que toque) y vuelve a las opciones. La respuesta, si llega, se descarta.
+  Future<void> _cancelar() async {
+    final gen = _gen;
+    if (gen == null || _cancelando) return;
+    final creditos = _creditos;
+    final aviso = creditos.activo ? avisoAntesDeCancelar(gen, creditos.saldo, creditos.tarifa) : null;
+    if (aviso != null) {
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (dctx) => AlertDialog(
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          content: Text(aviso),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dctx, false), child: const Text('Seguir')),
+            TextButton(onPressed: () => Navigator.pop(dctx, true), child: const Text('Cancelar')),
+          ],
+        ),
+      );
+      if (ok != true || !mounted || !identical(_gen, gen)) return;
+    }
+    setState(() => _cancelando = true);
+    PrevisionCancelacion? prevision;
+    if (creditos.activo && gen.cobro != null && gen.usageId != null) {
+      try {
+        prevision = await creditos.api.cancelar(gen.usageId!);
+      } catch (_) {}
+    }
+    if (!mounted) return;
+    setState(() {
+      _gen = null;
+      _cancelando = false;
+      _paso = _Paso.opciones;
+      _error = null;
+      _info = gen.cobro != null ? mensajeCancelacion(prevision, gen) : 'Generación cancelada.';
+    });
+    // La liquidación llega al servidor un instante después del corte.
+    Future.delayed(const Duration(milliseconds: 1500), () {
+      if (mounted) _creditos.refrescar();
+    });
   }
 
   Future<void> _guardarBorradorLocal() async {
@@ -278,6 +373,8 @@ class _CrearResumenesIAScreenState extends State<CrearResumenesIAScreen> {
                   if (nombre == null) return;
                   try {
                     final g = await _api.crearGrupo(nombre);
+                    // A su carpeta. Si falla, el grupo ya está creado y queda en «Sin clasificar».
+                    await _archivar(g.id);
                     if (ctx.mounted) Navigator.pop(ctx, g);
                   } on ResumenesApiError catch (e) {
                     if (ctx.mounted) _aviso(ctx, e.message);
@@ -293,7 +390,10 @@ class _CrearResumenesIAScreenState extends State<CrearResumenesIAScreen> {
                   child: const Icon(Icons.add_rounded, color: Colors.white, size: 18),
                 ),
                 title: const Text('Nuevo grupo', style: TextStyle(color: kInk, fontWeight: FontWeight.w700)),
-                subtitle: const Text('Créalo ahora y guarda aquí lo generado', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                subtitle: Text(
+                  _arbol == null || _arbol!.isEmpty ? 'Créalo ahora y guarda aquí lo generado' : 'Créalo ahora · irá a ${nombreCarpeta(_arbol, _carpeta)}',
+                  style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                ),
               ),
               for (final g in grupos)
                 ListTile(
@@ -318,6 +418,15 @@ class _CrearResumenesIAScreenState extends State<CrearResumenesIAScreen> {
         ),
       ),
     );
+  }
+
+  /// El grupo recién creado, a la carpeta elegida (o a la sugerida, si no se tocó).
+  Future<void> _archivar(String grupoId) async {
+    final c = _carpeta;
+    if (c.subjectId == null) return;
+    try {
+      await context.read<CarpetasApi>().mover('resumenes', [grupoId], c, origen: _carpetaElegida == null ? 'sugerencia' : 'usuario');
+    } catch (_) {}
   }
 
   Future<String?> _pedirNombreGrupo(BuildContext ctx) {
@@ -390,10 +499,16 @@ class _CrearResumenesIAScreenState extends State<CrearResumenesIAScreen> {
       return const Center(child: CircularProgressIndicator(color: AppColors.primary));
     }
     if (!_iaDisponible) {
-      return const Center(
+      final creditos = context.watch<CreditosIa>();
+      final sinPlan = creditos.activo && creditos.saldo != null && !creditos.saldo!.puedeUsar;
+      return Center(
         child: Padding(
-          padding: EdgeInsets.all(32),
-          child: Text('La IA no está disponible para tu cuenta de momento.', textAlign: TextAlign.center, style: TextStyle(color: AppColors.textSecondary, fontSize: 14, height: 1.5)),
+          padding: const EdgeInsets.all(32),
+          child: Text(
+            sinPlan ? 'Necesitas un plan con IA para usar esta función.' : 'La IA no está disponible para tu cuenta de momento.',
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: AppColors.textSecondary, fontSize: 14, height: 1.5),
+          ),
         ),
       );
     }
@@ -456,6 +571,9 @@ class _CrearResumenesIAScreenState extends State<CrearResumenesIAScreen> {
 
   Widget _pasoOpciones() {
     final e = _extraido!;
+    final creditos = context.watch<CreditosIa>();
+    // Sin créditos encendidos (o mientras llegan) no hay precio que enseñar.
+    final linea = creditos.activo ? lineaPrecio(_precio, creditos.saldo) : null;
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
       children: [
@@ -463,7 +581,26 @@ class _CrearResumenesIAScreenState extends State<CrearResumenesIAScreen> {
         Text('${e.caracteres} caracteres · ${e.secciones.length} ${e.unidad == 'diapositiva' ? 'diapositivas' : 'páginas'}', style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
         const SizedBox(height: 14),
         const SectionLabel('Título'),
-        TextField(controller: _tituloCtrl, textCapitalization: TextCapitalization.sentences, decoration: const InputDecoration(border: OutlineInputBorder())),
+        TextField(
+          controller: _tituloCtrl,
+          textCapitalization: TextCapitalization.sentences,
+          decoration: const InputDecoration(border: OutlineInputBorder()),
+          // La carpeta sugerida sale del título.
+          onChanged: (_) => setState(() {}),
+        ),
+        if (_arbol != null && _arbol!.isNotEmpty) ...[
+          const SizedBox(height: 18),
+          const SectionLabel('Dónde lo guardamos'),
+          DestinoCarpeta(
+            arbol: _arbol!,
+            valor: _carpeta,
+            sugerida: _sugerencia?.carpeta,
+            candidatas: _sugerencia?.candidatas ?? const [],
+            onChanged: (c) => setState(() => _carpetaElegida = c),
+          ),
+          const SizedBox(height: 6),
+          const Text('Es la carpeta del grupo nuevo; si lo guardas en uno que ya tienes, se queda donde esté.', style: TextStyle(color: AppColors.textSecondary, fontSize: 11.5)),
+        ],
         const SizedBox(height: 18),
         const SectionLabel('Modo'),
         Wrap(spacing: 8, children: [
@@ -483,7 +620,20 @@ class _CrearResumenesIAScreenState extends State<CrearResumenesIAScreen> {
         const SizedBox(height: 6),
         const Text('Se generan huecos de los cuatro niveles.', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
         const SizedBox(height: 20),
-        StickerButton(label: 'Generar', icon: Icons.auto_awesome_rounded, expand: true, onPressed: _generar),
+        if (linea != null) ...[
+          PrecioIa(linea: linea),
+          const SizedBox(height: 12),
+        ],
+        StickerButton(
+          label: 'Generar',
+          icon: Icons.auto_awesome_rounded,
+          expand: true,
+          onPressed: (linea?.suficiente ?? true) ? _generar : null,
+        ),
+        if (_info != null) ...[
+          const SizedBox(height: 12),
+          Text(_info!, style: const TextStyle(color: AppColors.successDark, fontSize: 13, fontWeight: FontWeight.w700)),
+        ],
         if (_error != null) ...[
           const SizedBox(height: 12),
           Text(_error!, style: const TextStyle(color: AppColors.error, fontSize: 13, fontWeight: FontWeight.w700)),
@@ -516,6 +666,12 @@ class _CrearResumenesIAScreenState extends State<CrearResumenesIAScreen> {
         const SizedBox(width: 36, height: 36, child: CircularProgressIndicator(color: AppColors.primary)),
         const SizedBox(height: 16),
         Text(_faseLabel, style: const TextStyle(color: kInk, fontWeight: FontWeight.w700, fontSize: 15)),
+        const SizedBox(height: 24),
+        TextButton.icon(
+          onPressed: _cancelando ? null : _cancelar,
+          icon: const Icon(Icons.close_rounded, color: AppColors.textSecondary),
+          label: Text(_cancelando ? 'Cancelando…' : 'Cancelar', style: const TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w800)),
+        ),
       ]),
     );
   }
