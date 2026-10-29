@@ -11,6 +11,8 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import '../models/biblioteca.dart';
+
 class TemaCatalogo {
   final int id;
   final String nombre;
@@ -22,9 +24,19 @@ class AsignaturaCatalogo {
   final String nombre;
   final String nombreCorto;
   final String? sigla;
+
+  /// Lo que abarca, cuando el nombre no lo dice («Anestesia, Geriatría, Farmacología y más»).
+  final String? subtitulo;
   final List<TemaCatalogo> temas;
 
-  const AsignaturaCatalogo({required this.id, required this.nombre, required this.nombreCorto, this.sigla, this.temas = const []});
+  const AsignaturaCatalogo({
+    required this.id,
+    required this.nombre,
+    required this.nombreCorto,
+    this.sigla,
+    this.subtitulo,
+    this.temas = const [],
+  });
 
   static AsignaturaCatalogo? fromJson(Object? raw) {
     if (raw is! Map || raw['id'] is! int || raw['nombre'] is! String) return null;
@@ -34,6 +46,7 @@ class AsignaturaCatalogo {
       nombre: raw['nombre'] as String,
       nombreCorto: raw['nombreCorto'] is String ? raw['nombreCorto'] as String : raw['nombre'] as String,
       sigla: raw['sigla'] is String ? raw['sigla'] as String : null,
+      subtitulo: raw['subtitulo'] is String && (raw['subtitulo'] as String).trim().isNotEmpty ? raw['subtitulo'] as String : null,
       temas: temas is List
           ? [
               for (final t in temas)
@@ -290,6 +303,29 @@ class CarpetasApi {
       }
     }();
   }
+
+  // ---- Biblioteca ------------------------------------------------------------------------------
+  // No se cachean: cambian cada vez que se crea o se mueve algo, y la web tampoco las guarda.
+
+  /// Cuánto material hay en cada carpeta (y sin clasificar).
+  Future<Recuento> recuento() async => Recuento.fromJson(await _pedir('/recuento'));
+
+  /// Lo que no tiene carpeta, con los textos para sugerirla.
+  Future<List<ElementoMaterial>> sinClasificar() async {
+    final r = await _pedir('/sin-clasificar');
+    final l = r is Map && r['elementos'] is List ? r['elementos'] as List : const [];
+    return l.map(ElementoMaterial.fromJson).whereType<ElementoMaterial>().toList();
+  }
+
+  /// Una asignatura: su catálogo, cuántas preguntas MIR tiene (y por tema) y el material del usuario en ella.
+  Future<DatosAsignatura> asignatura(int id) async {
+    final d = DatosAsignatura.fromJson(await _pedir('/asignatura/$id'));
+    if (d == null) throw Exception('No se pudo cargar la asignatura');
+    return d;
+  }
+
+  /// La señal de dominio del material de cada carpeta. «No disponible» si la base de datos aún no la calcula.
+  Future<RespuestaDominio> dominio(int id) async => RespuestaDominio.fromJson(await _pedir('/asignatura/$id/dominio'));
 
   /// Mueve mapas o grupos a una carpeta. `origen` 'sugerencia' si se aceptó la propuesta sin cambiarla.
   Future<int> mover(String tipo, List<String> ids, Carpeta carpeta, {String origen = 'usuario'}) async {

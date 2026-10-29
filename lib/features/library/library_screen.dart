@@ -1,28 +1,22 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 
+import '../../core/models/analytics.dart';
+import '../../core/models/biblioteca.dart';
+import '../../core/models/flashcards.dart' show CategoriaAsignatura, kNombreCategoria, visualAsignatura;
 import '../../core/responsive/content_shell.dart';
+import '../../core/services/api_service.dart';
+import '../../core/services/carpetas.dart';
 import '../../core/theme/app_theme.dart';
 import '../../shared/sticker/sticker.dart';
 import '../../shared/sticker/textures.dart';
-import '../../shared/widgets/misc_widgets.dart';
-import '../../shared/widgets/pressable.dart';
+import 'asignatura_biblioteca_screen.dart';
+import 'sin_clasificar_screen.dart';
+import 'widgets/biblioteca_ui.dart';
 
-class _LibrarySubject {
-  final String id;
-  final String name;
-  final String description;
-  final int progress; // 0..100
-  final int topicsDone;
-  final int totalTopics;
-  final String type; // BÁSICA | MÉDICA | QUIRÚRGICA
-  final IconData icon;
-
-  const _LibrarySubject(this.id, this.name, this.description, this.progress,
-      this.topicsDone, this.totalTopics, this.type, this.icon);
-}
-
-/// Biblioteca de asignaturas — mismo catálogo que la web (/library).
+/// Biblioteca: las asignaturas del catálogo con el material del usuario en cada una, «Sin clasificar»
+/// arriba y, aparte, su acierto en las preguntas MIR (sin mezclar cifras). Sustituye a la maqueta de
+/// «Apuntes». Puerto de src/app/library/page.tsx de la web.
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key});
 
@@ -30,302 +24,224 @@ class LibraryScreen extends StatefulWidget {
   State<LibraryScreen> createState() => _LibraryScreenState();
 }
 
-class _LibraryScreenState extends State<LibraryScreen>
-    with AutomaticKeepAliveClientMixin {
+class _LibraryScreenState extends State<LibraryScreen> {
+  List<AsignaturaCatalogo>? _arbol;
+  Recuento? _recuento;
+  String? _error;
+  Map<int, SubjectHeatmapCell> _acierto = const {};
+  final _busca = TextEditingController();
+  CategoriaAsignatura? _filtro;
+
   @override
-  bool get wantKeepAlive => true;
+  void initState() {
+    super.initState();
+    _busca.addListener(() => setState(() {}));
+    _cargar();
+  }
 
-  String _filter = 'TODAS';
+  @override
+  void dispose() {
+    _busca.dispose();
+    super.dispose();
+  }
 
-  // Catálogo portado de LIBRARY_SUBJECT_OVERVIEWS (src/mocks/library.ts)
-  static const _subjects = [
-    _LibrarySubject('repasos-mir', 'Repasos MIR',
-        'Síntesis anual y estrategia final', 48, 1, 3, 'BÁSICA',
-        Icons.school_rounded),
-    _LibrarySubject('bioestadistica', 'Bioestadística',
-        'Metodología de investigación', 100, 10, 10, 'BÁSICA',
-        Icons.analytics_rounded),
-    _LibrarySubject('bioetica', 'Bioética y legislación',
-        'Marco legal y ético', 37, 3, 8, 'BÁSICA', Icons.gavel_rounded),
-    _LibrarySubject('cardiologia', 'Cardiología', 'Alta rentabilidad MIR',
-        72, 18, 25, 'MÉDICA', Icons.favorite_rounded),
-    _LibrarySubject('cirugia-general', 'Cirugía General y Digestivo',
-        'Patología quirúrgica digestiva', 40, 12, 30, 'QUIRÚRGICA',
-        Icons.medical_services_rounded),
-    _LibrarySubject('trauma', 'Cirugía Ortopédica y Trauma',
-        'Huesos, articulaciones y fracturas', 22, 5, 22, 'QUIRÚRGICA',
-        Icons.accessibility_new_rounded),
-    _LibrarySubject('cirugia-plastica', 'Cirugía Plástica',
-        'Quemados y reconstructiva', 0, 0, 5, 'QUIRÚRGICA',
-        Icons.face_retouching_natural_rounded),
-    _LibrarySubject('dermatologia', 'Dermatología', 'Piel y anexos cutáneos',
-        65, 11, 17, 'MÉDICA', Icons.back_hand_rounded),
-    _LibrarySubject('endocrino', 'Endocrinología', 'Hormonas y metabolismo',
-        58, 7, 12, 'MÉDICA', Icons.monitor_weight_rounded),
-    _LibrarySubject('farmacologia', 'Farmacología',
-        'Principios terapéuticos', 45, 9, 20, 'BÁSICA',
-        Icons.medication_rounded),
-    _LibrarySubject('ginecologia', 'Ginecología y Obstetricia',
-        'Salud de la mujer', 74, 17, 23, 'QUIRÚRGICA',
-        Icons.pregnant_woman_rounded),
-    _LibrarySubject('hematologia', 'Hematología', 'Sangre y hemostasia', 62,
-        13, 21, 'MÉDICA', Icons.bloodtype_rounded),
-    _LibrarySubject('inmunologia', 'Inmunología',
-        'Respuesta inmune y autoinmunidad', 29, 5, 17, 'BÁSICA',
-        Icons.biotech_rounded),
-    _LibrarySubject('nefrologia', 'Nefrología', 'Riñón y vías urinarias',
-        75, 15, 20, 'MÉDICA', Icons.water_drop_rounded),
-    _LibrarySubject('neurologia', 'Neurología',
-        'Sistema nervioso y sentidos', 54, 15, 28, 'MÉDICA',
-        Icons.psychology_rounded),
-    _LibrarySubject('pediatria', 'Pediatría', 'Desarrollo y neonatología',
-        91, 20, 22, 'MÉDICA', Icons.child_care_rounded),
-  ];
+  Future<void> _cargar() async {
+    final carpetas = context.read<CarpetasApi>();
+    final api = context.read<ApiService>();
+    setState(() => _error = null);
+    try {
+      final r = await Future.wait([carpetas.arbol(), carpetas.recuento()]);
+      if (!mounted) return;
+      setState(() {
+        _arbol = r[0] as List<AsignaturaCatalogo>;
+        _recuento = r[1] as Recuento;
+      });
+    } catch (e) {
+      if (mounted) setState(() => _error = '$e'.replaceFirst('Exception: ', ''));
+    }
+    // El acierto en preguntas es un añadido: si falla, la Biblioteca se enseña igual.
+    try {
+      final h = await api.getSubjectHeatmap(AnalyticsWindow.all, AnalyticsMode.all);
+      if (mounted) setState(() => _acierto = {for (final s in h.subjects) s.subjectId: s});
+    } catch (_) {}
+  }
 
-  static const _filters = ['TODAS', 'BÁSICA', 'MÉDICA', 'QUIRÚRGICA'];
+  List<TarjetaAsignatura> get _tarjetas {
+    final arbol = _arbol;
+    if (arbol == null) return const [];
+    final q = normalizarCarpeta(_busca.text);
+    return tarjetasAsignaturas(arbol, _recuento).where((t) {
+      final a = t.asignatura;
+      if (_filtro != null && visualAsignatura(a.nombre).categoria != _filtro) return false;
+      if (q.isEmpty) return true;
+      return [a.nombre, a.nombreCorto, a.subtitulo ?? '', a.sigla ?? ''].any((x) => normalizarCarpeta(x).contains(q));
+    }).toList();
+  }
 
-  Color _typeColor(String type) => switch (type) {
-        'BÁSICA' => const Color(0xFF7D8A96),
-        'MÉDICA' => AppColors.primaryDark,
-        'QUIRÚRGICA' => const Color(0xFF6E8E6B),
-        _ => AppColors.textSecondary,
-      };
+  Future<void> _abrir(Widget pantalla) async {
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => pantalla));
+    // Al volver puede haber cambiado (se ha movido algo): se recuenta.
+    if (!mounted) return;
+    try {
+      final r = await context.read<CarpetasApi>().recuento();
+      if (mounted) setState(() => _recuento = r);
+    } catch (_) {}
+  }
 
   @override
   Widget build(BuildContext context) {
-    super.build(context);
-    final filtered = _filter == 'TODAS'
-        ? _subjects
-        : _subjects.where((s) => s.type == _filter).toList();
-
+    final sin = _recuento?.sinClasificar;
+    final tarjetas = _tarjetas;
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: AppColors.background,
         surfaceTintColor: Colors.transparent,
-        elevation: 0,
+        title: const Text('Biblioteca', style: TextStyle(color: kInk, fontWeight: FontWeight.w900)),
       ),
       body: SafeArea(
-        bottom: false,
-        child: BodyConstraint(
-        wide: true,
-        child: CustomScrollView(
-        physics: const BouncingScrollPhysics(),
-        slivers: [
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 6, 20, 4),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  StickerHero(
-                    badge: 'Temario',
-                    badgeIcon: Icons.menu_book_rounded,
-                    title: 'Apuntes',
-                    subtitle:
-                        '${_subjects.length} asignaturas actualizadas con IA predictiva.',
-                    accent: const Color(0xFF7D8A96),
-                  ),
-                  const SizedBox(height: 22),
-                  SlideFadeIn(
-                    delay: const Duration(milliseconds: 180),
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: _filters.map((f) {
-                          final active = f == _filter;
-                          return Padding(
-                            padding: const EdgeInsets.only(right: 8),
-                            child: Pressable(
-                              onTap: () {
-                                HapticFeedback.selectionClick();
-                                setState(() => _filter = f);
-                              },
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 220),
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 16, vertical: 8),
-                                decoration: BoxDecoration(
-                                  color: active ? kInk : Colors.white,
-                                  borderRadius: BorderRadius.circular(999),
-                                  border: Border.all(
-                                    color: active ? kInk : kHairline,
-                                    width: 2,
-                                  ),
-                                ),
-                                child: Text(
-                                  f,
-                                  style: TextStyle(
-                                    color: active ? Colors.white : kMuted,
-                                    fontWeight: FontWeight.w900,
-                                    fontSize: 12,
-                                    letterSpacing: 0.6,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                ],
-              ),
-            ),
-          ),
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 90),
-            sliver: SliverGrid(
-              // Móvil: 2 columnas de siempre. Tablet: tantas como quepan a
-              // ~190 de ancho, sin pasar del aspecto de la tarjeta.
-              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                maxCrossAxisExtent: 210,
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 12,
-                childAspectRatio: 0.82,
-              ),
-              delegate: SliverChildBuilderDelegate(
-                (context, i) => SlideFadeIn(
-                  key: ValueKey('${_filter}_${filtered[i].id}'),
-                  delay: Duration(milliseconds: 60 * (i % 8)),
-                  beginOffset: const Offset(0, 0.15),
-                  child: _subjectCard(filtered[i]),
+        child: RefreshIndicator(
+          color: AppColors.primary,
+          onRefresh: _cargar,
+          child: BodyConstraint(
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 40),
+              children: [
+                const StickerHero(
+                  badge: 'Biblioteca',
+                  badgeIcon: Icons.local_library_rounded,
+                  title: 'Tu temario, carpeta a carpeta',
+                  subtitle: 'Cada asignatura con tus mapas, flashcards y resúmenes, junto a las preguntas MIR de cada tema.',
                 ),
-                childCount: filtered.length,
-              ),
+                const SizedBox(height: 16),
+                if (_error != null) EstadoBiblioteca(_error!, error: true),
+                StickerCard(
+                  depth: 5,
+                  radius: 20,
+                  texture: lomosArchivador(),
+                  padding: const EdgeInsets.all(14),
+                  pressDelay: const Duration(milliseconds: 120),
+                  onTap: () => _abrir(const SinClasificarScreen()),
+                  child: Row(children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF4EF),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: kInk, width: 2),
+                        boxShadow: inkShadow(3),
+                      ),
+                      child: const Icon(Icons.inbox_rounded, color: kInk),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text('Sin clasificar${sin != null && sin.total > 0 ? ' · ${sin.total}' : ''}',
+                            style: const TextStyle(color: kInk, fontSize: 16, fontWeight: FontWeight.w900)),
+                        const SizedBox(height: 2),
+                        Text(
+                          _recuento == null
+                              ? 'Contando tu material…'
+                              : sin != null && sin.total > 0
+                                  ? '${textoCuenta(sin)} sin carpeta. Muévelos a su asignatura para verlos junto a sus preguntas.'
+                                  : 'Todo tu material está en su carpeta.',
+                          style: const TextStyle(color: kMuted, fontSize: 12.5, height: 1.35),
+                        ),
+                      ]),
+                    ),
+                    const Icon(Icons.arrow_forward_rounded, color: kInk),
+                  ]),
+                ),
+                const SizedBox(height: 22),
+                SectionLabel('Asignaturas',
+                    trailing: _recuento != null
+                        ? Text('${_recuento!.total} en total', style: const TextStyle(color: kMuted, fontSize: 12, fontWeight: FontWeight.w700))
+                        : null),
+                InkInput(controller: _busca, hint: 'Busca una asignatura…'),
+                const SizedBox(height: 10),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(children: [
+                    for (final f in <CategoriaAsignatura?>[null, CategoriaAsignatura.medica, CategoriaAsignatura.quirurgica, CategoriaAsignatura.basica])
+                      Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: ChoiceChip(
+                          label: Text(f == null ? 'Todas' : kNombreCategoria[f]!),
+                          selected: _filtro == f,
+                          showCheckmark: false,
+                          onSelected: (_) => setState(() => _filtro = f),
+                          selectedColor: kInk,
+                          backgroundColor: Colors.white,
+                          side: BorderSide(color: _filtro == f ? kInk : kHairline, width: 1.5),
+                          labelStyle: TextStyle(color: _filtro == f ? Colors.white : kMuted, fontWeight: FontWeight.w800, fontSize: 12.5),
+                        ),
+                      ),
+                  ]),
+                ),
+                const SizedBox(height: 14),
+                if (_arbol == null && _error == null)
+                  const EstadoBiblioteca('Cargando las asignaturas…')
+                else if (tarjetas.isEmpty && _arbol != null)
+                  EstadoBiblioteca('Nada con «${_busca.text}».')
+                else
+                  for (final t in tarjetas) _tarjeta(t),
+              ],
             ),
           ),
-        ],
-      ),
-      ),
+        ),
       ),
     );
   }
 
-  Widget _subjectCard(_LibrarySubject subject) {
-    final typeColor = _typeColor(subject.type);
-    final complete = subject.progress >= 100;
-
-    return Pressable(
-      onTap: () {
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-                '${subject.name}: los temas se abren en la web por ahora 📚'),
-            behavior: SnackBarBehavior.floating,
-            backgroundColor: AppColors.textPrimary,
+  Widget _tarjeta(TarjetaAsignatura t) {
+    final a = t.asignatura;
+    final h = _acierto[a.id];
+    return StickerCard(
+      depth: 4,
+      radius: 20,
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      onTap: () => _abrir(AsignaturaBibliotecaScreen(asignatura: a)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Row(children: [
+          SiglaAsignatura(asignatura: a),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(a.nombre, style: const TextStyle(color: kInk, fontSize: 15.5, fontWeight: FontWeight.w900)),
+              const SizedBox(height: 2),
+              Text(
+                a.subtitulo ?? (a.temas.isNotEmpty ? '${a.temas.length} temas en el catálogo' : 'Temas en camino'),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: kMuted, fontSize: 12.5),
+              ),
+            ]),
           ),
-        );
-      },
-      pressedScale: 0.96,
-      child: StickerCard(
-        depth: 4,
-        radius: 20,
-        padding: const EdgeInsets.all(14),
-        // Cartulina rayada: es temario, y la trama lo dice sin escribirlo.
-        texture: ruledPaper(step: 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    color: typeColor,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: kInk, width: 2),
-                    boxShadow: inkShadow(2),
-                  ),
-                  child: Icon(subject.icon, color: Colors.white, size: 18),
-                ),
-                const Spacer(),
-                if (complete)
-                  const Icon(Icons.workspace_premium_rounded,
-                      color: AppColors.gold, size: 20),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Text(
-              subject.name,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: kInk,
-                fontWeight: FontWeight.w900,
-                fontSize: 13.5,
-                height: 1.25,
-              ),
-            ),
-            const SizedBox(height: 3),
-            Text(
-              subject.description,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 11,
-                height: 1.3,
-              ),
-            ),
-            const Spacer(),
-            Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: typeColor.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(99),
-              ),
-              child: Text(
-                subject.type,
-                style: TextStyle(
-                  color: typeColor,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 8.5,
-                  letterSpacing: 0.8,
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            // Barra de progreso animada
-            TweenAnimationBuilder<double>(
-              tween: Tween(begin: 0, end: subject.progress / 100),
-              duration: const Duration(milliseconds: 900),
-              curve: Curves.easeOutCubic,
-              builder: (context, value, _) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(99),
-                      child: LinearProgressIndicator(
-                        value: value,
-                        minHeight: 6,
-                        backgroundColor: AppColors.surfaceVariant,
-                        valueColor: AlwaysStoppedAnimation(
-                          complete ? AppColors.gold : AppColors.success,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    Text(
-                      '${subject.topicsDone}/${subject.totalTopics} temas · ${(value * 100).round()}%',
-                      style: const TextStyle(
-                        color: AppColors.textLight,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                );
-              },
-            ),
-          ],
-        ),
-      ),
+        ]),
+        const SizedBox(height: 12),
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('TU MATERIAL', style: TextStyle(color: kMuted, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1.2)),
+              const SizedBox(height: 4),
+              CifrasMaterial(cuenta: t.cuenta),
+              if (t.carpetas > 0)
+                Text('en ${t.carpetas} ${t.carpetas == 1 ? 'carpeta' : 'carpetas'}', style: const TextStyle(color: kMuted, fontSize: 11.5)),
+            ]),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('PREGUNTAS', style: TextStyle(color: kMuted, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1.2)),
+              const SizedBox(height: 4),
+              CifrasPreguntas(acierto: h?.accuracy, respondidas: h?.total ?? 0),
+            ]),
+          ),
+        ]),
+      ]),
     );
   }
 }

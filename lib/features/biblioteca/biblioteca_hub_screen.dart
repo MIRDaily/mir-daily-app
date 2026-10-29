@@ -20,7 +20,7 @@ import 'widgets/studio_card_art.dart';
 
 /// Hub de Studio: punto de entrada a las herramientas de estudio — Mazos
 /// (repetición espaciada), Simulacros (exámenes a medida), Electros (ECG) y
-/// Apuntes (temario por asignaturas).
+/// Biblioteca (tu material por asignaturas y temas).
 ///
 /// Rediseñado con el lenguaje visual de la web (borde de tinta y sombra dura).
 /// Aquí la textura de cada tarjeta es un anticipo de la de su herramienta:
@@ -141,13 +141,14 @@ class BibliotecaHubScreen extends StatelessWidget {
                   delay: const Duration(milliseconds: 360),
                   beginOffset: const Offset(0, 0.12),
                   child: _ToolCard(
-                    title: 'Apuntes',
+                    // Antes «Apuntes», una maqueta: ahora la Biblioteca de la web, por carpetas.
+                    title: 'Biblioteca',
                     subtitle:
-                        'Temario por asignaturas, actualizado con IA predictiva.',
-                    tag: 'Temario',
-                    icon: Icons.menu_book_rounded,
+                        'Tu material por asignatura y tema, junto a las preguntas MIR de cada uno.',
+                    tag: 'Carpetas',
+                    icon: Icons.local_library_rounded,
                     accent: const Color(0xFF7D8A96),
-                    texture: ruledPaper(step: 18),
+                    texture: lomosArchivador(),
                     onTap: () => _open(context, const LibraryScreen()),
                   ),
                 ),

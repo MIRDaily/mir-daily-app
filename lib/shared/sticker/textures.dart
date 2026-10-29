@@ -9,6 +9,7 @@
    - papel rayado  → flashcards y mazos (una ficha de estudio de verdad)
    - papel milimetrado → electros (el papel del ECG)
    - carné plastificado → perfil (guilloche de documento acreditativo)
+   - lomos de archivador → biblioteca (cada asignatura es un estante)
 ═══════════════════════════════════════════════════════════════════════════ */
 import 'dart:math' as math;
 
@@ -218,6 +219,25 @@ Decoration graphPaper({
         color: tint.withOpacity(0.26),
         width: 1.5,
       );
+    },
+  );
+}
+
+/// Lomos de archivador: franjas verticales finas y, cada cinco, una más marcada (120 px), como los
+/// lomos de un estante. Equivale a `TEXTURA_LOMOS` de `components/library/biblioteca/ui.tsx`.
+Decoration lomosArchivador({Color background = Colors.white}) {
+  return TextureDecoration(
+    background: background,
+    identity: 'lomos:${background.toARGB32()}',
+    painter: (canvas, rect) {
+      final fina = Paint()..color = const Color(0x092C3E50); // rgba(44,62,80,0.035)
+      final marcada = Paint()..color = const Color(0x122C3E50); // rgba(44,62,80,0.07)
+      for (var x = rect.left + 22.0; x < rect.right; x += 24) {
+        canvas.drawRect(Rect.fromLTWH(x, rect.top, 2, rect.height), fina);
+      }
+      for (var x = rect.left + 118.0; x < rect.right; x += 120) {
+        canvas.drawRect(Rect.fromLTWH(x, rect.top, 2, rect.height), marcada);
+      }
     },
   );
 }

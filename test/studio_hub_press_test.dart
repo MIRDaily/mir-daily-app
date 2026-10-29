@@ -79,7 +79,7 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 600));
 
-    // Las cinco herramientas: Mazos, Flashcards, Simulacros, Electros, Apuntes.
+    // Las herramientas: Mazos, Flashcards, Simulacros, Electros, Resúmenes y Biblioteca.
     // La lista construye solo lo que se ve, así que aquí no salen las cinco.
     final cards = tester.widgetList<StickerCard>(find.byType(StickerCard));
     expect(cards.length, greaterThanOrEqualTo(4));

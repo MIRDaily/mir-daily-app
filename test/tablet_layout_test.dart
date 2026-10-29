@@ -34,7 +34,7 @@ void main() {
         await pumpAt(tester, size, const BibliotecaHubScreen());
         expect(tester.takeException(), isNull);
         // Las 5 herramientas están.
-        for (final t in ['Mazos', 'Flashcards', 'Simulacros', 'Electros', 'Apuntes']) {
+        for (final t in ['Mazos', 'Flashcards', 'Simulacros', 'Electros', 'Biblioteca']) {
           expect(find.text(t), findsOneWidget, reason: '$t en $size');
         }
       });
