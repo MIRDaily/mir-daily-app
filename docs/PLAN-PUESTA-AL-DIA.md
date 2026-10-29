@@ -13,7 +13,7 @@ esperar a que la web y el backend las dejen firmes.
 **Copia en el repo de la app:** `docs/PLAN-PUESTA-AL-DIA.md` (rama `v7`), para que el otro ordenador la
 tenga. Al cerrar cada tanda se actualizan las dos.
 
-**Estado:** tandas 0 a 6 hechas el 29/10/2026, salvo la prueba en el teléfono.
+**Estado:** tandas 0 a 6 y 7a hechas el 29/10/2026, salvo la prueba en el teléfono. Siguiente: 7b (guías).
 
 ## Resumen del orden
 
@@ -435,6 +435,58 @@ previsión sale igual en las dos.
 - Pantalla de guía nativa: mapa de temas, previsión, esfuerzo/recompensa y preguntas del MIR comentado,
   con el botón de reportar de la tanda 4.
 
+### Decisión (29/10/2026): la tanda se parte en 7a y 7b; las guías van dentro de la app
+
+- **7a · Biblioteca real** (abajo) y **7b · Guías**, cada una con su commit, sus tests y su resultado.
+- **Guías: dentro de la app**, como JSON generado desde los `.ts` de la web con un script del repo de la
+  app (`tools/export_study_guides.mjs` → `assets/guides/`, los nombres que ya declara `pubspec.yaml`).
+  No hace falta tocar ni desplegar la web, funcionan sin conexión y siguen lo que se empezó en el otro
+  ordenador. A cambio, una guía nueva pide volver a lanzar el script y sacar versión. El formato será
+  el mismo que si un día lo publicara la web, así que se podría cambiar sin rehacer pantallas.
+- **Ojo, otro ordenador:** allí hay `assets/guides/` y el script sin subir. Al hacer `git pull` después
+  de la 7b, git no pisará esos ficheros sin seguimiento: hay que apartarlos, bajar los del repo y
+  comparar.
+
+### Resultado de la 7a (29/10/2026, commit `bc5941e` en v7)
+
+- **Portada** (la tarjeta del hub pasa de «Apuntes» a «Biblioteca», como en la web):
+  - Todas las asignaturas del catálogo, con tu material en cada una (mapas, flashcards y resúmenes),
+    en cuántas carpetas está y, aparte, tu acierto en sus preguntas MIR.
+  - «Sin clasificar» arriba.
+  - Buscador y filtro por Médicas, Quirúrgicas y Básicas.
+  - Sustituye a la lista fija de 17 asignaturas, que era una maqueta.
+- **Asignatura:**
+  - Cabecera con preguntas MIR, acierto y cuánto material tienes.
+  - «General» y solo los temas con material, cada uno con sus preguntas MIR y su señal de dominio.
+  - Cuántos temas del catálogo quedan sin material, y cuántas carpetas están «bien llevadas».
+- **Carpeta** (un tema o «General»):
+  - El bloque de preguntas MIR: cuántas hay, tu acierto, bien, mal y en blanco, y «Practicar en un
+    simulacro».
+  - El bloque de tu material: la señal de dominio (recordarías hoy, cuánto has visto, último repaso,
+    «Bien llevado» y los huecos que más se resisten) y cada grupo con su línea de dominio, «Abrir» y
+    «Mover», que usa el selector de carpetas de la tanda 1.
+  - Si la base de datos aún no calcula el dominio, sale «todavía no disponible».
+- **Sin clasificar:**
+  - La sugerencia de un toque («¿A Reumatología › Lupus…?»), calculada en el teléfono con el
+    emparejador de la tanda 1.
+  - Selección múltiple, con «Seleccionar todo», mantener pulsado o la casilla, y una barra abajo con
+    «Mover a…»; un tipo cada vez, como el servidor.
+  - Un aviso con «Ver la carpeta» al mover.
+- **Abrir:** los grupos de flashcards y de resúmenes se abren en sus pantallas de la app. Los mapas se
+  abren en la web hasta la tanda 12.
+- **Código:**
+  - Lógica pura en `core/models/biblioteca.dart` (puerto de `biblioteca.ts` y `dominio.ts`).
+  - Rutas nuevas en `CarpetasApi` (`/recuento`, `/sin-clasificar`, `/asignatura/:id` y su `/dominio`).
+  - Pantallas en `features/library/`, con sus piezas en `widgets/biblioteca_ui.dart` y el cargador
+    compartido en `widgets/datos_asignatura.dart`.
+  - Textura `lomosArchivador()` en el kit.
+- **Tests:** 538 en verde (20 nuevos), con los casos de `carpetasBiblioteca.test.ts` y
+  `carpetasDominio.test.ts` de la web y el mismo catálogo real, las rutas con MockClient y las cuatro
+  pantallas en móvil y tablet. Destaparon que «Seleccionar todo» solo respondía en la casilla: ahora
+  responde la fila entera. No cambia ningún golden.
+- **Falta:** probarlo en el teléfono con tu cuenta (en prod, a 17/10 casi todo estaba en «Sin
+  clasificar»). La entrada a la guía de cada asignatura llega con la 7b.
+
 ## Tanda 8 — Tutoriales de la mascota
 
 - Mismo sistema que la web: guiones (`src/lib/tutorials/scripts.ts`), superposición con la mascota y
@@ -504,7 +556,7 @@ previsión sale igual en las dos.
 | Subir desde el otro ordenador `assets/guides/` y `tools/export_study_guides.mjs` | Ya (rompe el aviso del build) |
 | ~~Versión de Flutter común~~ **Decidido 29/10/2026: 3.47.5.** Fijada en `pubspec.yaml` (`flutter: ">=3.47.5"`), goldens regenerados y 375 tests en verde. El otro ordenador tiene que hacer `flutter upgrade` | Hecho |
 | Arreglar el 401 → renovar y reintentar en los clientes | Antes de la tanda 2 de Studio |
-| Guías: copiar a Dart o publicarlas como JSON desde la web | Tanda 7 |
+| ~~Guías: copiar a Dart o publicarlas como JSON desde la web~~ **Decidido 29/10/2026: JSON dentro de la app, generado de la web con un script** | Hecho |
 | ~~Qué se hace con «Actualizar» en el mazo de fallos~~ **Decidido 29/10/2026: no se porta** (la web no lo tiene; el servidor lo rehace solo y M1 ya está corregido) | Hecho |
 | Editor de mapas nativo, reducido o solo en web | Tanda 13 |
 | Cuentas de tienda (Google Play / App Store) y quién firma | Tanda 17 |
