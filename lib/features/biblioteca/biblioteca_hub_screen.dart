@@ -16,6 +16,7 @@ import '../library/library_screen.dart';
 import '../resumenes/resumenes_screen.dart';
 import '../resumenes/widgets/prevision_resumenes.dart';
 import '../simulacro/simulacro_screen.dart';
+import '../mapas/mapas_screen.dart';
 import '../minijuegos/minijuegos_screen.dart';
 import '../tutorial/tutorial_ancla.dart';
 import 'widgets/a_medida_card.dart';
@@ -141,6 +142,20 @@ class BibliotecaHubScreen extends StatelessWidget {
                     art: const EcgMonitorArt(),
                     texture: graphPaper(tint: const Color(0xFFC45B4B), step: 9),
                     onTap: () => _open(context, const ElectrosHubScreen()),
+                  ),
+                ),
+                SlideFadeIn(
+                  delay: const Duration(milliseconds: 310),
+                  beginOffset: const Offset(0, 0.12),
+                  child: _ToolCard(
+                    title: 'Mapas mentales',
+                    subtitle:
+                        'Tus mapas de la web: míralos, cambia textos, añade ramas y recoloca nodos.',
+                    tag: 'Mapas',
+                    icon: Icons.account_tree_rounded,
+                    accent: const Color(0xFFE8A598),
+                    texture: graphPaper(step: 16),
+                    onTap: () => _open(context, const MapasScreen()),
                   ),
                 ),
                 SlideFadeIn(

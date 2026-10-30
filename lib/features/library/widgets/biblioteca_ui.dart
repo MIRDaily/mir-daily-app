@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 
-import '../../../core/config/app_config.dart';
 import '../../../core/models/biblioteca.dart';
 import '../../../core/models/flashcards.dart' show visualAsignatura;
 import '../../../core/services/api_service.dart';
@@ -10,6 +8,7 @@ import '../../../core/services/carpetas.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/sticker/sticker.dart';
 import '../../flashcards/flashcard_deck_screen.dart';
+import '../../mapas/mapa_screen.dart';
 import '../../resumenes/resumen_detail_screen.dart';
 import '../../resumenes/resumenes_api.dart';
 import '../../resumenes/resumenes_grupo.dart' show resolveColorResumen;
@@ -382,12 +381,12 @@ class FilaElemento extends StatelessWidget {
             ]),
           ),
           IconButton(
-            tooltip: e.tipo == TipoElemento.mapa ? 'Abrir en la web' : 'Abrir',
+            tooltip: 'Abrir',
             onPressed: () async {
               await abrirElemento(context, e);
               onAbierto?.call();
             },
-            icon: Icon(e.tipo == TipoElemento.mapa ? Icons.open_in_new_rounded : Icons.chevron_right_rounded, color: kInk),
+            icon: const Icon(Icons.chevron_right_rounded, color: kInk),
           ),
         ]),
         if (extra != null) Padding(padding: const EdgeInsets.only(left: 46, top: 6, right: 8), child: extra!),
@@ -401,16 +400,14 @@ class FilaElemento extends StatelessWidget {
   }
 }
 
-/// Abre un elemento en su pantalla. Los mapas aún no existen en la app (tanda 12): se abren en la web.
+/// Abre un elemento en su pantalla. Los mapas, en el visor de la app (ver/editar lo básico).
 Future<void> abrirElemento(BuildContext context, ElementoMaterial e) async {
   final messenger = ScaffoldMessenger.of(context);
   final navigator = Navigator.of(context);
   void fallo(String m) => messenger.showSnackBar(SnackBar(content: Text(m), behavior: SnackBarBehavior.floating));
   switch (e.tipo) {
     case TipoElemento.mapa:
-      final ok = await launchUrl(Uri.parse('${AppConfig.webBaseUrl}/mapas/${e.id}'), mode: LaunchMode.externalApplication)
-          .catchError((_) => false);
-      if (!ok) fallo('No se pudo abrir el mapa en la web');
+      await navigator.push(MaterialPageRoute(builder: (_) => MapaScreen(mapaId: e.id, titulo: e.titulo)));
     case TipoElemento.flashcards:
       try {
         final grupos = await context.read<ApiService>().getFlashDecks();

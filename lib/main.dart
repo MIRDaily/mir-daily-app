@@ -36,6 +36,7 @@ import 'features/progress/celebracion_logros.dart';
 import 'features/tutorial/tutorial_overlay.dart';
 import 'features/tutorial/tutoriales_controller.dart';
 import 'features/splash/intro_music.dart';
+import 'core/services/mapas_api.dart';
 import 'features/versus/services/versus_links.dart';
 import 'features/onboarding/screens/onboarding_screen.dart';
 import 'features/auth/login_screen.dart';
@@ -142,6 +143,15 @@ class MIRDailyApp extends StatelessWidget {
         // Carpetas del material (asignatura y tema): dónde se guarda lo creado con IA.
         Provider<CarpetasApi>(
           create: (_) => CarpetasApi(token: apiService.validToken, baseUrl: AppConfig.apiBaseUrl, client: apiService.clienteConSesion),
+        ),
+        // Mapas mentales: directo a Supabase (tabla mind_maps), con la misma sesión.
+        Provider<MapasApi>(
+          create: (_) => MapasApi(
+            token: apiService.validToken,
+            supabaseUrl: AppConfig.supabaseUrl,
+            anonKey: AppConfig.supabaseAnonKey,
+            client: apiService.clienteConSesion,
+          ),
         ),
         // Reportar pregunta (POST /api/reports): lo abre el botón de cada pantalla de preguntas.
         Provider<ReportesApi>(
