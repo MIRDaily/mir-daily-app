@@ -802,6 +802,10 @@ Decidido con el dueño: no hacía falta esperar. La lista pide solo título, asi
   `tableGeometry`) y el texto ya no se parte a 270 px. Botón «Ordenar» en el visor: recoloca en árbol con
   los tamaños de la app (el `computeLayout` de la web, compartido con los mapas v1), solo para mirar; si
   se edita sobre él, ese orden se guarda. Tests: `test/mapas_ordenar_test.dart` (9).
+- **«Recientes» por apertura y edición (30/10/2026, commit `f031d03`):** a petición del dueño, abrir un
+  mapa también cuenta: cada uno va por lo último entre abrirlo en este móvil y editarlo, y lo dice. Las
+  aperturas se guardan en el móvil por cuenta (`features/mapas/aperturas_mapas.dart`; no se comparten
+  con la web). Arreglado de paso: un mapa sin nodos rompía el visor.
 - **Falta de esta tanda:** miniaturas y recuentos de nodos (con el `summary` de Studio 6), papelera,
   modo estudio y el tutorial `mapas.v1`. Crear mapas sigue en la web.
 - **Falta probar en el teléfono:** abrir tus mapas reales (sobre todo los grandes y los de IA),
