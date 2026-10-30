@@ -126,6 +126,10 @@ class MonitorEcg extends StatefulWidget {
   final double velocidad;
   final VoidCallback? alLatir;
 
+  /// Escala del papel: píxeles por milímetro. 6 es la del Explorador; un monitor más bajo la reduce
+  /// para que los QRS grandes no se salgan (y de paso enseña más segundos de tira).
+  final double pxPorMm;
+
   const MonitorEcg({
     super.key,
     required this.sintesis,
@@ -133,6 +137,7 @@ class MonitorEcg extends StatefulWidget {
     this.enMarcha = true,
     this.velocidad = 1,
     this.alLatir,
+    this.pxPorMm = 6,
   });
 
   @override
@@ -198,8 +203,10 @@ class _MonitorEcgState extends State<MonitorEcg> with SingleTickerProviderStateM
     return Stack(
       fit: StackFit.expand,
       children: [
-        const RepaintBoundary(child: CustomPaint(painter: _CuadriculaPainter(6))),
-        CustomPaint(painter: MonitorTrazoPainter(buffer: buffer, tSim: _tSim, tInicio: _tInicio)),
+        RepaintBoundary(child: CustomPaint(painter: _CuadriculaPainter(widget.pxPorMm))),
+        CustomPaint(
+          painter: MonitorTrazoPainter(buffer: buffer, tSim: _tSim, tInicio: _tInicio, pxPorMm: widget.pxPorMm),
+        ),
       ],
     );
   }

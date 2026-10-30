@@ -6,7 +6,11 @@ import 'local_asset_server.dart';
 
 /// Muestra una de las herramientas de Electros (web) dentro de la app, servida
 /// por un [LocalAssetServer] local. Gestiona la carga, los errores y el botón
-/// atrás (navega dentro de la web si puede; si no, cierra la pantalla).
+/// atrás (primero se lo pregunta a la web; si no lo usa, cierra la pantalla).
+///
+/// Sin AppBar: la Academia trae su propia cabecera (con su botón de volver en
+/// cada lección y en la portada), y con las dos a la vista había dos flechas
+/// atrás y una quinta parte de la pantalla sin contenido.
 class ElectroWebView extends StatefulWidget {
   const ElectroWebView({
     super.key,
@@ -52,6 +56,7 @@ class _ElectroWebViewState extends State<ElectroWebView> {
           'MirdailyElectros',
           onMessageReceived: (msg) {
             if (msg.message == 'open-simulador') widget.onOpenSimulador?.call();
+            if (msg.message == 'close' && mounted) Navigator.of(context).maybePop();
           },
         )
         ..setNavigationDelegate(
@@ -91,7 +96,13 @@ class _ElectroWebViewState extends State<ElectroWebView> {
 
   Future<bool> _handleBack() async {
     final c = _controller;
-    if (c != null && await c.canGoBack()) {
+    if (c == null) return true;
+    // La Academia no usa el historial: si hay una lección abierta, `academiaVolver` vuelve al mapa.
+    try {
+      final r = await c.runJavaScriptReturningResult('window.academiaVolver ? window.academiaVolver() : false');
+      if (r == true || r.toString() == 'true') return false;
+    } catch (_) {}
+    if (await c.canGoBack()) {
       await c.goBack();
       return false;
     }
@@ -109,18 +120,7 @@ class _ElectroWebViewState extends State<ElectroWebView> {
       },
       child: Scaffold(
         backgroundColor: AppColors.background,
-        appBar: AppBar(
-          title: Text(widget.title),
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-            onPressed: () async {
-              final nav = Navigator.of(context);
-              if (await _handleBack()) nav.pop();
-            },
-          ),
-        ),
         body: SafeArea(
-          top: false,
           child: Stack(
             children: [
               if (_controller != null && _error == null)
@@ -168,6 +168,13 @@ class _ErrorView extends StatelessWidget {
               message,
               textAlign: TextAlign.center,
               style: const TextStyle(color: AppColors.textSecondary, fontSize: 15),
+            ),
+            const SizedBox(height: 18),
+            // Sin AppBar, este es el único camino de vuelta en pantalla.
+            TextButton.icon(
+              onPressed: () => Navigator.of(context).maybePop(),
+              icon: const Icon(Icons.arrow_back_rounded),
+              label: const Text('Volver'),
             ),
           ],
         ),

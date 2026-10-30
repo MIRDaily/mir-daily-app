@@ -189,6 +189,22 @@ class _MonitorPortadaState extends State<_MonitorPortada> {
     setState(() => _i = (_i + 1) % _ritmos.length);
   }
 
+  /// El voltaje más alto (en valor absoluto) de la derivación II entre todos los ritmos de la
+  /// portada. Con él se fija UNA escala para todos: que ninguno se salga y que no cambie de tamaño
+  /// al pasar de uno a otro.
+  static final double _picoMv = () {
+    var m = 0.0;
+    for (final id in _ritmos) {
+      for (final v in sintesisDe(patronesEcg.firstWhere((p) => p.id == id)).derivaciones['II']!) {
+        if (v.abs() > m) m = v.abs();
+      }
+    }
+    return m;
+  }();
+
+  /// Píxeles por mm para que el pico quepa en la mitad del monitor, con aire para las pastillas.
+  static double _escala(double alto) => ((alto / 2 - 16) / (_picoMv * 10)).clamp(1.5, 6.0);
+
   @override
   void dispose() {
     _timer?.cancel();
@@ -204,58 +220,64 @@ class _MonitorPortadaState extends State<_MonitorPortada> {
       GravedadEcg.warn => const Color(0xFFC8963E),
       GravedadEcg.crit => const Color(0xFFC0564B),
     };
+    final alto = context.usesTwoPane ? 170.0 : 132.0;
     return Semantics(
       button: true,
       label: 'Monitor de ejemplo: ${p.nombre}. Toca para ver otro ritmo.',
+      // Sin recortar la tarjeta: el recorte se comía la mitad del trazo del borde en las esquinas.
+      // Se recorta el monitor por dentro, al radio interior (el borde mide 2).
       child: StickerCard(
         radius: 22,
-        clipBehavior: Clip.antiAlias,
         onTap: () {
           _siguiente();
           _programar();
         },
-        child: SizedBox(
-          height: context.usesTwoPane ? 170 : 132,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              ExcludeSemantics(
-                child: MonitorEcg(
-                  sintesis: sintesisDe(p),
-                  derivacion: 'II',
-                  alLatir: () => _latidos.value++,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: SizedBox(
+            height: alto,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                ExcludeSemantics(
+                  child: MonitorEcg(
+                    sintesis: sintesisDe(p),
+                    derivacion: 'II',
+                    pxPorMm: _escala(alto),
+                    alLatir: () => _latidos.value++,
+                  ),
                 ),
-              ),
-              Positioned(
-                left: 12,
-                top: 10,
-                right: 12,
-                child: Row(
-                  children: [
-                    Flexible(
-                      child: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 250),
-                        child: _Pastilla(
-                          key: ValueKey(p.id),
-                          color: color,
-                          texto: p.nombre,
+                Positioned(
+                  left: 12,
+                  top: 10,
+                  right: 12,
+                  child: Row(
+                    children: [
+                      Flexible(
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 250),
+                          child: _Pastilla(
+                            key: ValueKey(p.id),
+                            color: color,
+                            texto: p.nombre,
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    _Fc(fc: p.fc, latidos: _latidos),
-                  ],
+                      const SizedBox(width: 8),
+                      _Fc(fc: p.fc, latidos: _latidos),
+                    ],
+                  ),
                 ),
-              ),
-              const Positioned(
-                left: 12,
-                bottom: 8,
-                child: Text(
-                  'II · 25 mm/s',
-                  style: TextStyle(color: kMuted, fontSize: 10.5, fontWeight: FontWeight.w700, letterSpacing: 0.4),
+                const Positioned(
+                  left: 12,
+                  bottom: 8,
+                  child: Text(
+                    'II · 25 mm/s',
+                    style: TextStyle(color: kMuted, fontSize: 10.5, fontWeight: FontWeight.w700, letterSpacing: 0.4),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

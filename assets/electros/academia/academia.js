@@ -45,6 +45,7 @@ function renderHome() {
   const wrap = el('div', 'home');
   const doneCount = MODULES.filter(m => state[m.id]?.done).length;
   wrap.innerHTML = `
+    ${window.MirdailyElectros ? '<button class="icon-btn home-back" id="h-back" aria-label="Volver"><span class="material-symbols-outlined">arrow_back</span></button>' : ''}
     <header class="home-head">
       <div class="brand"><span class="material-symbols-outlined">cardiology</span></div>
       <h1>Academia ECG</h1>
@@ -56,6 +57,9 @@ function renderHome() {
     </header>
     <div class="path" id="path"></div>`;
   const path = wrap.querySelector('#path');
+  wrap.querySelector('#h-back')?.addEventListener('click', () => {
+    try { window.MirdailyElectros.postMessage('close'); } catch {}
+  });
 
   MODULES.forEach((m, i) => {
     const unlocked = isUnlocked(i);
@@ -777,4 +781,13 @@ function infoVisual(kind) {
 }
 
 /* ─── Arranque ─────────────────────────────────────────────────────────── */
+/* El botón atrás de Android (la app lo pregunta antes de cerrar la pantalla): dentro de una lección
+   vuelve al mapa de la ruta, como el botón de la cabecera; en el mapa devuelve false y la app sale. */
+window.academiaVolver = () => {
+  const back = document.querySelector('#l-back');
+  if (!back) return false;
+  back.click();
+  return true;
+};
+
 renderHome();

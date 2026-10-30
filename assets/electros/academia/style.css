@@ -17,6 +17,13 @@
 html,body{height:100%;font-family:'Lexend',system-ui,sans-serif;color:var(--text);
   background:#EEE8E2;-webkit-font-smoothing:antialiased;overscroll-behavior:none}
 .material-symbols-outlined{font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24;user-select:none}
+/* Mientras llega la fuente de iconos el navegador pinta el nombre del icono («arrow_forward») como
+   texto. La fuente va con display=block (invisible hasta que carga) y la caja se limita a 1em, para
+   que ese texto invisible no ensanche nada mientras tanto. */
+.material-symbols-outlined{display:inline-block;width:1em;height:1em;line-height:1;overflow:hidden;white-space:nowrap}
+/* En la app no hay barra de Flutter encima: la portada lleva su propio botón para salir. */
+.home{position:relative}
+.home-back{position:absolute;top:calc(14px + var(--sat));left:16px}
 button{font-family:inherit;cursor:pointer}
 
 /* Marco tipo dispositivo (se hace pantalla completa en móvil) */
@@ -59,9 +66,9 @@ button{font-family:inherit;cursor:pointer}
 .ring-fg{fill:none;stroke:var(--mc,var(--accent));stroke-width:4;stroke-linecap:round;transition:stroke-dashoffset .6s var(--spring)}
 /* Con el selector doble: la hoja de Google Fonts llega después y su display:block en
    .material-symbols-outlined pisaba el flex, y el icono se salía del círculo. */
-.mod-ring .mod-ic{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+.mod-ring .mod-ic{position:absolute;inset:0;width:auto;height:auto;display:flex;align-items:center;justify-content:center;
   font-size:24px;color:var(--mc,var(--accent-dark))}
-.mod-check{position:absolute;right:-2px;bottom:-2px;font-size:16px;color:#fff;background:var(--ok);
+.mod-ring .mod-check{width:auto;height:auto;position:absolute;right:-2px;bottom:-2px;font-size:16px;color:#fff;background:var(--ok);
   border-radius:50%;padding:2px;box-shadow:0 0 0 2px #fff}
 .mod-txt{flex:1;display:flex;flex-direction:column;gap:1px;min-width:0}
 .mod-n{font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--light)}
