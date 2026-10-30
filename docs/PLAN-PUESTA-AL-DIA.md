@@ -123,6 +123,13 @@ Hecho cuando: hay una línea base escrita y el APK de `v7` funciona en el teléf
     tanda 2 de Studio** (sesión verificada en el servidor): un 401 → renovar una vez → reintentar.
   - **Riesgo 2:** si varias peticiones salen a la vez con el token caducado, cada una llama a
     `refresh` por su cuenta. Hay que compartir una sola renovación en curso.
+  - **Riesgos 1 y 2 ARREGLADOS el 30/10/2026 (commit `6a6f9cf`):** `core/services/cliente_con_sesion.dart`
+    (un 401 con Bearer → token nuevo → la misma petición una vez más) lo usan `ApiService`, Versus y
+    todos los clientes (`apiService.clienteConSesion`, desde main.dart); la renovación es una sola
+    aunque fallen varias a la vez. De paso: `AuthService.refresh` solo cierra la sesión si Supabase
+    rechaza el refresh token (400/401), no con un 5xx; y si la sesión muere en mitad del uso,
+    `AuthProvider` vuelve al login con el motivo. Tests en `test/renovar_sesion_test.dart` (12).
+    **Cliente nuevo = pasarle `client: apiService.clienteConSesion`.**
   - **Menores:** ni `IaService.estado` ni la parte sin streaming tienen timeout; ningún cliente trata
     el 429 aparte (enseña el `error` del servidor, que ya viene en castellano).
 
@@ -800,7 +807,7 @@ previsión sale igual en las dos.
 |---|---|
 | ~~Subir desde el otro ordenador `assets/guides/` y `tools/export_study_guides.mjs`~~ **Ya están en el repo (7b, 30/10/2026).** En el otro ordenador, apartar los suyos antes de `git pull` y comparar | Hecho |
 | ~~Versión de Flutter común~~ **Decidido 29/10/2026: 3.47.5.** Fijada en `pubspec.yaml` (`flutter: ">=3.47.5"`), goldens regenerados y 375 tests en verde. El otro ordenador tiene que hacer `flutter upgrade` | Hecho |
-| Arreglar el 401 → renovar y reintentar en los clientes | Antes de la tanda 2 de Studio |
+| ~~Arreglar el 401 → renovar y reintentar en los clientes~~ **Hecho el 30/10/2026 (`6a6f9cf`)**, antes de la tanda 2 de Studio | Hecho |
 | ~~Guías: copiar a Dart o publicarlas como JSON desde la web~~ **Decidido 29/10/2026: JSON dentro de la app, generado de la web con un script** | Hecho |
 | ~~Qué se hace con «Actualizar» en el mazo de fallos~~ **Decidido 29/10/2026: no se porta** (la web no lo tiene; el servidor lo rehace solo y M1 ya está corregido) | Hecho |
 | Editor de mapas nativo, reducido o solo en web | Tanda 13 |
