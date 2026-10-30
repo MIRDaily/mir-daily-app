@@ -8,7 +8,10 @@
   --ok:#8BA888; --warn:#C9A24A; --crit:#C45B4E; --blue:#7CA3C9;
   --r-card:20px; --r-btn:14px;
   --spring:cubic-bezier(.22,1,.36,1);
-  --sat: env(safe-area-inset-top,0px); --sab: env(safe-area-inset-bottom,0px);
+  /* Dentro de la app los márgenes seguros los pone Flutter (AppBar arriba, SafeArea abajo). Con
+     env(safe-area-inset-*) se sumaban dos veces: Android 15+ (edge-to-edge) da al WebView los
+     insets de la ventana aunque no toque los bordes, y cada lección salía con un hueco enorme. */
+  --sat: 0px; --sab: 0px;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;font-family:'Lexend',system-ui,sans-serif;color:var(--text);
@@ -54,7 +57,9 @@ button{font-family:inherit;cursor:pointer}
 .mod-ring svg{width:100%;height:100%}
 .ring-bg{fill:none;stroke:var(--surface-2);stroke-width:4}
 .ring-fg{fill:none;stroke:var(--mc,var(--accent));stroke-width:4;stroke-linecap:round;transition:stroke-dashoffset .6s var(--spring)}
-.mod-ic{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+/* Con el selector doble: la hoja de Google Fonts llega después y su display:block en
+   .material-symbols-outlined pisaba el flex, y el icono se salía del círculo. */
+.mod-ring .mod-ic{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
   font-size:24px;color:var(--mc,var(--accent-dark))}
 .mod-check{position:absolute;right:-2px;bottom:-2px;font-size:16px;color:#fff;background:var(--ok);
   border-radius:50%;padding:2px;box-shadow:0 0 0 2px #fff}

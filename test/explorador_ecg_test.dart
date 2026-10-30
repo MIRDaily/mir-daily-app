@@ -89,10 +89,10 @@ void main() {
         final parado = _trazo(tester).tSim;
         await _bombear(tester, 5);
         expect(_trazo(tester).tSim, parado);
-        // En pausa no late: activar el sonido no toca el reproductor.
-        await _tocar(tester, find.bySemanticsLabel('Activar sonido'));
+        // El pitido viene activado de serie y se puede silenciar.
+        await _tocar(tester, find.bySemanticsLabel('Silenciar'));
         await _bombear(tester, 2);
-        expect(find.bySemanticsLabel('Silenciar'), findsOneWidget);
+        expect(find.bySemanticsLabel('Activar sonido'), findsOneWidget);
         expect(tester.takeException(), isNull);
       });
 
@@ -181,6 +181,26 @@ void main() {
         await _tocar(tester, find.text('Explorador de 12 derivaciones'));
         await _bombear(tester, 10);
         expect(find.byType(ExploradorEcgScreen), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      });
+
+      testWidgets('el menú de Electros: monitor que cambia de ritmo y «Ponte a prueba» abre el examen',
+          (tester) async {
+        await _montar(tester, size, const ElectrosHubScreen());
+        expect(find.text('Ritmo sinusal normal'), findsOneWidget);
+        // Tocar el monitor pasa al siguiente ritmo.
+        await _tocar(tester, find.bySemanticsLabel(RegExp('^Monitor de ejemplo')));
+        await _bombear(tester, 8);
+        expect(find.text('Fibrilación auricular'), findsOneWidget);
+        // Y solo, a los 8 s, al siguiente.
+        await tester.pump(const Duration(seconds: 8));
+        await _bombear(tester, 6);
+        expect(find.text('SCACEST inferior'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+
+        await _tocar(tester, find.text('Ponte a prueba'));
+        await _bombear(tester, 10);
+        expect(find.text('¿Qué diagnóstico ves?'), findsOneWidget);
         expect(tester.takeException(), isNull);
       });
     });

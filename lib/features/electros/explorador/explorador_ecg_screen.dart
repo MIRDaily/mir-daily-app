@@ -15,6 +15,7 @@ import 'dart:math' as math;
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 
+import '../../../core/audio/audio_nativo.dart';
 import '../../../core/models/ecg_core.dart';
 import '../../../core/models/ecg_patrones.dart';
 import '../../../core/responsive/adaptive_modal.dart';
@@ -46,6 +47,7 @@ class _Pitido {
   AudioPlayer? _player;
 
   Future<void> sonar() async {
+    if (!audioNativoDisponible) return;
     try {
       var p = _player;
       if (p == null) {
@@ -72,14 +74,17 @@ class ExploradorEcgScreen extends StatefulWidget {
   /// Para los tests: la tanda del examen sale de este azar.
   final math.Random? azar;
 
-  const ExploradorEcgScreen({super.key, this.azar});
+  /// Abre directamente el modo examen (el acceso «Ponte a prueba» del menú de Electros).
+  final bool empezarEnExamen;
+
+  const ExploradorEcgScreen({super.key, this.azar, this.empezarEnExamen = false});
 
   @override
   State<ExploradorEcgScreen> createState() => _ExploradorEcgScreenState();
 }
 
 class _ExploradorEcgScreenState extends State<ExploradorEcgScreen> {
-  _Modo _modo = _Modo.explorador;
+  late _Modo _modo = widget.empezarEnExamen ? _Modo.examen : _Modo.explorador;
 
   @override
   Widget build(BuildContext context) {
@@ -199,7 +204,8 @@ class _ModoExploradorState extends State<_ModoExplorador> {
   String _derivacion = 'II';
   bool _enMarcha = true;
   double _velocidad = 1;
-  bool _sonido = false;
+  // Activado de serie, como un monitor de verdad: el pitido es media gracia del explorador.
+  bool _sonido = true;
   final ValueNotifier<int> _latidos = ValueNotifier(0);
   final _Pitido _pitido = _Pitido();
 

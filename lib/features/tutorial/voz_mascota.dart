@@ -11,10 +11,10 @@
 //   puede capturar: ahí la voz se queda muda (ver [VozMascota.activa]).
 // - En Android no hace falta el «desbloqueo por gesto» del navegador: suena desde el primer cuadro.
 
-import 'dart:io' show Platform;
-
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
+
+import '../../core/audio/audio_nativo.dart';
 
 /// Pentatónica de la web: cualquier secuencia suena bien.
 const List<int> gradosVozMascota = [0, 2, 4, 7, 9];
@@ -47,15 +47,7 @@ class VozMascota {
 
   /// Apagada en los tests (sin plugin nativo); se puede forzar para probar las decisiones.
   @visibleForTesting
-  static bool activa = !_enTests();
-
-  static bool _enTests() {
-    try {
-      return Platform.environment.containsKey('FLUTTER_TEST');
-    } catch (_) {
-      return false;
-    }
-  }
+  static bool activa = audioNativoDisponible;
 
   static const int _tamanoRueda = 3;
   final List<AudioPlayer> _rueda = [];
