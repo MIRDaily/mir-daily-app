@@ -13,7 +13,7 @@ esperar a que la web y el backend las dejen firmes.
 **Copia en el repo de la app:** `docs/PLAN-PUESTA-AL-DIA.md` (rama `v7`), para que el otro ordenador la
 tenga. Al cerrar cada tanda se actualizan las dos.
 
-**Estado:** tandas 0 a 8 hechas (la 8, el 30/10/2026), salvo la prueba en el teléfono. Siguiente: tanda 9 (Explorador de Electros).
+**Estado:** tandas 0 a 9 hechas (la 9, el 30/10/2026), salvo la prueba en el teléfono. Siguiente: tanda 10 (MedGuess).
 
 ## Resumen del orden
 
@@ -625,6 +625,71 @@ previsión sale igual en las dos.
 - El explorador de 12 derivaciones de la web (`ExploradorClient.tsx`, `EcgCanvases.tsx`): nativo con
   `CustomPainter`.
 - El progreso guardado de la Academia llega con la tanda 12 de Studio; se adapta cuando exista.
+
+### Resultado (30/10/2026, commit `ff91a5b` en v7)
+
+- **El Explorador de la web, nativo, sustituye al «Simulador de ECG».** El simulador era el HTML antiguo
+  de MIRElectro dentro de un WebView; ya no está, y con él se van `assets/electros/simulador` (unas
+  1.750 líneas).
+  - La tarjeta de Electros se llama ahora «Explorador de 12 derivaciones», con el texto de la web.
+  - El botón final de la Academia («Practicar en el simulador») abre el Explorador nativo.
+  - La Academia sigue siendo un WebView y no se toca.
+- **El motor, en Dart y fiel a la web** (`core/models/ecg_core.dart`): puerto línea a línea de
+  `leads.ts` y `ecgCore.ts`.
+  - El eje proyectado sobre las derivaciones de miembros, los 16 mods (BRD, BRI, SCACEST por
+    territorio, Wellens, K⁺…) y los 11 generadores de ritmo.
+  - El mismo generador pseudoaleatorio, para que la FA, la FV y la asistolia tengan la misma forma.
+  - Los buffers en `Float32List`, que redondean igual que los `Float32Array` de la web.
+  - Se respeta el `x || 0,2` de JS: una T a cero se trata como 0,2.
+- **Los 33 patrones se generan desde la web.** `node tools/export_electros.mjs "<frontend>"` escribe
+  `core/models/ecg_patrones.dart` (ficha clínica, intervalos, perla y sinónimos del examen, sin copiar
+  texto a mano) y `test/fixtures/ecg_sintesis_web.json` con la **síntesis real de la web**. Los tests
+  comprueban, patrón a patrón y derivación a derivación, que la app da los mismos voltajes y los mismos
+  latidos.
+  - El script copia los `.ts` a una carpeta temporal poniendo la extensión a los imports, porque Node
+    no resuelve `from './leads'`.
+  - **Cuando la web cambie un patrón o el motor:** volver a lanzar el script, pasar los tests y sacar
+    versión.
+- **Modo explorador** (`features/electros/explorador/`):
+  - **Elegir diagnóstico:** en el móvil, una tarjeta que abre la lista por categorías, con la leyenda de
+    colores. En tablet (desde 1024 px), el raíl de la web a la izquierda, sin scroll propio (dos scrolls
+    anidados se pelean por el dedo).
+  - **Monitor de cabecera** con barrido en tiempo real:
+    - las 12 derivaciones, pausa y 0,5/1/2×;
+    - corazón que late con cada QRS y la FC;
+    - los intervalos del patrón;
+    - pitido opcional con cada QRS: el mismo de la web (880 Hz, 90 ms, misma envolvente), generado
+      como `assets/audio/pitido_monitor.wav` (4 KB).
+
+    En la web el trazo se pinta sobre un canvas que no se borra. Aquí cada fotograma se dibuja entero
+    a partir del tiempo simulado, con el borrado delante del cabezal: se ve igual y no hace falta
+    guardar el lienzo.
+  - **ECG 4×3 con la tira de ritmo** de la derivación elegida y las marcas de calibración. En el móvil se
+    dibuja a 640 px como mínimo y se desliza en horizontal: a 360 px, cada panel se quedaba en 1,4 px
+    por milímetro.
+  - **La ficha clínica:** resumen, claves en el ECG y la perla MIR.
+- **Modo examen:**
+  - 10 ECG al azar, con la barra de avance y los aciertos.
+  - Buscador con siglas y sinónimos, igual que la web: hasta 6 sugerencias y la coincidencia exacta
+    primero. Escribir el nombre entero también vale.
+  - Corrección con la perla y un resultado con el anillo y el mensaje según el porcentaje.
+  - No cuenta para las estadísticas, como en la web.
+  - La única diferencia: la web quita las tildes con NFD y Dart no lo trae, así que se mapean las
+    letras con tilde del español. Comprobado contra el `normalizeAnswer` real.
+- **Tests:** 694 en verde (59 nuevos).
+  - Los 33 patrones contra la síntesis de la web, la tabla de derivaciones, el cruce de latidos y el
+    buscador.
+  - La pantalla en 360×780 y 1024×768: monitor que avanza, cambio de derivación y de velocidad, pausa,
+    elegir diagnóstico, los 33 dibujados, un examen entero hasta el 90 % y el hub de Electros.
+
+  `flutter analyze`, igual que antes: 295 avisos, ninguno nuevo. Se revisaron capturas en móvil y
+  tablet.
+- **Falta probar en el teléfono:**
+  - Que el barrido vaya fluido.
+  - Que el pitido suene a tiempo con cada QRS. Si se retrasa, se puede cambiar por háptica.
+  - El deslizamiento horizontal del 4×3.
+  - Que el final de la Academia abra el Explorador.
+  - El progreso guardado de la Academia sigue esperando a la tanda 12 de Studio.
 
 # Fase 4 · Juegos
 
