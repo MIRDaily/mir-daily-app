@@ -13,7 +13,7 @@ esperar a que la web y el backend las dejen firmes.
 **Copia en el repo de la app:** `docs/PLAN-PUESTA-AL-DIA.md` (rama `v7`), para que el otro ordenador la
 tenga. Al cerrar cada tanda se actualizan las dos.
 
-**Estado:** tandas 0 a 9 hechas (la 9, el 30/10/2026), salvo la prueba en el teléfono. Siguiente: tanda 10 (MedGuess).
+**Estado:** tandas 0 a 10 hechas (la 10, el 30/10/2026), salvo la prueba en el teléfono. Siguiente: tanda 11 (Minijuegos · GramSwipe).
 
 ## Resumen del orden
 
@@ -586,10 +586,11 @@ previsión sale igual en las dos.
   - lleva el ancla a la vista y la sigue 1,5 s mientras entra.
 
   Con «reducir movimiento», el texto sale entero y sin animaciones.
-- **Sonido: solo háptica** (un toque suave al pasar de paso), sin los «blips» de `mascotAudio.ts`. En la
-  web son osciladores de WebAudio. En la app habría que sintetizar audio y reproducirlo con
-  `audioplayers`, cuya latencia en Android rompe el ritmo letra a letra, y además se mezclaría con la
-  música de fondo. Si se quiere, va aparte.
+- **Sonido:** al principio solo háptica. Tras probarlo en el teléfono (30/10, commits `06ec92f` y
+  `242e08b`) la mascota habla con los «blips» de `mascotAudio.ts`: cinco WAV, uno por grado de la
+  pentatónica, generados con `tools/generar_voz_mascota.mjs` con la misma onda y envolvente. Suenan por
+  el canal de multimedia (por el de sistema, el modo silencio los callaba) y sin foco de audio, para no
+  cortar la música del usuario. Se oyen bien en el teléfono.
 - **Sin la maqueta animada de los modos** (`PreviewModo.tsx`): la web solo la pinta con hueco de sobra
   a un lado del foco, y en el móvil nunca lo hay.
 - **Volver a verlos:** Perfil → Preferencias → «Tutoriales».
@@ -690,12 +691,44 @@ previsión sale igual en las dos.
   - El deslizamiento horizontal del 4×3.
   - Que el final de la Academia abra el Explorador.
   - El progreso guardado de la Academia sigue esperando a la tanda 12 de Studio.
+- **Retoques tras probarla (30/10, `03e64d3`, `4e306c2` y `8b11697`):**
+  - El pitido viene activado de serie.
+  - Menú de Electros nuevo: monitor vivo que rota seis ritmos (tocarlo pasa al siguiente) y dos
+    tarjetas, «1 · Aprende» (Academia) y «2 · Practica» (Explorador, con «Ponte a prueba» directo al
+    examen). Una sola escala para que ningún QRS se salga; se hunden al tocarlas.
+  - Academia: sin la AppBar de Flutter (había dos flechas atrás y un hueco arriba); la portada trae su
+    botón de volver y el atrás de Android, dentro de una lección, vuelve al mapa de la ruta. Los iconos
+    ya no se salen del círculo ni se ven como texto mientras carga la fuente.
 
 # Fase 4 · Juegos
 
 ## Tanda 10 — MedGuess
 - `GET /medguess/today`, `POST /medguess/attempt` y `GET /medguess/result`. Pantalla del wordle médico
   diario, con háptica y sonido.
+
+### Resultado (30/10/2026, commit `0c6bd2f`)
+- **No es un wordle:** hay un término médico oculto (y sus sinónimos) y cada intento es una palabra
+  cualquiera de 5 letras del diccionario, que destapa sus letras en el término. Se gana al destapar uno
+  de los términos entero; 6 intentos, y cada fallo abre una pista.
+- `core/models/medguess.dart` (estado, intentos, máscaras, teclado y errores en castellano),
+  `core/services/medguess_api.dart` (solo /today y /attempt: /today ya trae todo) y
+  `features/medguess/` (controlador y pantalla).
+- **Pantalla:** el término con su categoría sobre papel milimetrado, tablero de 6×5 con volteo casilla
+  a casilla (toque y «blip» en cada una), teclado propio fijo abajo (el del sistema taparía el
+  tablero), pistas abiertas y por abrir, y el resultado al acabar. En el móvil la última pista se
+  repite en la tarjeta del término; en tablet, dos columnas.
+- **Diferencia con la web, a propósito:** una letra ya descubierta (`known`) sale en verde claro, no en
+  oscuro como una que no está.
+- **Entradas:** una herramienta más en Studio y un botón «Jugar al MedGuess de hoy» en «¡Daily
+  completado!». La web lo tiene en la cabecera.
+- **Fallo del backend, sin tocar:** /today manda en `terms[].display` el término completo aunque la
+  partida siga abierta. La app no lo pinta hasta el final, pero cualquiera puede leerlo en la
+  respuesta (también en la web). Arreglo: no mandar `display` hasta terminar.
+- **Tests:** `test/medguess_test.dart` (15), con un servidor de mentira que reproduce la lógica del
+  backend: modelo, cliente, controlador y partidas ganada, rechazada y agotada en 360×780 y 1024×768.
+  `flutter analyze`: 295, ninguno nuevo. Capturas revisadas en móvil y tablet.
+- **Falta probar en el teléfono:** una partida de verdad (que el reto del día cargue), el volteo con su
+  sonido y la vibración, y el teclado.
 
 ## Tanda 11 — Minijuegos (GramSwipe)
 - Centro de minijuegos y GramSwipe, a partir de `src/components/minijuegos/gramswipe`.
