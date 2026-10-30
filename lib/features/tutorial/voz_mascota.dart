@@ -66,8 +66,10 @@ class VozMascota {
     android: const AudioContextAndroid(
       isSpeakerphoneOn: false,
       stayAwake: false,
+      // Por el canal de multimedia, como en el navegador. Con `assistanceSonification` iba por el de
+      // sonidos del sistema, que el modo silencio/vibración calla: con el móvil así no se oía nada.
       contentType: AndroidContentType.sonification,
-      usageType: AndroidUsageType.assistanceSonification,
+      usageType: AndroidUsageType.media,
       audioFocus: AndroidAudioFocus.none,
     ),
     iOS: AudioContextIOS(category: AVAudioSessionCategory.ambient, options: const {}),
