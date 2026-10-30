@@ -771,9 +771,35 @@ previsión sale igual en las dos.
   `mind_maps` de Supabase, como en la web: no hay backend. Etiquetas siempre saneadas (memoria
   `mapas-label-html-saneado`).
 
+### Adelantado el 30/10/2026 (commit `5b9d393`): visor y edición simple, sin esperar a Studio 6
+Decidido con el dueño: no hacía falta esperar. La lista pide solo título, asignatura, fecha y fijado
+(sin el mapa entero), y el guardado ya es «sin pisar» con `updated_at`, que pone un disparador.
+- **Qué hay:** lista de mapas (búsqueda por título, fijados arriba) y visor nativo con zoom. Edición
+  simple: editar el texto de un nodo, añadir y borrar ramas, mover un nodo SELECCIONADO arrastrándolo
+  (con su rama), renombrar el mapa y deshacer. Plegar y desplegar solo para mirar (no se guarda).
+  Guardado automático a los 1,5 s; si la web guardó entre medias, pregunta con qué quedarse.
+  Entradas: «Mapas mentales» en Studio, y la Biblioteca abre el visor en vez de la web.
+- **Regla de oro:** se edita sobre el JSON original. Estilos, tablas, IA, ajustes y lo que la web añada
+  se guardan tal cual. Un nodo con formato avisa antes de quedarse sin él al editarlo; una tabla no se
+  edita.
+- **Mapas en árbol (v1, generados o importados y nunca abiertos en la web):** se ordenan como en la web
+  (`computeLayout`) y se ven, pero no se editan; avisan de abrirlos una vez en la web.
+- **Diferencias con la web, a propósito:** borrar se lleva la rama entera (la web deja huérfanos a los
+  hijos), con confirmación y deshacer. Sin doble toque (retrasaba la selección); el texto se edita
+  desde la barra. Ancho máximo de 270 px para partir líneas (la web no lo tiene en el nodo).
+- **Piezas:** `core/models/mapas.dart`, `core/services/mapas_api.dart` (en el árbol como `MapasApi`, con
+  `clienteConSesion`), `features/mapas/`. Tests: `test/mapas_test.dart` (30, con un Supabase de
+  mentira). `flutter analyze`: 295.
+- **Falta de esta tanda:** miniaturas y recuentos (con el `summary` de Studio 6), filtro por asignatura
+  y carpeta, papelera, modo estudio y el tutorial `mapas.v1`. Crear mapas sigue en la web.
+- **Falta probar en el teléfono:** abrir tus mapas reales (sobre todo los grandes y los de IA),
+  arrastrar sin que se confunda con desplazar, editar y comprobar en la web que se ve igual.
+
 ## Tanda 13 — Mapas · editor
 - **Decisión al empezar:** editor nativo completo, editor reducido (texto, ramas, plegar) o editarlo solo
   en la web. Es la pieza más cara de todo el plan.
+- **30/10/2026:** el reducido (texto, ramas y mover) ya está, adelantado con la 12. Queda decidir si se
+  va más allá (estilos, tablas, categorías).
 
 ## Tanda 14 — Mapas con IA y flashcards con IA
 - Documento → mapa (`/api/admin/mapas-ia`) y rama con IA (`/rama`). Documento o mapa → flashcards
@@ -810,7 +836,7 @@ previsión sale igual en las dos.
 | ~~Arreglar el 401 → renovar y reintentar en los clientes~~ **Hecho el 30/10/2026 (`6a6f9cf`)**, antes de la tanda 2 de Studio | Hecho |
 | ~~Guías: copiar a Dart o publicarlas como JSON desde la web~~ **Decidido 29/10/2026: JSON dentro de la app, generado de la web con un script** | Hecho |
 | ~~Qué se hace con «Actualizar» en el mazo de fallos~~ **Decidido 29/10/2026: no se porta** (la web no lo tiene; el servidor lo rehace solo y M1 ya está corregido) | Hecho |
-| Editor de mapas nativo, reducido o solo en web | Tanda 13 |
+| ~~Editor de mapas nativo, reducido o solo en web~~ **Reducido (texto, ramas y mover), hecho el 30/10/2026.** Falta decidir si se amplía | Tanda 13 |
 | Cuentas de tienda (Google Play / App Store) y quién firma | Tanda 17 |
 
 ## Fuera de este plan
