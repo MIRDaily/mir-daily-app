@@ -393,80 +393,18 @@ Map<String, dynamic> grafoDesdeArbol(Map<String, dynamic> arbol) {
     n['parentId'] = p;
     hijos.putIfAbsent(p, () => []).add(n);
   }
-  final raiz = hijos[null]!.first;
   String textoDe(Map<String, dynamic> n) =>
       n['table'] != null ? textoDeLabel(labelDeTabla(n['table'])) : textoDeLabel('${n['text'] ?? ''}');
 
-  const gapX = 110.0, gapY = 18.0, depthGaps = [60.0, 22.0];
-  final tam = <String, ({double w, double h})>{};
-  final span = <String, double>{};
-  final prof = <String, int>{};
-  double hueco(Map<String, dynamic> padre) => gapY + ((prof[padre['id']] ?? 0) < depthGaps.length ? depthGaps[prof[padre['id']]!] : 0);
-  List<Map<String, dynamic>> visibles(Map<String, dynamic> n) => hijos[n['id']] ?? const [];
-  double spanHijos(Map<String, dynamic> n) {
-    final g = hueco(n);
-    var acc = 0.0;
-    final hs = visibles(n);
-    for (var i = 0; i < hs.length; i++) {
-      acc += span[hs[i]['id']]! + (i > 0 ? g : 0);
-    }
-    return acc;
-  }
-
-  void medir(Map<String, dynamic> n, int d) {
-    prof[n['id']] = d;
-    tam[n['id']] = _tamanoEstimado(textoDe(n), d == 0);
-    for (final c in visibles(n)) {
-      medir(c, d + 1);
-    }
-    span[n['id']] = math.max(tam[n['id']]!.h, spanHijos(n));
-  }
-
-  medir(raiz, 0);
-  final cajas = <String, Rect>{};
-  void colocar(Map<String, dynamic> n, double borde, double arriba, int dir) {
-    final t = tam[n['id']]!;
-    final s = span[n['id']]!;
-    final x = dir == 1 ? borde : borde - t.w;
-    cajas[n['id']] = Rect.fromLTWH(x, arriba + (s - t.h) / 2, t.w, t.h);
-    final g = hueco(n);
-    var cursor = arriba + (s - spanHijos(n)) / 2;
-    for (final c in visibles(n)) {
-      colocar(c, dir == 1 ? x + t.w + gapX : x - gapX, cursor, dir);
-      cursor += span[c['id']]! + g;
-    }
-  }
-
-  final bloques = visibles(raiz);
-  if (bloques.length >= 8) {
-    final g = hueco(raiz);
-    final total = bloques.fold<double>(0, (a, c) => a + span[c['id']]!) + g * (bloques.length - 1);
-    var acumulado = 0.0, corte = 1, mejor = double.infinity;
-    for (var k = 1; k < bloques.length; k++) {
-      acumulado += span[bloques[k - 1]['id']]! + (k > 1 ? g : 0);
-      final diff = (acumulado - (total - acumulado - g)).abs();
-      if (diff < mejor) {
-        mejor = diff;
-        corte = k;
-      }
-    }
-    final lados = [(bloques.sublist(0, corte), 1), (bloques.sublist(corte), -1)];
-    double alto(List<Map<String, dynamic>> l) =>
-        l.isEmpty ? 0 : l.fold<double>(0, (a, c) => a + span[c['id']]!) + g * (l.length - 1);
-    final altos = lados.map((l) => alto(l.$1)).toList();
-    final rt = tam[raiz['id']]!;
-    final h = [...altos, rt.h].reduce(math.max);
-    cajas[raiz['id']] = Rect.fromLTWH(0, (h - rt.h) / 2, rt.w, rt.h);
-    for (var i = 0; i < 2; i++) {
-      var cursor = (h - altos[i]) / 2;
-      for (final c in lados[i].$1) {
-        colocar(c, lados[i].$2 == 1 ? rt.w + gapX : -gapX, cursor, lados[i].$2);
-        cursor += span[c['id']]! + g;
-      }
-    }
-  } else {
-    colocar(raiz, 0, 0, 1);
-  }
+  final cajas = ordenarEnArbol(
+    ids: [for (final n in nodos) n['id'] as String],
+    padres: {for (final n in nodos) n['id'] as String: n['parentId'] as String?},
+    tamano: (id) {
+      final n = nodos.firstWhere((x) => x['id'] == id);
+      final t = _tamanoEstimado(textoDe(n), n['parentId'] == null);
+      return Size(t.w, t.h);
+    },
+  );
 
   int nivel(Map<String, dynamic> n) {
     var l = 0;
@@ -518,6 +456,309 @@ Map<String, dynamic> grafoDesdeArbol(Map<String, dynamic> arbol) {
 }
 
 /* ════════════════════════════════════════════════════════════════════════
+   Ordenar en árbol (computeLayout de layout.ts + autoLayoutGraph de graph.ts)
+═══════════════════════════════════════════════════════════════════════════ */
+
+/// Coloca cada árbol de izquierda a derecha (raíz a la izquierda) y los árboles sueltos uno debajo
+/// de otro. Con 8 bloques o más colgando de una raíz, se reparten a los dos lados (abanico).
+/// [ids] da el orden de los hermanos; [padres], la jerarquía (sin ciclos); [tamano], cada caja.
+Map<String, Rect> ordenarEnArbol({
+  required List<String> ids,
+  required Map<String, String?> padres,
+  required Size Function(String id) tamano,
+}) {
+  const gapX = 110.0, gapY = 18.0, depthGaps = [60.0, 22.0], dosLadosDesde = 8;
+  final conjunto = ids.toSet();
+  final hijos = <String?, List<String>>{};
+  for (final id in ids) {
+    final p = padres[id];
+    hijos.putIfAbsent(p != null && conjunto.contains(p) ? p : null, () => []).add(id);
+  }
+  final tam = <String, Size>{};
+  final span = <String, double>{};
+  final prof = <String, int>{};
+  double hueco(String padre) {
+    final d = prof[padre] ?? 0;
+    return gapY + (d < depthGaps.length ? depthGaps[d] : 0);
+  }
+
+  List<String> deUno(String n) => hijos[n] ?? const [];
+  double spanHijos(String n) {
+    final hs = deUno(n);
+    if (hs.isEmpty) return 0;
+    return hs.fold<double>(0, (a, c) => a + span[c]!) + hueco(n) * (hs.length - 1);
+  }
+
+  void medir(String n, int d) {
+    prof[n] = d;
+    tam[n] = tamano(n);
+    for (final c in deUno(n)) {
+      medir(c, d + 1);
+    }
+    span[n] = math.max(tam[n]!.height, spanHijos(n));
+  }
+
+  final out = <String, Rect>{};
+  void colocar(String n, double borde, double arriba, int dir) {
+    final t = tam[n]!;
+    final x = dir == 1 ? borde : borde - t.width;
+    out[n] = Rect.fromLTWH(x, arriba + (span[n]! - t.height) / 2, t.width, t.height);
+    var cursor = arriba + (span[n]! - spanHijos(n)) / 2;
+    for (final c in deUno(n)) {
+      colocar(c, dir == 1 ? x + t.width + gapX : x - gapX, cursor, dir);
+      cursor += span[c]! + hueco(n);
+    }
+  }
+
+  var cursorY = 0.0;
+  for (final raiz in hijos[null] ?? const <String>[]) {
+    medir(raiz, 0);
+    final antes = out.length;
+    final bloques = deUno(raiz);
+    if (bloques.length >= dosLadosDesde) {
+      final g = hueco(raiz);
+      final total = bloques.fold<double>(0, (a, c) => a + span[c]!) + g * (bloques.length - 1);
+      var acumulado = 0.0, corte = 1, mejor = double.infinity;
+      for (var k = 1; k < bloques.length; k++) {
+        acumulado += span[bloques[k - 1]]! + (k > 1 ? g : 0);
+        final diff = (acumulado - (total - acumulado - g)).abs();
+        if (diff < mejor) {
+          mejor = diff;
+          corte = k;
+        }
+      }
+      final lados = [(bloques.sublist(0, corte), 1), (bloques.sublist(corte), -1)];
+      double alto(List<String> l) => l.isEmpty ? 0 : l.fold<double>(0, (a, c) => a + span[c]!) + g * (l.length - 1);
+      final altos = [for (final l in lados) alto(l.$1)];
+      final rt = tam[raiz]!;
+      final h = [...altos, rt.height].reduce(math.max);
+      out[raiz] = Rect.fromLTWH(0, cursorY + (h - rt.height) / 2, rt.width, rt.height);
+      for (var i = 0; i < 2; i++) {
+        var cursor = cursorY + (h - altos[i]) / 2;
+        for (final c in lados[i].$1) {
+          colocar(c, lados[i].$2 == 1 ? rt.width + gapX : -gapX, cursor, lados[i].$2);
+          cursor += span[c]! + g;
+        }
+      }
+    } else {
+      colocar(raiz, 0, cursorY, 1);
+    }
+    var maxY = cursorY;
+    for (final r in out.values.skip(antes)) {
+      maxY = math.max(maxY, r.bottom);
+    }
+    cursorY = maxY + 90;
+  }
+  return out;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   Tablas (table.ts): datos, estilo de cada celda y geometría
+═══════════════════════════════════════════════════════════════════════════ */
+
+class EstiloCelda {
+  final bool? negrita;
+  final bool? cursiva;
+  final Color? color;
+  final Color? fondo;
+  final TextAlign? alineacion;
+  const EstiloCelda({this.negrita, this.cursiva, this.color, this.fondo, this.alineacion});
+
+  static EstiloCelda? desde(Object? raw) {
+    if (raw is! Map) return null;
+    Color? hex(Object? v) => v is String && RegExp(r'^#[0-9a-fA-F]{6}$').hasMatch(v) ? colorCss(v) : null;
+    final e = EstiloCelda(
+      negrita: raw['bold'] is bool ? raw['bold'] as bool : null,
+      cursiva: raw['italic'] is bool ? raw['italic'] as bool : null,
+      color: hex(raw['color']),
+      fondo: hex(raw['fill']),
+      alineacion: switch (raw['align']) {
+        'left' => TextAlign.left,
+        'center' => TextAlign.center,
+        'right' => TextAlign.right,
+        _ => null,
+      },
+    );
+    return e.negrita == null && e.cursiva == null && e.color == null && e.fondo == null && e.alineacion == null ? null : e;
+  }
+
+  /// [encima] manda en lo que defina.
+  EstiloCelda mas(EstiloCelda? encima) => encima == null
+      ? this
+      : EstiloCelda(
+          negrita: encima.negrita ?? negrita,
+          cursiva: encima.cursiva ?? cursiva,
+          color: encima.color ?? color,
+          fondo: encima.fondo ?? fondo,
+          alineacion: encima.alineacion ?? alineacion,
+        );
+}
+
+class TablaMapa {
+  final String titulo;
+  final List<String> columnas;
+  final List<List<String>> filas;
+  final EstiloCelda? estiloCabecera;
+  final List<EstiloCelda?> estilosFila;
+  final List<EstiloCelda?> estilosColumna;
+  final List<List<EstiloCelda?>> estilosCelda;
+
+  const TablaMapa({
+    required this.titulo,
+    required this.columnas,
+    required this.filas,
+    this.estiloCabecera,
+    this.estilosFila = const [],
+    this.estilosColumna = const [],
+    this.estilosCelda = const [],
+  });
+
+  static TablaMapa? desde(Object? raw) {
+    if (raw is! Map) return null;
+    final cols = raw['columns'] is List ? [for (final c in raw['columns'] as List) '${c ?? ''}'] : <String>[];
+    if (cols.isEmpty) return null;
+    final filas = [
+      for (final f in (raw['rows'] is List ? raw['rows'] as List : const []))
+        if (f is List) [for (var j = 0; j < cols.length; j++) j < f.length ? '${f[j] ?? ''}' : ''],
+    ];
+    List<EstiloCelda?> lista(Object? v) => v is List ? [for (final e in v) EstiloCelda.desde(e)] : const [];
+    return TablaMapa(
+      titulo: raw['title'] is String ? raw['title'] as String : '',
+      columnas: cols,
+      filas: filas,
+      estiloCabecera: EstiloCelda.desde(raw['headerStyle']),
+      estilosFila: lista(raw['rowStyles']),
+      estilosColumna: lista(raw['colStyles']),
+      estilosCelda: raw['cellStyles'] is List ? [for (final f in raw['cellStyles'] as List) lista(f)] : const [],
+    );
+  }
+
+  /// Estilo de una celda (fila -1 = cabecera): el de su columna, encima el de su fila y encima el
+  /// suyo. La cabecera va en negrita salvo que se le quite (`cellStyleOf`).
+  EstiloCelda estiloDe(int fila, int col) {
+    EstiloCelda? en(List<EstiloCelda?> l, int i) => i >= 0 && i < l.length ? l[i] : null;
+    final deFila = fila < 0 ? estiloCabecera : en(estilosFila, fila);
+    final deCelda = fila + 1 < estilosCelda.length ? en(estilosCelda[fila + 1], col) : null;
+    return EstiloCelda(negrita: fila < 0 ? true : null).mas(en(estilosColumna, col)).mas(deFila).mas(deCelda);
+  }
+}
+
+/// Ancho de un texto de una línea, en negrita o no, a ese tamaño (px).
+typedef MedirCelda = double Function(String texto, bool negrita, double tamano);
+
+/// `estimateMeasure` de la web: sin tipografía real (tests).
+double medidaEstimada(String t, bool negrita, double tamano) => t.length * tamano * (negrita ? 0.6 : 0.55);
+
+class GeometriaTabla {
+  final List<double> anchosColumna;
+  final double altoTitulo;
+
+  /// Primero la cabecera, luego las filas de datos.
+  final List<double> altosFila;
+  final double ancho;
+  final double alto;
+  final double tamanoCelda;
+  const GeometriaTabla(this.anchosColumna, this.altoTitulo, this.altosFila, this.ancho, this.alto, this.tamanoCelda);
+}
+
+const double tablaPadX = 8, tablaPadY = 5, tablaTituloPadX = 10, tablaTituloPadY = 7, tablaLinea = 1.35;
+
+int _filasTexto(String texto, double maxW, MedirCelda m, bool negrita, double tam) {
+  var filas = 0;
+  for (final linea in (texto.isEmpty ? ' ' : texto).split('\n')) {
+    filas += 1;
+    var cur = 0.0;
+    final espacio = m(' ', negrita, tam);
+    for (final palabra in linea.split(' ')) {
+      final w = m(palabra, negrita, tam);
+      if (w > maxW) {
+        final piezas = (w / maxW).ceil();
+        filas += cur > 0 ? piezas : piezas - 1;
+        cur = w - (piezas - 1) * maxW;
+      } else if (cur == 0) {
+        cur = w;
+      } else if (cur + espacio + w <= maxW + 1e-6) {
+        cur += espacio + w;
+      } else {
+        filas += 1;
+        cur = w;
+      }
+    }
+  }
+  return filas;
+}
+
+/// `tableGeometry` de table.ts: anchos de columna por su contenido (56–240 px, la tabla hasta
+/// 640), estrechando primero las más anchas si no cabe, y altos por las líneas de cada fila.
+GeometriaTabla geometriaTabla(TablaMapa t, {MedirCelda medir = medidaEstimada, double tamano = 14, double borde = 2}) {
+  const minCol = 56.0, maxCol = 240.0, maxAncho = 640.0, minAncho = 160.0;
+  final celda = math.max(8.0, tamano - 1);
+  final n = t.columnas.length;
+  final anchos = List<double>.generate(n, (j) {
+    var w = 0.0;
+    final celdas = [
+      (t.columnas[j], t.estiloDe(-1, j).negrita == true),
+      for (var i = 0; i < t.filas.length; i++) (t.filas[i][j], t.estiloDe(i, j).negrita == true),
+    ];
+    for (final (texto, negrita) in celdas) {
+      for (final l in texto.split('\n')) {
+        w = math.max(w, medir(l, negrita, celda));
+      }
+    }
+    return math.min(maxCol, math.max(minCol, (w + 2 * tablaPadX + 1).ceilToDouble()));
+  });
+  final interior = maxAncho - 2 * borde;
+  var suma = anchos.fold<double>(0, (a, b) => a + b);
+  while (suma > interior + 0.5) {
+    final max = anchos.reduce(math.max);
+    if (max <= minCol) break;
+    final cuantas = anchos.where((w) => w == max).length;
+    final menores = anchos.where((w) => w < max);
+    final siguiente = math.max(minCol, menores.isEmpty ? minCol : menores.reduce(math.max));
+    final corte = math.min((max - siguiente) * cuantas, suma - interior);
+    for (var j = 0; j < n; j++) {
+      if (anchos[j] == max) anchos[j] = max - corte / cuantas;
+    }
+    suma = anchos.fold<double>(0, (a, b) => a + b);
+  }
+  if (suma < minAncho - 2 * borde) {
+    final k = (minAncho - 2 * borde) / suma;
+    for (var j = 0; j < n; j++) {
+      anchos[j] *= k;
+    }
+    suma = minAncho - 2 * borde;
+  }
+  final linea = celda * tablaLinea;
+  final altoTitulo =
+      _filasTexto(t.titulo.isEmpty ? ' ' : t.titulo, suma - 2 * tablaTituloPadX, medir, true, tamano) * tamano * tablaLinea +
+          2 * tablaTituloPadY;
+  final altos = <double>[];
+  for (var i = -1; i < t.filas.length; i++) {
+    final fila = i < 0 ? t.columnas : t.filas[i];
+    var lineas = 1;
+    for (var j = 0; j < n; j++) {
+      lineas = math.max(lineas, _filasTexto(fila[j], anchos[j] - 2 * tablaPadX, medir, t.estiloDe(i, j).negrita == true, celda));
+    }
+    altos.add(lineas * linea + 2 * tablaPadY + 1);
+  }
+  return GeometriaTabla(
+    anchos,
+    altoTitulo,
+    altos,
+    suma + 2 * borde,
+    altoTitulo + altos.fold<double>(0, (a, b) => a + b) + 2 * borde,
+    celda,
+  );
+}
+
+/// Color del borde y de la franja del título: el del borde del nodo o, sin borde, su relleno.
+Color acentoTabla(EstiloNodo e) => e.grosorBorde > 0 ? e.borde : e.relleno;
+
+/// Letra blanca u oscura según lo claro que sea el fondo (`readableOn`).
+Color legibleSobre(Color c) =>
+    (0.299 * c.r + 0.587 * c.g + 0.114 * c.b) > 0.62 ? const Color(0xFF2A2420) : const Color(0xFFFFFFFF);
+
+/* ════════════════════════════════════════════════════════════════════════
    El documento
 ═══════════════════════════════════════════════════════════════════════════ */
 
@@ -534,6 +775,9 @@ class NodoMapa {
   final bool plegado;
   final bool esTabla;
 
+  /// La tabla, si es un nodo tabla y se pudo leer.
+  final TablaMapa? tabla;
+
   const NodoMapa({
     required this.id,
     required this.posicion,
@@ -545,6 +789,7 @@ class NodoMapa {
     required this.categoria,
     required this.plegado,
     required this.esTabla,
+    this.tabla,
   });
 
   /// Se puede cambiar su texto en la app (una tabla se edita en la web).
@@ -614,6 +859,7 @@ class DocMapa {
                 categoria: categoriasMapa.containsKey(d['category']) ? d['category'] as String : 'general',
                 plegado: d['collapsed'] == true,
                 esTabla: d['table'] != null,
+                tabla: TablaMapa.desde(d['table']),
               );
             }(),
       ];
@@ -709,6 +955,16 @@ class DocMapa {
     if (nuevo.isEmpty || nuevo == d['label']) return false;
     d['label'] = nuevo;
     return true;
+  }
+
+  /// Deja los nodos en estas posiciones (las de «Ordenar», al editar sobre el mapa ordenado).
+  void colocar(Map<String, Offset> posiciones) {
+    _exigirEditable();
+    double r(double v) => (v * 10).round() / 10;
+    for (final n in _nodos) {
+      final p = posiciones[n['id']];
+      if (p != null) n['position'] = {'x': r(p.dx), 'y': r(p.dy)};
+    }
   }
 
   /// Mueve [id] y toda su rama (como el arrastre de rama del editor de la web).

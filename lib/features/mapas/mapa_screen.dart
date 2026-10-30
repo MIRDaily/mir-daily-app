@@ -28,7 +28,6 @@ enum _Guardado { guardado, pendiente, guardando, error }
 
 const double _margen = 160;
 const double _aire = 22;
-const double _anchoMax = 270;
 const Duration _esperaGuardado = Duration(milliseconds: 1500);
 
 class MapaScreen extends StatefulWidget {
@@ -65,6 +64,11 @@ class _MapaScreenState extends State<MapaScreen> {
   final TransformationController _vista = TransformationController();
   bool _encuadrado = false;
   final Map<String, Size> _tamanos = {};
+
+  /// «Ordenar»: el mapa recolocado en árbol con los tamaños de la app, solo para mirar. Al editar
+  /// sobre él, esas posiciones pasan al mapa (y se guardan con la edición).
+  bool _ordenar = false;
+  Map<String, Offset> _posOrdenadas = const {};
 
   @override
   void initState() {
@@ -146,6 +150,19 @@ class _MapaScreenState extends State<MapaScreen> {
   void _antesDeEditar() {
     _deshacer.add(jsonEncode(_doc!.json));
     if (_deshacer.length > 30) _deshacer.removeAt(0);
+    if (_ordenar) {
+      // Se edita sobre lo que se ve: el orden pasa a ser el del mapa.
+      _doc!.colocar(_posOrdenadas);
+      _ordenar = false;
+    }
+  }
+
+  void _alternarOrden() {
+    HapticsService.light();
+    setState(() {
+      _ordenar = !_ordenar;
+      _encuadrado = false;
+    });
   }
 
   void _cambiado({bool tamanos = false}) {
@@ -333,6 +350,14 @@ class _MapaScreenState extends State<MapaScreen> {
           child: Text(_titulo.isEmpty ? 'Mapa' : _titulo, overflow: TextOverflow.ellipsis),
         ),
         actions: [
+          if (doc != null)
+            IconButton(
+              tooltip: _ordenar ? 'Ver como está en la web' : 'Ordenar el mapa',
+              onPressed: _alternarOrden,
+              isSelected: _ordenar,
+              icon: const Icon(Icons.account_tree_outlined),
+              selectedIcon: const Icon(Icons.account_tree_rounded, color: kAccent),
+            ),
           if (doc != null && doc.editable) ...[
             IconButton(
               tooltip: 'Deshacer',
@@ -359,10 +384,20 @@ class _MapaScreenState extends State<MapaScreen> {
     final visibles = _visibles(doc);
     final todos = doc.nodos;
     if (visibles.isEmpty) return const _Error(mensaje: 'Este mapa está vacío');
-    final cajas = <String, Rect>{for (final n in visibles) n.id: n.posicion & _tamano(n)};
+    final ps0 = doc.padres;
+    if (_ordenar) {
+      final o = ordenarEnArbol(
+        ids: [for (final n in visibles) n.id],
+        padres: ps0,
+        tamano: (id) => _tamano(visibles.firstWhere((n) => n.id == id)),
+      );
+      _posOrdenadas = {for (final e in o.entries) e.key: e.value.topLeft};
+    }
+    Offset pos(NodoMapa n) => _ordenar ? (_posOrdenadas[n.id] ?? n.posicion) : n.posicion;
+    final cajas = <String, Rect>{for (final n in visibles) n.id: pos(n) & _tamano(n)};
     final limites = cajas.values.reduce((a, b) => a.expandToInclude(b)).inflate(_margen);
     final origen = limites.topLeft;
-    final ps = doc.padres;
+    final ps = ps0;
     final conHijos = <String, int>{};
     for (final n in todos) {
       final p = ps[n.id];
@@ -373,6 +408,26 @@ class _MapaScreenState extends State<MapaScreen> {
 
     return Column(
       children: [
+        // Una franja y no un aviso flotante: ese tapaba la barra de editar de abajo.
+        if (_ordenar)
+          Container(
+            width: double.infinity,
+            color: tinted(const Color(0xFF8BA888), 0.25),
+            padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
+            child: Row(
+              children: [
+                const Icon(Icons.account_tree_rounded, size: 18, color: kInk),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'Ordenado para leerlo aquí. El mapa no cambia salvo que lo edites.',
+                    style: TextStyle(color: kInk, fontSize: 12.5, fontWeight: FontWeight.w600, height: 1.3),
+                  ),
+                ),
+                TextButton(onPressed: _alternarOrden, child: const Text('Quitar')),
+              ],
+            ),
+          ),
         if (!editable)
           Container(
             width: double.infinity,
@@ -429,8 +484,8 @@ class _MapaScreenState extends State<MapaScreen> {
                           Positioned(
                             // El nodo va dentro de una caja con [_aire] a cada lado: ahí cabe el
                             // botón de plegar, que si sobresaliera no recibiría toques.
-                            left: n.posicion.dx - origen.dx - _aire,
-                            top: n.posicion.dy - origen.dy,
+                            left: pos(n).dx - origen.dx - _aire,
+                            top: pos(n).dy - origen.dy,
                             child: _NodoWidget(
                               key: ValueKey(n.id),
                               nodo: n,
@@ -544,15 +599,53 @@ EdgeInsets _relleno(FormaNodo f) => switch (f) {
   _ => const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
 };
 
-/// El tamaño que ocupa un nodo: el guardado si lo hay (redimensionado o círculo) o el del texto,
-/// con un ancho máximo para que los textos largos se partan en líneas.
+/// Mide un texto de una línea con la letra de los mapas (para la geometría de las tablas).
+double medirCeldaLexend(String texto, bool negrita, double tamano) {
+  final tp = TextPainter(
+    text: TextSpan(
+      text: texto,
+      style: TextStyle(
+        inherit: false,
+        fontFamily: 'Lexend',
+        fontSize: tamano,
+        fontWeight: negrita ? FontWeight.w700 : FontWeight.w400,
+        letterSpacing: 0,
+        wordSpacing: 0,
+      ),
+    ),
+    textDirection: TextDirection.ltr,
+  )..layout();
+  final w = tp.width;
+  tp.dispose();
+  return w;
+}
+
+/// La geometría de un nodo tabla, con la letra real.
+GeometriaTabla geometriaDe(NodoMapa n) => geometriaTabla(
+  n.tabla!,
+  medir: medirCeldaLexend,
+  tamano: n.estilo.tamanoLetra,
+  borde: math.max(1, n.estilo.grosorBorde),
+);
+
+/// El tamaño que ocupa un nodo, como en la web: el guardado si lo hay (redimensionado o círculo);
+/// una tabla, por su geometría; el resto, lo que pide su texto (sin partir líneas salvo los saltos
+/// que tenga: la caja crece con el texto, como en el lienzo de la web). Si en la app las cajas
+/// midieran distinto, se montarían unas sobre otras con las posiciones guardadas desde la web.
 Size medirNodo(NodoMapa n) {
   final e = n.estilo;
+  if (n.tabla != null) {
+    final g = geometriaDe(n);
+    return Size(n.ancho ?? g.ancho.ceilToDouble(), g.alto.ceilToDouble());
+  }
   final pad = _relleno(e.forma);
   final borde = e.forma == FormaNodo.rotulo ? 0.0 : e.grosorBorde * 2;
-  final maxTexto = (n.ancho ?? _anchoMax) - pad.horizontal - borde;
-  final tp = TextPainter(text: spanDeLabel(n), textDirection: TextDirection.ltr, textAlign: e.alineacion)
-    ..layout(maxWidth: math.max(20, maxTexto));
+  final tp = TextPainter(text: spanDeLabel(n), textDirection: TextDirection.ltr, textAlign: e.alineacion);
+  if (n.ancho != null) {
+    tp.layout(maxWidth: math.max(20, n.ancho! - pad.horizontal - borde));
+  } else {
+    tp.layout();
+  }
   // +2 de holgura (como estimateSize de la web): con el ancho justo, el redondeo hacía que el texto
   // pintado partiera la línea y la última palabra se quedara fuera de la caja.
   var w = n.ancho ?? (tp.width + pad.horizontal + borde + 2).ceilToDouble();
@@ -571,6 +664,112 @@ Size medirNodo(NodoMapa n) {
     return Size(lado, lado);
   }
   return Size(w, h);
+}
+
+/// Un nodo tabla como en la web (TableBody.tsx): franja de título del color del nodo, cabecera
+/// tintada, rejilla fina y cada celda con su estilo.
+class _TablaWidget extends StatelessWidget {
+  final NodoMapa nodo;
+  final Size tamano;
+  final bool seleccionado;
+
+  const _TablaWidget({required this.nodo, required this.tamano, required this.seleccionado});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = nodo.tabla!;
+    final e = nodo.estilo;
+    final g = geometriaDe(nodo);
+    final bw = math.max(1.0, e.grosorBorde);
+    final acento = acentoTabla(e);
+    final rejilla = acento.withValues(alpha: 0.38);
+
+    Widget celda(int fila, int col, String texto) {
+      final st = t.estiloDe(fila, col);
+      return Container(
+        width: g.anchosColumna[col],
+        padding: const EdgeInsets.symmetric(horizontal: tablaPadX, vertical: tablaPadY),
+        decoration: BoxDecoration(
+          color: st.fondo,
+          border: Border(
+            left: col > 0 ? BorderSide(color: rejilla) : BorderSide.none,
+            top: BorderSide(color: rejilla),
+          ),
+        ),
+        child: Text(
+          texto.isEmpty ? ' ' : texto,
+          textAlign: st.alineacion ?? TextAlign.left,
+          textScaler: TextScaler.noScaling,
+          style: TextStyle(
+            inherit: false,
+            fontFamily: 'Lexend',
+            fontSize: g.tamanoCelda,
+            height: tablaLinea,
+            letterSpacing: 0,
+            wordSpacing: 0,
+            fontWeight: st.negrita == true ? FontWeight.w700 : FontWeight.w400,
+            fontStyle: st.cursiva == true ? FontStyle.italic : FontStyle.normal,
+            color: st.color ?? e.texto,
+            textBaseline: TextBaseline.alphabetic,
+          ),
+        ),
+      );
+    }
+
+    Widget fila(int i, List<String> textos) => SizedBox(
+      height: g.altosFila[i + 1],
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [for (var j = 0; j < textos.length; j++) celda(i, j, textos[j])],
+      ),
+    );
+
+    return Container(
+      width: tamano.width,
+      height: tamano.height,
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: e.relleno,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: seleccionado ? kInk : acento, width: seleccionado ? math.max(bw, 2.5) : bw),
+        boxShadow: const [BoxShadow(color: Color(0x26000000), blurRadius: 12, offset: Offset(0, 2))],
+      ),
+      child: OverflowBox(
+        alignment: Alignment.topLeft,
+        minWidth: g.ancho - 2 * bw,
+        maxWidth: g.ancho - 2 * bw,
+        maxHeight: double.infinity,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              height: g.altoTitulo,
+              color: acento,
+              padding: const EdgeInsets.symmetric(horizontal: tablaTituloPadX, vertical: tablaTituloPadY),
+              child: Text(
+                t.titulo.isEmpty ? ' ' : t.titulo,
+                textScaler: TextScaler.noScaling,
+                style: TextStyle(
+                  inherit: false,
+                  fontFamily: 'Lexend',
+                  fontSize: e.tamanoLetra,
+                  height: tablaLinea,
+                  letterSpacing: 0,
+                  wordSpacing: 0,
+                  fontWeight: FontWeight.w700,
+                  color: legibleSobre(acento),
+                  textBaseline: TextBaseline.alphabetic,
+                ),
+              ),
+            ),
+            Container(color: acento.withValues(alpha: 0.14), child: fila(-1, t.columnas)),
+            for (var i = 0; i < t.filas.length; i++) fila(i, t.filas[i]),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _NodoWidget extends StatelessWidget {
@@ -615,54 +814,56 @@ class _NodoWidget extends StatelessWidget {
           ]
         : const [BoxShadow(color: Color(0x26000000), blurRadius: 12, offset: Offset(0, 2))];
 
-    final Widget cuerpo = switch (e.forma) {
-      FormaNodo.rombo => CustomPaint(
-        painter: _RomboPainter(
-          e.relleno,
-          e.grosorBorde > 0 || seleccionado ? colorBorde : null,
-          math.max(e.grosorBorde, seleccionado ? 2 : 0),
-        ),
-        child: Container(
-          width: tamano.width,
-          height: tamano.height,
-          alignment: Alignment.center,
-          padding: _relleno(e.forma),
-          child: texto,
-        ),
-      ),
-      FormaNodo.rotulo => Container(
-        width: tamano.width,
-        height: tamano.height,
-        alignment: Alignment.center,
-        padding: _relleno(e.forma),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          boxShadow: seleccionado ? const [BoxShadow(color: kInk, spreadRadius: 2)] : null,
-          color: seleccionado ? Colors.white : null,
-        ),
-        child: texto,
-      ),
-      _ => Container(
-        width: tamano.width,
-        height: tamano.height,
-        alignment: Alignment.center,
-        padding: _relleno(e.forma),
-        decoration: BoxDecoration(
-          color: e.relleno,
-          shape: e.forma == FormaNodo.circulo ? BoxShape.circle : BoxShape.rectangle,
-          borderRadius: switch (e.forma) {
-            FormaNodo.pastilla => BorderRadius.circular(999),
-            FormaNodo.circulo => null,
-            _ => BorderRadius.circular(12),
-          },
-          border: e.grosorBorde > 0 || seleccionado
-              ? Border.all(color: colorBorde, width: math.max(e.grosorBorde, seleccionado ? 2 : 0))
-              : null,
-          boxShadow: sombras,
-        ),
-        child: texto,
-      ),
-    };
+    final Widget cuerpo = nodo.tabla != null
+        ? _TablaWidget(nodo: nodo, tamano: tamano, seleccionado: seleccionado)
+        : switch (e.forma) {
+            FormaNodo.rombo => CustomPaint(
+              painter: _RomboPainter(
+                e.relleno,
+                e.grosorBorde > 0 || seleccionado ? colorBorde : null,
+                math.max(e.grosorBorde, seleccionado ? 2 : 0),
+              ),
+              child: Container(
+                width: tamano.width,
+                height: tamano.height,
+                alignment: Alignment.center,
+                padding: _relleno(e.forma),
+                child: texto,
+              ),
+            ),
+            FormaNodo.rotulo => Container(
+              width: tamano.width,
+              height: tamano.height,
+              alignment: Alignment.center,
+              padding: _relleno(e.forma),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                boxShadow: seleccionado ? const [BoxShadow(color: kInk, spreadRadius: 2)] : null,
+                color: seleccionado ? Colors.white : null,
+              ),
+              child: texto,
+            ),
+            _ => Container(
+              width: tamano.width,
+              height: tamano.height,
+              alignment: Alignment.center,
+              padding: _relleno(e.forma),
+              decoration: BoxDecoration(
+                color: e.relleno,
+                shape: e.forma == FormaNodo.circulo ? BoxShape.circle : BoxShape.rectangle,
+                borderRadius: switch (e.forma) {
+                  FormaNodo.pastilla => BorderRadius.circular(999),
+                  FormaNodo.circulo => null,
+                  _ => BorderRadius.circular(12),
+                },
+                border: e.grosorBorde > 0 || seleccionado
+                    ? Border.all(color: colorBorde, width: math.max(e.grosorBorde, seleccionado ? 2 : 0))
+                    : null,
+                boxShadow: sombras,
+              ),
+              child: texto,
+            ),
+          };
 
     return Semantics(
       button: true,

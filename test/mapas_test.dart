@@ -366,7 +366,10 @@ void main() {
         await montar(tester, _grafo());
         expect(find.text('Asma'), findsNWidgets(2), reason: 'el título y la raíz');
         expect(find.textContaining('Clínica', findRichText: true), findsWidgets);
-        expect(find.textContaining('SABA | Salbutamol', findRichText: true), findsOneWidget);
+        // La tabla, como tabla: título, cabecera y celdas por separado.
+        for (final c in ['Fármacos', 'Grupo', 'Ejemplo', 'SABA', 'Salbutamol']) {
+          expect(find.text(c), findsOneWidget, reason: c);
+        }
         expect(tester.takeException(), isNull);
       });
 
