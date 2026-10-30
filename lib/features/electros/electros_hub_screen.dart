@@ -6,19 +6,17 @@ import '../../core/theme/app_theme.dart';
 import '../../shared/widgets/misc_widgets.dart';
 import '../../shared/widgets/pressable.dart';
 import 'electro_web_view.dart';
+import 'explorador/explorador_ecg_screen.dart';
 
-/// Sub-hub de Electros dentro de Biblioteca: da acceso al simulador de ECG de
-/// 12 derivaciones y a la Academia (aprendizaje guiado). Cada uno abre su
-/// herramienta web embebida.
+/// Sub-hub de Electros dentro de Studio: la Academia (aprendizaje guiado, web
+/// embebida) y el Explorador de 12 derivaciones (nativo, como el de la web).
+/// Al terminar la ruta, la Academia también lleva al Explorador.
 class ElectrosHubScreen extends StatelessWidget {
   const ElectrosHubScreen({super.key});
 
-  void _openSimulador(BuildContext context) {
+  void _openExplorador(BuildContext context) {
     Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => const ElectroWebView(
-        title: 'Simulador de ECG',
-        assetPrefix: 'assets/electros/simulador',
-      ),
+      builder: (_) => const ExploradorEcgScreen(),
     ));
   }
 
@@ -27,7 +25,7 @@ class ElectrosHubScreen extends StatelessWidget {
       builder: (_) => ElectroWebView(
         title: 'Academia ECG',
         assetPrefix: 'assets/electros/academia',
-        onOpenSimulador: () => _openSimulador(context),
+        onOpenSimulador: () => _openExplorador(context),
       ),
     ));
   }
@@ -88,13 +86,13 @@ class ElectrosHubScreen extends StatelessWidget {
                   delay: const Duration(milliseconds: 230),
                   beginOffset: const Offset(0, 0.12),
                   child: _ElectroCard(
-                    title: 'Simulador de ECG',
+                    title: 'Explorador de 12 derivaciones',
                     subtitle:
-                        'Monitor animado y ECG de 12 derivaciones para estudiar los principales diagnósticos, con modo examen.',
+                        'Monitor animado y ECG completo de 12 derivaciones para estudiar los diagnósticos clave del MIR, con eje, territorios del infarto y modo examen.',
                     icon: Icons.monitor_heart_rounded,
                     gradient: const [Color(0xFF6E8E6B), Color(0xFF8BA888)],
                     tag: '12 DERIVACIONES',
-                    onTap: () => _openSimulador(context),
+                    onTap: () => _openExplorador(context),
                   ),
                 ),
               ],

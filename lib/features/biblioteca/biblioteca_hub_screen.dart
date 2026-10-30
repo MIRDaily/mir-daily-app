@@ -133,7 +133,7 @@ class BibliotecaHubScreen extends StatelessWidget {
                   child: _ToolCard(
                     title: 'Electros',
                     subtitle:
-                        'Aprende a leer el ECG en la Academia y practica con un simulador de 12 derivaciones.',
+                        'Aprende a leer el ECG en la Academia y practica con el explorador de 12 derivaciones.',
                     tag: 'ECG',
                     icon: Icons.monitor_heart_rounded,
                     accent: const Color(0xFFC45B4B),

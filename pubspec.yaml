@@ -94,7 +94,6 @@ flutter:
   
   assets:
     - assets/images/
-    - assets/electros/simulador/
     - assets/electros/academia/
     - assets/audio/
     - assets/animations/
