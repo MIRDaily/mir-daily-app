@@ -12,6 +12,7 @@ import 'package:mirdaily_app/core/models/models.dart';
 import 'package:mirdaily_app/core/models/tutoriales.dart';
 import 'package:mirdaily_app/core/services/tutoriales_api.dart';
 import 'package:mirdaily_app/features/tutorial/tutoriales_controller.dart';
+import 'package:mirdaily_app/features/tutorial/voz_mascota.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Un servidor de mentira para /api/profile/tutorials.
@@ -409,6 +410,33 @@ void main() {
       await _esperar();
       t.sincronizar(usuario: null, perfil: null, celebrando: false);
       expect(t.enCurso, isNull);
+    });
+  });
+
+  group('voz de la mascota (como mascotAudio.ts y MascotBubble.tsx)', () {
+    test('en los tests está muda: sin plugin nativo, un AudioPlayer rompería', () {
+      expect(VozMascota.activa, isFalse);
+      VozMascota.instancia.blip(42); // no lanza
+    });
+
+    test('a velocidad normal, un blip cada dos caracteres y nunca en un espacio', () {
+      final blips = [for (var i = 1; i <= 8; i++) if (tocaBlip('a', i, msPorCaracter)) i];
+      expect(blips, [2, 4, 6, 8]);
+      expect(tocaBlip(' ', 2, msPorCaracter), isFalse);
+      expect(tocaBlip('\n', 2, msPorCaracter), isFalse);
+    });
+
+    test('al acelerar se salta más caracteres: el ritmo de blips no pasa de uno cada ~55 ms', () {
+      final rapido = retardoAcelerado(msPorCaracter); // 7 ms
+      final blips = [for (var i = 1; i <= 24; i++) if (tocaBlip('a', i, rapido)) i];
+      expect(blips, [8, 16, 24]);
+      expect(tocaBlip('a', 14, msMinimo), isTrue, reason: '55 / 4 → uno de cada 14');
+    });
+
+    test('el grado lo decide el texto, dentro de la pentatónica', () {
+      expect(gradosVozMascota, [0, 2, 4, 7, 9]);
+      expect(gradoBlip(2 + 'H'.codeUnitAt(0)), (2 + 72) % 5);
+      expect({for (var s = -10; s < 40; s++) gradoBlip(s)}, {0, 1, 2, 3, 4});
     });
   });
 }

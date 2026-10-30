@@ -8,8 +8,8 @@
 // - Con «reducir movimiento» (MediaQuery.disableAnimations) no hay máquina de escribir: sale entero.
 // - En el móvil la mascota va ENCIMA del bocadillo (al lado no caben); en tablet, al lado, con el
 //   bocadillo a la altura de la cabeza.
-// - Sin sonido: la web hace «blips» con WebAudio; aquí acompaña la háptica de la capa al avanzar
-//   (ver el resultado de la tanda 8 en el plan).
+// - Habla con «blips» mientras escribe, como la web (ver voz_mascota.dart). Sin máquina de escribir
+//   (reducir movimiento) tampoco hay blips.
 
 import 'dart:async';
 
@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/models/tutoriales.dart';
 import '../../shared/sticker/sticker.dart';
+import 'voz_mascota.dart';
 
 const Color _kBordeBocadillo = Color(0x4DE8A598); // #E8A598 al 30 %
 const Color _kTextoBocadillo = Color(0xFF2D3748);
@@ -95,6 +96,8 @@ class _MascotaBocadilloState extends State<MascotaBocadillo> with SingleTickerPr
   void _escribir() {
     if (!mounted) return;
     setState(() => _visibles++);
+    final c = widget.texto[_visibles - 1];
+    if (tocaBlip(c, _visibles, _retardo)) VozMascota.instancia.blip(_visibles + c.codeUnitAt(0));
     if (_completo) {
       _avisar();
       return;
