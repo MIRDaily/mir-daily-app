@@ -98,6 +98,8 @@ flutter:
     - assets/audio/
     # La voz de la mascota (tools/generar_voz_mascota.mjs).
     - assets/audio/mascota/
+    # Fotos de GramSwipe (tools/export_gramswipe.mjs).
+    - assets/gramswipe/
     - assets/animations/
     # Guías de estudio de la Biblioteca, exportadas de la web con
     # tools/export_study_guides.mjs (no editar a mano).

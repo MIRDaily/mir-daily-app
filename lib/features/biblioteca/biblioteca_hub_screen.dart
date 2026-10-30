@@ -16,7 +16,7 @@ import '../library/library_screen.dart';
 import '../resumenes/resumenes_screen.dart';
 import '../resumenes/widgets/prevision_resumenes.dart';
 import '../simulacro/simulacro_screen.dart';
-import '../medguess/medguess_screen.dart';
+import '../minijuegos/minijuegos_screen.dart';
 import '../tutorial/tutorial_ancla.dart';
 import 'widgets/a_medida_card.dart';
 import 'widgets/progreso_mensual.dart';
@@ -176,14 +176,15 @@ class BibliotecaHubScreen extends StatelessWidget {
                   delay: const Duration(milliseconds: 395),
                   beginOffset: const Offset(0, 0.12),
                   child: _ToolCard(
-                    title: 'MedGuess',
+                    // Como «Minijuegos» de la web; aquí incluye también MedGuess.
+                    title: 'Minijuegos',
                     subtitle:
-                        'El reto médico del día: destapa el término oculto con palabras de 5 letras.',
-                    tag: 'Reto diario',
-                    icon: Icons.spellcheck_rounded,
+                        'GramSwipe para clasificar antibióticos y MedGuess, el reto médico del día.',
+                    tag: 'Juego rápido',
+                    icon: Icons.sports_esports_rounded,
                     accent: const Color(0xFF8BA888),
                     texture: graphPaper(tint: const Color(0xFF8BA888), step: 14),
-                    onTap: () => _open(context, const MedGuessScreen()),
+                    onTap: () => _open(context, const MinijuegosScreen()),
                   ),
                 ),
               ],
