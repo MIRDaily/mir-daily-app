@@ -796,6 +796,12 @@ Decidido con el dueño: no hacía falta esperar. La lista pide solo título, asi
   «Recientes»; buscar por título o carpeta; menú de cada mapa para fijar/quitar (columna `pinned`) y
   mover a carpeta (`PATCH /api/carpetas`, el selector de siempre). Lógica en
   `features/mapas/mapas_agrupar.dart`; tests en `test/mapas_organizar_test.dart` (7).
+- **Cajas como en la web y «Ordenar» (30/10/2026, commit `8dd0db8`):** en el teléfono los nodos se
+  montaban unos sobre otros: las cajas medían distinto que en la web (donde se guardaron las posiciones).
+  Las tablas se pintan como tablas (franja de título, cabecera, rejilla, estilo por celda; geometría de
+  `tableGeometry`) y el texto ya no se parte a 270 px. Botón «Ordenar» en el visor: recoloca en árbol con
+  los tamaños de la app (el `computeLayout` de la web, compartido con los mapas v1), solo para mirar; si
+  se edita sobre él, ese orden se guarda. Tests: `test/mapas_ordenar_test.dart` (9).
 - **Falta de esta tanda:** miniaturas y recuentos de nodos (con el `summary` de Studio 6), papelera,
   modo estudio y el tutorial `mapas.v1`. Crear mapas sigue en la web.
 - **Falta probar en el teléfono:** abrir tus mapas reales (sobre todo los grandes y los de IA),
