@@ -215,14 +215,19 @@ class AuthService {
         )
         .timeout(const Duration(seconds: 20));
 
-    final body = jsonDecode(res.body) as Map<String, dynamic>;
-
-    if (res.statusCode != 200) {
+    // Solo un «no» de Supabase al refresh token (400/401: caducado, revocado o ya usado) cierra la
+    // sesión. Un 5xx, un 429 o una respuesta rara son pasajeros: se lanza un error normal, la sesión
+    // se queda y se volverá a intentar (antes, un 500 suelto de Supabase te sacaba de tu cuenta).
+    if (res.statusCode == 400 || res.statusCode == 401) {
       await clearSession();
       throw const AuthException(
           'Tu sesión ha caducado. Vuelve a iniciar sesión.');
     }
+    if (res.statusCode != 200) {
+      throw Exception('No se pudo renovar la sesión (${res.statusCode})');
+    }
 
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
     final refreshed = AuthSession.fromSupabase(body);
     await persistSession(refreshed);
     return refreshed;

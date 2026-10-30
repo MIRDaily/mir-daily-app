@@ -58,10 +58,12 @@ class _MedGuessScreenState extends State<MedGuessScreen> {
   @override
   void initState() {
     super.initState();
-    final api = widget.api ??
-        MedGuessApi(token: context.read<ApiService>().validToken, baseUrl: AppConfig.apiBaseUrl);
+    final api = widget.api ?? _apiReal(context.read<ApiService>());
     _c = MedGuessController(api)..cargar();
   }
+
+  static MedGuessApi _apiReal(ApiService sesion) =>
+      MedGuessApi(token: sesion.validToken, baseUrl: AppConfig.apiBaseUrl, client: sesion.clienteConSesion);
 
   @override
   void dispose() {

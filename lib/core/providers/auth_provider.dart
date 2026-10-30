@@ -16,6 +16,19 @@ class AuthProvider extends ChangeNotifier {
 
   AuthProvider({required this.authService, required this.apiService}) {
     _listenDeepLinks();
+    apiService.alPerderSesion = _sesionPerdida;
+  }
+
+  /// Supabase ha rechazado el refresh token en mitad del uso (caducado tras mucho tiempo sin abrir
+  /// la app, contraseña cambiada, sesión cerrada en otro sitio). Se vuelve al login con el motivo,
+  /// en vez de dejar cada pantalla fallando con 401.
+  void _sesionPerdida(String mensaje) {
+    if (_status != AuthStatus.authenticated) return;
+    _profile = null;
+    _profileChecked = false;
+    _error = mensaje;
+    _status = AuthStatus.unauthenticated;
+    notifyListeners();
   }
 
   final _appLinks = AppLinks();

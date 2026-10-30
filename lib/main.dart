@@ -81,11 +81,13 @@ void main() async {
   final iaService = IaService(
     token: apiService.validToken,
     baseUrl: AppConfig.apiBaseUrl,
+    client: apiService.clienteConSesion,
   );
   // Resúmenes activos: comparte la sesión con ApiService (JWT renovado en un único sitio).
   final resumenesApi = ResumenesApi(
     token: apiService.validToken,
     baseUrl: AppConfig.apiBaseUrl,
+    client: apiService.clienteConSesion,
   );
   // Generación de resúmenes con IA (usa la capa de IA de la fase 0).
   final resumenesIa = ResumenesIa(iaService);
@@ -139,11 +141,11 @@ class MIRDailyApp extends StatelessWidget {
         Provider<ResumenesIa>.value(value: resumenesIa),
         // Carpetas del material (asignatura y tema): dónde se guarda lo creado con IA.
         Provider<CarpetasApi>(
-          create: (_) => CarpetasApi(token: apiService.validToken, baseUrl: AppConfig.apiBaseUrl),
+          create: (_) => CarpetasApi(token: apiService.validToken, baseUrl: AppConfig.apiBaseUrl, client: apiService.clienteConSesion),
         ),
         // Reportar pregunta (POST /api/reports): lo abre el botón de cada pantalla de preguntas.
         Provider<ReportesApi>(
-          create: (_) => ReportesApi(token: apiService.validToken, baseUrl: AppConfig.apiBaseUrl),
+          create: (_) => ReportesApi(token: apiService.validToken, baseUrl: AppConfig.apiBaseUrl, client: apiService.clienteConSesion),
         ),
         ChangeNotifierProvider(
           create: (_) => AuthProvider(
@@ -156,7 +158,7 @@ class MIRDailyApp extends StatelessWidget {
         // usuario se olvida el saldo y se vuelve a pedir al abrir algo con IA.
         ChangeNotifierProxyProvider<AuthProvider, CreditosIa>(
           create: (_) => CreditosIa(
-            CreditosApi(token: apiService.validToken, baseUrl: AppConfig.apiBaseUrl),
+            CreditosApi(token: apiService.validToken, baseUrl: AppConfig.apiBaseUrl, client: apiService.clienteConSesion),
           ),
           update: (_, auth, creditos) => creditos!
             ..setUsuario(
@@ -167,7 +169,7 @@ class MIRDailyApp extends StatelessWidget {
         // como los créditos; al cambiar de cuenta también se olvida qué preguntas se habían reportado.
         ChangeNotifierProxyProvider<AuthProvider, Avisos>(
           create: (_) => Avisos(
-            AvisosApi(token: apiService.validToken, baseUrl: AppConfig.apiBaseUrl),
+            AvisosApi(token: apiService.validToken, baseUrl: AppConfig.apiBaseUrl, client: apiService.clienteConSesion),
           ),
           update: (_, auth, avisos) {
             final usuario = auth.status == AuthStatus.authenticated ? auth.userId : null;
@@ -192,7 +194,7 @@ class MIRDailyApp extends StatelessWidget {
         // y del progreso: es de una cuenta y espera a que se cierre cualquier celebración.
         ChangeNotifierProxyProvider2<AuthProvider, ProgressProvider, Tutoriales>(
           create: (_) => Tutoriales(
-            TutorialesApi(token: apiService.validToken, baseUrl: AppConfig.apiBaseUrl),
+            TutorialesApi(token: apiService.validToken, baseUrl: AppConfig.apiBaseUrl, client: apiService.clienteConSesion),
           ),
           update: (_, auth, progreso, tutoriales) => tutoriales!
             ..sincronizar(

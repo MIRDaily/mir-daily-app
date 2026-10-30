@@ -13,6 +13,7 @@ import '../models/simulacro_a_medida.dart';
 import '../models/models.dart';
 import '../models/progress.dart';
 import 'auth_service.dart';
+import 'cliente_con_sesion.dart';
 
 class ApiException implements Exception {
   final int statusCode;
@@ -47,6 +48,19 @@ class ApiService {
   /// `GET`.
   final http.Client _client;
 
+  /// [_client] con la renovación en 401 (ver [ClienteConSesion]). Es el que deben usar TODOS los
+  /// clientes del backend con la sesión del usuario (se lo pasa main.dart), para que un token
+  /// rechazado se renueve una vez y en un único sitio.
+  late final http.Client clienteConSesion = ClienteConSesion(_client, renovar: tokenTrasRechazo);
+
+  /// Se llama cuando la sesión muere de verdad (Supabase rechaza el refresh token): AuthProvider
+  /// lo usa para volver al login en vez de dejar cada pantalla fallando con 401.
+  void Function(String mensaje)? alPerderSesion;
+
+  /// La renovación en curso: varias peticiones a la vez esperan a la misma, en vez de gastar cada
+  /// una el refresh token (Supabase lo rota: el segundo uso podría fallar y cerrar la sesión).
+  Future<AuthSession>? _renovando;
+
   ApiService(this._authService, {http.Client? client})
       : _client = client ?? http.Client();
 
@@ -74,11 +88,42 @@ class ApiService {
     if (s == null) {
       throw const ApiException(401, 'No hay sesión activa.');
     }
-    if (s.isExpired) {
-      s = await _authService.refresh(s);
-      session = s;
-    }
+    if (s.isExpired) s = await _renovar(s);
     return s.accessToken;
+  }
+
+  Future<AuthSession> _renovar(AuthSession s) {
+    final enCurso = _renovando;
+    if (enCurso != null) return enCurso;
+    final f = _authService.refresh(s).then((nueva) {
+      session = nueva;
+      return nueva;
+    }, onError: (Object e, StackTrace st) {
+      if (e is AuthException) {
+        // Supabase ha dicho que no: la sesión ya no vale (refresh ya la ha borrado del disco).
+        session = null;
+        alPerderSesion?.call(e.message);
+      }
+      return Future<AuthSession>.error(e, st);
+    });
+    _renovando = f;
+    f.then((_) => null, onError: (_) => null).whenComplete(() {
+      if (identical(_renovando, f)) _renovando = null;
+    });
+    return f;
+  }
+
+  /// Tras un 401 con [rechazado]: el token con el que reintentar, o null si no hay.
+  /// Si otra petición ya lo renovó, da el actual sin volver a renovar.
+  Future<String?> tokenTrasRechazo(String rechazado) async {
+    final s = session;
+    if (s == null) return null;
+    if (s.accessToken != rechazado) return s.accessToken;
+    try {
+      return (await _renovar(s)).accessToken;
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<Map<String, dynamic>> _request(
@@ -103,7 +148,7 @@ class ApiService {
     }
 
     final payload = conCuerpo.contains(method) ? jsonEncode(body ?? {}) : null;
-    final res = await _client
+    final res = await clienteConSesion
         .send(_buildRequest(method, uri, headers, payload))
         .timeout(const Duration(seconds: 25))
         .then(http.Response.fromStream);

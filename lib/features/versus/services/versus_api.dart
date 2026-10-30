@@ -32,11 +32,13 @@ class VersusApi {
       'Content-Type': 'application/json',
     };
 
+    // Con el cliente de la sesión: un 401 renueva el token y reintenta una vez.
+    final cliente = _api.clienteConSesion;
     final http.Response res = method == 'POST'
-        ? await http
+        ? await cliente
             .post(uri, headers: headers, body: jsonEncode(body ?? {}))
             .timeout(const Duration(seconds: 20))
-        : await http.get(uri, headers: headers).timeout(
+        : await cliente.get(uri, headers: headers).timeout(
               const Duration(seconds: 20),
             );
 
