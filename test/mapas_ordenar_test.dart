@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:mirdaily_app/core/models/mapas.dart';
 import 'package:mirdaily_app/core/services/mapas_api.dart';
@@ -94,6 +95,8 @@ bool _seSolapan(Iterable<Rect> cajas) {
 }
 
 void main() {
+  setUp(() => SharedPreferences.setMockInitialValues({}));
+
   group('tablas (tableGeometry)', () {
     final t = TablaMapa.desde(_tabla)!;
 

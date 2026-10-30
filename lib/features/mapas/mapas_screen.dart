@@ -11,11 +11,14 @@
 // La lista no baja los mapas enteros (sin miniatura hasta la tanda 6 de Studio). Crear, borrar y
 // la IA siguen en la web.
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/models/flashcards.dart' show visualAsignatura;
 import '../../core/responsive/breakpoints.dart';
+import '../../core/services/api_service.dart';
 import '../../core/services/carpetas.dart';
 import '../../core/services/haptics_service.dart';
 import '../../core/services/mapas_api.dart';
@@ -24,6 +27,7 @@ import '../../shared/ia/destino_carpeta.dart' show elegirCarpeta;
 import '../../shared/sticker/sticker.dart';
 import '../flashcards/widgets/flashcards_ui.dart' show iconoAsignatura;
 import '../resumenes/resumenes_grupo.dart' show resolveColorResumen;
+import 'aperturas_mapas.dart';
 import 'mapa_screen.dart';
 import 'mapas_agrupar.dart';
 
@@ -58,7 +62,9 @@ class _MapasScreenState extends State<MapasScreen> {
     try {
       // El catálogo es solo para los nombres: si falla, la lista sale igual.
       final arbolF = carpetas?.arbol().then<List<AsignaturaCatalogo>?>((a) => a, onError: (_) => null);
-      final m = await mapasApi.lista();
+      final aperturasF = AperturasMapas.leer(_cuenta());
+      final abiertos = await aperturasF;
+      final m = [for (final x in await mapasApi.lista()) abiertos[x.id] == null ? x : x.copiaCon(abierto: abiertos[x.id])];
       final a = await (arbolF ?? Future<List<AsignaturaCatalogo>?>.value(null));
       if (!mounted) return;
       setState(() {
@@ -91,7 +97,20 @@ class _MapasScreenState extends State<MapasScreen> {
   void _aviso(String t) =>
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t), behavior: SnackBarBehavior.floating));
 
+  /// La cuenta con sesión, para guardar las aperturas de cada una por separado.
+  String _cuenta() {
+    try {
+      return context.read<ApiService>().session?.userId ?? 'anon';
+    } on ProviderNotFoundException {
+      return 'anon';
+    }
+  }
+
   Future<void> _abrir(ResumenMapa m) async {
+    // Abrir también cuenta para «Recientes» (la BD solo sabe de ediciones).
+    final ahora = DateTime.now();
+    _reemplazar(m.copiaCon(abierto: ahora));
+    unawaited(AperturasMapas.apuntar(_cuenta(), m.id, ahora));
     await Navigator.of(context).push(MaterialPageRoute(builder: (_) => MapaScreen(mapaId: m.id, titulo: m.titulo)));
     if (mounted) _cargar();
   }
@@ -172,7 +191,7 @@ class _MapasScreenState extends State<MapasScreen> {
   Widget _contenido(List<ResumenMapa> mapas) {
     final grupos = agruparPorCarpeta(mapas, _arbol);
     final buscando = _buscar.trim().isNotEmpty;
-    final fijados = [for (final m in mapas) if (m.fijado) m];
+    final fijados = [for (final m in porActividad(mapas)) if (m.fijado) m];
     final conCarpetas = mapas.any((m) => m.carpeta != null);
     final asignaturas = grupos.where((g) => g.asignaturaId != null).length;
 
@@ -244,7 +263,7 @@ class _MapasScreenState extends State<MapasScreen> {
             _SelectorVista(vista: _vista, onCambiar: (v) => setState(() => _vista = v)),
           const SizedBox(height: 14),
           if (_vista == _Vista.recientes)
-            _Caja(children: [for (final m in [...mapas]..sort((a, b) => b.actualizado.compareTo(a.actualizado))) fila(m, conCarpeta: conCarpetas)])
+            _Caja(children: [for (final m in porActividad(mapas)) fila(m, conCarpeta: conCarpetas)])
           else
             for (final g in grupos) ...[
               _SeccionAsignatura(
@@ -453,14 +472,6 @@ class _SeccionAsignatura extends StatelessWidget {
   }
 }
 
-String _cuando(DateTime t) {
-  final d = DateTime.now().difference(t);
-  if (d.inMinutes < 1) return 'ahora';
-  if (d.inHours < 1) return 'hace ${d.inMinutes} min';
-  if (d.inDays < 1) return 'hace ${d.inHours} h';
-  if (d.inDays < 30) return 'hace ${d.inDays} ${d.inDays == 1 ? 'día' : 'días'}';
-  return '${t.day}/${t.month}/${t.year}';
-}
 
 class _FilaMapa extends StatelessWidget {
   final ResumenMapa mapa;
@@ -473,7 +484,7 @@ class _FilaMapa extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final sub = [if (mapa.ejemplo) 'Ejemplo', if (carpeta != null && carpeta!.isNotEmpty) carpeta!, _cuando(mapa.actualizado)].join(' · ');
+    final sub = [if (mapa.ejemplo) 'Ejemplo', if (carpeta != null && carpeta!.isNotEmpty) carpeta!, cuandoMapa(mapa, DateTime.now())].join(' · ');
     return InkWell(
       onTap: onAbrir,
       child: Padding(
@@ -551,7 +562,7 @@ class _Fijado extends StatelessWidget {
             const SizedBox(height: 4),
             Text(mapa.titulo, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: kInk, fontSize: 13.5, fontWeight: FontWeight.w800, height: 1.2)),
             const Spacer(),
-            Text(carpeta.isEmpty ? _cuando(mapa.actualizado) : carpeta, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: kMuted, fontSize: 11.5)),
+            Text(carpeta.isEmpty ? cuandoMapa(mapa, DateTime.now()) : carpeta, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: kMuted, fontSize: 11.5)),
           ],
         ),
       ),

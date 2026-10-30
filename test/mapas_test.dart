@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:mirdaily_app/core/models/mapas.dart';
 import 'package:mirdaily_app/core/services/mapas_api.dart';
@@ -154,6 +155,8 @@ class _Supabase {
 Size _t(String _) => const Size(150, 50);
 
 void main() {
+  setUp(() => SharedPreferences.setMockInitialValues({}));
+
   group('texto de los nodos (HTML de la web)', () {
     test('negrita, saltos, bloques, entidades y color', () {
       final t = trozosDeLabel('<b>Hola</b> &amp; <span style="color: #FF0000">rojo</span><br>abajo<div>bloque</div>');
@@ -218,6 +221,14 @@ void main() {
       expect((j['nodes'] as List).firstWhere((n) => n['id'] == 't')['data']['table'], original['nodes'][3]['data']['table']);
       expect(j['edges'], original['edges'], reason: 'el hijo añadido y borrado se lleva su arista');
       expect(original['nodes'][2]['data']['label'], 'Sibilancias<br>espiratorias', reason: 'el original no se toca');
+    });
+
+    test('un mapa vacío o sin documento se lee sin romper', () {
+      for (final raw in [null, <String, dynamic>{}, {'version': 1, 'nodes': []}, {'version': 2, 'nodes': [], 'edges': []}]) {
+        final d = DocMapa.desde(raw);
+        expect(d.nodos, isEmpty, reason: '$raw');
+        expect(d.aristas, isEmpty);
+      }
     });
 
     test('una tabla no cambia de texto en la app', () {

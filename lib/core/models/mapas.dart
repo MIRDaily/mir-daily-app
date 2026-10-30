@@ -818,12 +818,12 @@ class DocMapa {
   /// Lee el `doc` de la BD. Se copia entero (nada se comparte con el original).
   factory DocMapa.desde(Object? raw) {
     final copia = raw is Map ? jsonDecode(jsonEncode(raw)) as Map<String, dynamic> : <String, dynamic>{};
-    if (copia['version'] == 2) {
-      copia['nodes'] = (copia['nodes'] is List ? copia['nodes'] as List : const []).whereType<Map>().toList();
-      copia['edges'] = (copia['edges'] is List ? copia['edges'] as List : const []).whereType<Map>().toList();
-      return DocMapa._(copia, false);
-    }
-    return DocMapa._(grafoDesdeArbol(copia), true);
+    final esGrafo = copia['version'] == 2;
+    final doc = esGrafo ? copia : grafoDesdeArbol(copia);
+    // Las listas, siempre de mapas: un mapa vacío (sin nodos) traía `[]` sin tipo y rompía el visor.
+    doc['nodes'] = (doc['nodes'] is List ? doc['nodes'] as List : const []).whereType<Map>().toList();
+    doc['edges'] = (doc['edges'] is List ? doc['edges'] as List : const []).whereType<Map>().toList();
+    return DocMapa._(doc, !esGrafo);
   }
 
   bool get editable => !desdeArbol;

@@ -9,10 +9,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:mirdaily_app/core/services/carpetas.dart';
 import 'package:mirdaily_app/core/services/mapas_api.dart';
 import 'package:mirdaily_app/core/theme/app_theme.dart';
+import 'package:mirdaily_app/features/mapas/aperturas_mapas.dart';
 import 'package:mirdaily_app/features/mapas/mapas_agrupar.dart';
 import 'package:mirdaily_app/features/mapas/mapas_screen.dart';
 
@@ -122,6 +124,8 @@ ResumenMapa _rm(String id, int minutos, {int? a, int? t}) => ResumenMapa(
     );
 
 void main() {
+  setUp(() => SharedPreferences.setMockInitialValues({}));
+
   group('organizar', () {
     test('por asignatura: la más reciente primero, «Sin clasificar» al final; temas en orden del temario', () {
       final g = agruparPorCarpeta([
@@ -158,6 +162,37 @@ void main() {
         ..sinCarpetas = true;
       expect((await s2.api().lista()).single.carpeta, isNull);
       expect(s2.pedidas, hasLength(2));
+    });
+
+    test('la actividad es lo último entre abrirlo aquí y editarlo, y se dice cuál fue', () {
+      final ahora = DateTime(2026, 10, 30, 12);
+      final editado = _rm('a', 120); // editado hace 2 h
+      expect(editado.actividad, editado.actualizado);
+      expect(cuandoMapa(editado, ahora), 'editado hace 2 h');
+      final abierto = editado.copiaCon(abierto: ahora.subtract(const Duration(minutes: 5)));
+      expect(abierto.ultimoFueAbrir, isTrue);
+      expect(cuandoMapa(abierto, ahora), 'abierto hace 5 min');
+      final abiertoAntes = editado.copiaCon(abierto: ahora.subtract(const Duration(days: 3)));
+      expect(abiertoAntes.ultimoFueAbrir, isFalse, reason: 'se editó después de abrirlo');
+      // Un mapa viejo abierto hace un momento pasa delante de uno editado hace una hora.
+      final orden = porActividad([_rm('b', 60), _rm('c', 60 * 24 * 10).copiaCon(abierto: ahora.subtract(const Duration(minutes: 1)))]);
+      expect(orden.map((m) => m.id), ['c', 'b']);
+      final g = agruparPorCarpeta([_rm('x', 60, a: 1), _rm('y', 600, a: 2).copiaCon(abierto: ahora)], _catalogo());
+      expect(g.first.nombre, 'Cardiología', reason: 'la asignatura del mapa recién abierto, primero');
+    });
+
+    test('las aperturas se guardan en el móvil, por cuenta, y como mucho 300', () async {
+      final t0 = DateTime(2026, 10, 30, 9);
+      await AperturasMapas.apuntar('yo', 'm1', t0);
+      await AperturasMapas.apuntar('otra', 'm1', t0.add(const Duration(hours: 1)));
+      expect((await AperturasMapas.leer('yo'))['m1'], t0);
+      expect((await AperturasMapas.leer('otra'))['m1'], t0.add(const Duration(hours: 1)));
+      for (var i = 0; i < AperturasMapas.maximo + 5; i++) {
+        await AperturasMapas.apuntar('yo', 'x$i', t0.add(Duration(minutes: i)));
+      }
+      final todas = await AperturasMapas.leer('yo');
+      expect(todas, hasLength(AperturasMapas.maximo));
+      expect(todas.containsKey('m1'), isFalse, reason: 'se olvida la más vieja');
     });
 
     test('fijar cambia la columna pinned', () async {
@@ -230,6 +265,23 @@ void main() {
       await tester.tap(find.text('Recientes'));
       await tester.pumpAndSettle();
       expect(find.textContaining('Neumo › EPOC'), findsWidgets);
+
+      // Abrir un mapa lo pone el primero en «Recientes» (aunque no se edite).
+      final primeroAntes = tester.getTopLeft(find.text('Apuntes sueltos')).dy;
+      expect(tester.getTopLeft(find.text('Fibrilación auricular').last).dy, lessThan(primeroAntes),
+          reason: 'antes: por edición, el último metido va arriba');
+      // El aviso «Movido a…» de antes sigue flotando abajo y taparía la fila.
+      tester.state<ScaffoldMessengerState>(find.byType(ScaffoldMessenger)).removeCurrentSnackBar();
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Apuntes sueltos'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Apuntes sueltos'));
+      await tester.pumpAndSettle();
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(find.textContaining('abierto ahora'), findsWidgets);
+      expect(tester.getTopLeft(find.text('Apuntes sueltos')).dy, lessThan(tester.getTopLeft(find.text('Fibrilación auricular').last).dy));
+      expect((await tester.runAsync(() => AperturasMapas.leer('anon')))!.containsKey('m4'), isTrue);
 
       // Buscar por asignatura.
       await tester.scrollUntilVisible(find.byType(TextField), -200, scrollable: find.byType(Scrollable).first);

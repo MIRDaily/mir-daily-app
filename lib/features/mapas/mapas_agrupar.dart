@@ -1,9 +1,10 @@
 // Cómo se ordena la lista de mapas: por asignatura y, dentro, por tema (las carpetas de la web y de
 // la Biblioteca). Lógica pura, sin Flutter.
 //
-// - Asignaturas: la que tiene el mapa tocado más recientemente, primero. «Sin clasificar», al final.
+// - Asignaturas: la que tiene el mapa abierto o editado más recientemente, primero. «Sin
+//   clasificar», al final.
 // - Temas: en el orden del temario (el del catálogo), con «General» (sin tema) delante.
-// - Mapas: el más reciente primero.
+// - Mapas: el abierto o editado más recientemente, primero (`ResumenMapa.actividad`).
 
 import '../../core/models/mapas.dart' show normalizarBusquedaMapa;
 import '../../core/services/carpetas.dart';
@@ -25,10 +26,25 @@ class GrupoAsignatura {
 
   int get total => temas.fold(0, (n, t) => n + t.mapas.length);
   List<ResumenMapa> get mapas => [for (final t in temas) ...t.mapas];
-  DateTime get reciente => mapas.map((m) => m.actualizado).reduce((a, b) => a.isAfter(b) ? a : b);
+  DateTime get reciente => mapas.map((m) => m.actividad).reduce((a, b) => a.isAfter(b) ? a : b);
 }
 
-int _porFecha(ResumenMapa a, ResumenMapa b) => b.actualizado.compareTo(a.actualizado);
+int _porFecha(ResumenMapa a, ResumenMapa b) => b.actividad.compareTo(a.actividad);
+
+/// Todos, el abierto o editado más recientemente primero.
+List<ResumenMapa> porActividad(List<ResumenMapa> mapas) => [...mapas]..sort(_porFecha);
+
+/// «abierto hace…» o «editado hace…», lo que fuera lo último.
+String cuandoMapa(ResumenMapa m, DateTime ahora) {
+  final t = m.actividad;
+  final d = ahora.difference(t);
+  final que = m.ultimoFueAbrir ? 'abierto' : 'editado';
+  if (d.inMinutes < 1) return '$que ahora';
+  if (d.inHours < 1) return '$que hace ${d.inMinutes} min';
+  if (d.inDays < 1) return '$que hace ${d.inHours} h';
+  if (d.inDays < 30) return '$que hace ${d.inDays} ${d.inDays == 1 ? 'día' : 'días'}';
+  return '$que el ${t.day}/${t.month}/${t.year}';
+}
 
 List<GrupoAsignatura> agruparPorCarpeta(List<ResumenMapa> mapas, List<AsignaturaCatalogo>? arbol) {
   final porAsignatura = <int?, List<ResumenMapa>>{};

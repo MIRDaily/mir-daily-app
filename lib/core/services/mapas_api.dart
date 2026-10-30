@@ -37,6 +37,16 @@ class ResumenMapa {
   /// Su carpeta (asignatura y tema), o «sin clasificar». Null si la base aún no tiene carpetas.
   final Carpeta? carpeta;
 
+  /// La última vez que se abrió en este móvil (ver AperturasMapas), si se sabe.
+  final DateTime? abierto;
+
+  /// Lo último que pasó con el mapa: abrirlo aquí o editarlo (aquí o en la web). Es por lo que se
+  /// ordena «Recientes».
+  DateTime get actividad => abierto != null && abierto!.isAfter(actualizado) ? abierto! : actualizado;
+
+  /// Si lo último fue abrirlo (y no editarlo).
+  bool get ultimoFueAbrir => abierto != null && abierto!.isAfter(actualizado);
+
   const ResumenMapa({
     required this.id,
     required this.titulo,
@@ -44,15 +54,17 @@ class ResumenMapa {
     required this.actualizado,
     required this.fijado,
     this.carpeta,
+    this.abierto,
   });
 
-  ResumenMapa copiaCon({bool? fijado, Carpeta? carpeta}) => ResumenMapa(
+  ResumenMapa copiaCon({bool? fijado, Carpeta? carpeta, DateTime? abierto}) => ResumenMapa(
         id: id,
         titulo: titulo,
         asignatura: asignatura,
         actualizado: actualizado,
         fijado: fijado ?? this.fijado,
         carpeta: carpeta ?? this.carpeta,
+        abierto: abierto ?? this.abierto,
       );
 
   /// El de ejemplo que se reparte a todos (sql/2026-10-mapa-ejemplo-para-todos.sql) lleva esta
