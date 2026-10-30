@@ -12,6 +12,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../models/mapas.dart';
+import 'carpetas.dart' show Carpeta;
 
 class MapasException implements Exception {
   final String message;
@@ -33,13 +34,26 @@ class ResumenMapa {
   final DateTime actualizado;
   final bool fijado;
 
+  /// Su carpeta (asignatura y tema), o «sin clasificar». Null si la base aún no tiene carpetas.
+  final Carpeta? carpeta;
+
   const ResumenMapa({
     required this.id,
     required this.titulo,
     required this.asignatura,
     required this.actualizado,
     required this.fijado,
+    this.carpeta,
   });
+
+  ResumenMapa copiaCon({bool? fijado, Carpeta? carpeta}) => ResumenMapa(
+        id: id,
+        titulo: titulo,
+        asignatura: asignatura,
+        actualizado: actualizado,
+        fijado: fijado ?? this.fijado,
+        carpeta: carpeta ?? this.carpeta,
+      );
 
   /// El de ejemplo que se reparte a todos (sql/2026-10-mapa-ejemplo-para-todos.sql) lleva esta
   /// asignatura reservada.
@@ -51,6 +65,13 @@ class ResumenMapa {
         asignatura: j['subject'] as String?,
         actualizado: DateTime.tryParse('${j['updated_at']}')?.toLocal() ?? DateTime.fromMillisecondsSinceEpoch(0),
         fijado: j['pinned'] == true,
+        // Un tema sin asignatura no cuenta (como la web): sin asignatura es «sin clasificar».
+        carpeta: j.containsKey('folder_subject_id')
+            ? Carpeta(
+                subjectId: (j['folder_subject_id'] as num?)?.toInt(),
+                topicId: j['folder_subject_id'] == null ? null : (j['folder_topic_id'] as num?)?.toInt(),
+              )
+            : null,
       );
 }
 
@@ -115,16 +136,23 @@ class MapasApi {
     return (res.statusCode, j);
   }
 
-  /// Los mapas sin borrar, el más reciente primero. Si a la BD le falta la columna `pinned`, se
-  /// pide sin ella (como la web).
+  /// Los mapas sin borrar, el más reciente primero, con su carpeta. Si a la BD le faltan las
+  /// columnas de carpeta o la de fijados, se piden sin ellas (como la web).
   Future<List<ResumenMapa>> lista() async {
     const base = 'deleted_at=is.null&order=updated_at.desc';
+    // Se quita justo la columna que la base diga que no tiene (SQL de fijados o de carpetas sin
+    // aplicar), y se vuelve a pedir: así faltar una no se lleva la otra.
+    final columnas = ['id', 'title', 'subject', 'updated_at', 'pinned', 'folder_subject_id', 'folder_topic_id'];
     Object? j;
-    try {
-      (_, j) = await _pedir('GET', 'select=id,title,subject,updated_at,pinned&$base');
-    } on MapasException catch (e) {
-      if (!e.message.contains('pinned')) rethrow;
-      (_, j) = await _pedir('GET', 'select=id,title,subject,updated_at&$base');
+    for (var intento = 0;; intento++) {
+      try {
+        (_, j) = await _pedir('GET', 'select=${columnas.join(',')}&$base');
+        break;
+      } on MapasException catch (e) {
+        final opcionales = e.message.contains('folder_') ? ['folder_subject_id', 'folder_topic_id'] : e.message.contains('pinned') ? ['pinned'] : const <String>[];
+        if (intento >= 2 || opcionales.isEmpty || !opcionales.every(columnas.contains)) rethrow;
+        columnas.removeWhere(opcionales.contains);
+      }
     }
     final filas = j is List ? j : const [];
     final mapas = [for (final f in filas) if (f is Map) ResumenMapa.fromJson(Map<String, dynamic>.from(f))];
@@ -148,6 +176,11 @@ class MapasApi {
       actualizadoEn: '${f['updated_at']}',
       doc: DocMapa.desde(f['doc']),
     );
+  }
+
+  /// Fija un mapa arriba de la lista, o lo quita (la columna `pinned`, como el botón de la web).
+  Future<void> fijar(String id, bool fijado) async {
+    await _pedir('PATCH', 'id=eq.${Uri.encodeQueryComponent(id)}', cuerpo: {'pinned': fijado});
   }
 
   /// Guarda título y/o documento «sin pisar». Devuelve la marca nueva (`updated_at`). Con
