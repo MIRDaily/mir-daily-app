@@ -149,6 +149,11 @@ class ElectrosHubScreen extends StatelessWidget {
   }
 }
 
+/// Lo que se sostiene hundida una tarjeta al tocarla antes de actuar: 90 ms de animación más un
+/// poco a la vista. Dentro de un scroll el toque llega al levantar el dedo, y con menos el gesto
+/// de botón no llegaba a verse.
+const Duration _kHundido = Duration(milliseconds: 160);
+
 /* ════════════════════════════════════════════════════════════════════════
    Monitor de portada
 ═══════════════════════════════════════════════════════════════════════════ */
@@ -228,6 +233,8 @@ class _MonitorPortadaState extends State<_MonitorPortada> {
       // Se recorta el monitor por dentro, al radio interior (el borde mide 2).
       child: StickerCard(
         radius: 22,
+        // Que el hundimiento se vea: dentro de la lista el toque llega al levantar el dedo.
+        pressDelay: _kHundido,
         onTap: () {
           _siguiente();
           _programar();
@@ -399,7 +406,7 @@ class _TarjetaPaso extends StatelessWidget {
       // El papel milimetrado del ECG, teñido del color del paso.
       texture: graphPaper(tint: color, step: 12),
       onTap: onTap,
-      pressDelay: const Duration(milliseconds: 90),
+      pressDelay: _kHundido,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
