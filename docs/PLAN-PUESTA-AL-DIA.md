@@ -13,7 +13,7 @@ esperar a que la web y el backend las dejen firmes.
 **Copia en el repo de la app:** `docs/PLAN-PUESTA-AL-DIA.md` (rama `v7`), para que el otro ordenador la
 tenga. Al cerrar cada tanda se actualizan las dos.
 
-**Estado:** tandas 0 a 10 hechas (la 10, el 30/10/2026), salvo la prueba en el teléfono. Siguiente: tanda 11 (Minijuegos · GramSwipe).
+**Estado:** tandas 0 a 11 hechas (la 11, el 30/10/2026), salvo la prueba en el teléfono. Siguiente: tanda 12 (Mapas: lista, visor y modo estudio), que espera a la tanda 6 de Studio.
 
 ## Resumen del orden
 
@@ -719,8 +719,8 @@ previsión sale igual en las dos.
   repite en la tarjeta del término; en tablet, dos columnas.
 - **Diferencia con la web, a propósito:** una letra ya descubierta (`known`) sale en verde claro, no en
   oscuro como una que no está.
-- **Entradas:** una herramienta más en Studio y un botón «Jugar al MedGuess de hoy» en «¡Daily
-  completado!». La web lo tiene en la cabecera.
+- **Entradas:** un botón «Jugar al MedGuess de hoy» en «¡Daily completado!» y, desde la tanda 11, el
+  centro de Minijuegos de Studio. La web lo tiene en la cabecera.
 - **Fallo del backend, sin tocar:** /today manda en `terms[].display` el término completo aunque la
   partida siga abierta. La app no lo pinta hasta el final, pero cualquiera puede leerlo en la
   respuesta (también en la web). Arreglo: no mandar `display` hasta terminar.
@@ -732,6 +732,27 @@ previsión sale igual en las dos.
 
 ## Tanda 11 — Minijuegos (GramSwipe)
 - Centro de minijuegos y GramSwipe, a partir de `src/components/minijuegos/gramswipe`.
+
+### Resultado (30/10/2026, commit `0bc3058`)
+- **Sin servidor:** GramSwipe pasa entero en el cliente, como en la web. Los 25 antibióticos y sus
+  fotos se GENERAN desde la web: `node tools/export_gramswipe.mjs "<frontend>"` escribe
+  `core/models/gramswipe_datos.dart` y copia `public/img/gramswipe` a `assets/gramswipe/` (2,2 MB).
+  Lógica pura en `core/models/gramswipe.dart`; pantallas en `features/minijuegos/`.
+- **El juego:** inicio con las reglas y el modo (estudio, con corrección tras cada tarjeta, o repaso
+  rápido), y la partida. La tarjeta se arrastra con el dedo, se inclina, se tiñe del color de la
+  respuesta y pasados 90 px sale volando; si no llega, vuelve. Un toque la voltea (familia y
+  mecanismo). Abajo, «no sé»: vuelve al final del mazo. Resultado con precisión, falladas y «Repetir
+  errores». Salir a mitad de partida pide confirmación.
+- **Añadido respecto a la web:** cuatro botones bajo la tarjeta con las cuatro respuestas. Sirven de
+  leyenda (la web la pone alrededor de la tarjeta, y en un móvil no cabe), se pueden pulsar sin
+  arrastrar y se encienden mientras se arrastra hacia ellos.
+- **Centro de Minijuegos** con GramSwipe y MedGuess. En Studio, la herramienta «Minijuegos» sustituye
+  a la de MedGuess de la tanda 10.
+- **Tests:** `test/gramswipe_test.dart` (15): datos y fotos, lógica, y partidas en los dos modos
+  (botones, arrastre, «no sé», repetir errores, confirmación al salir) en 360×780 y 1024×768.
+  `flutter analyze`: 295, ninguno nuevo. Capturas revisadas en móvil y tablet.
+- **Falta probar en el teléfono:** el arrastre con el dedo (que no se confunda con el toque de
+  voltear), el volteo y la vibración al cruzar el umbral.
 
 # Fase 5 · Lo grande
 
