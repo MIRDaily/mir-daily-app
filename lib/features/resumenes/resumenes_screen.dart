@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/models/resumen.dart';
+import '../../core/models/tutoriales.dart';
 import '../../core/responsive/adaptive_modal.dart';
 import '../../core/theme/app_theme.dart';
 import '../../shared/sticker/sticker.dart';
 import '../../shared/widgets/pressable.dart';
+import '../tutorial/tutorial_ancla.dart';
 import 'crear_resumenes_ia_screen.dart';
 import 'resumen_detail_screen.dart';
 import 'resumenes_api.dart';
@@ -223,7 +225,12 @@ class _ResumenesScreenState extends State<ResumenesScreen> {
     final totalParrafos = grupos.fold<int>(0, (n, g) => n + g.total);
     final totalPendientes = grupos.fold<int>(0, (n, g) => n + g.pendientes);
 
-    return Scaffold(
+    // El tutorial de resúmenes (resumenes.v1) cuando la lista ya ha cargado: sus anclas existen
+    // siempre (la zona es la lista de grupos o el aviso de «aún no tienes», y el botón de crear).
+    return TutorialListo(
+      id: tutorialResumenes.id,
+      listo: !_loading && _error == null,
+      child: Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: AppColors.background,
@@ -232,10 +239,13 @@ class _ResumenesScreenState extends State<ResumenesScreen> {
       ),
       floatingActionButton: Padding(
         padding: const EdgeInsets.only(bottom: 4, right: 4),
-        child: StickerButton(
-          label: 'Nuevo grupo',
-          icon: Icons.add_rounded,
-          onPressed: _crear,
+        child: TutorialAncla(
+          nombre: anclaResumenesNuevo,
+          child: StickerButton(
+            label: 'Nuevo grupo',
+            icon: Icons.add_rounded,
+            onPressed: _crear,
+          ),
         ),
       ),
       body: SafeArea(
@@ -298,6 +308,7 @@ class _ResumenesScreenState extends State<ResumenesScreen> {
           ),
         ),
       ),
+      ),
     );
   }
 
@@ -336,7 +347,9 @@ class _ResumenesScreenState extends State<ResumenesScreen> {
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(32, 14, 32, 0),
-            child: Column(
+            child: TutorialAncla(
+              nombre: anclaResumenesZona,
+              child: Column(
               children: [
                 Container(
                   width: 86,
@@ -359,6 +372,7 @@ class _ResumenesScreenState extends State<ResumenesScreen> {
                 ),
               ],
             ),
+            ),
           ),
         ),
       ];
@@ -367,18 +381,24 @@ class _ResumenesScreenState extends State<ResumenesScreen> {
     return [
       const SliverPadding(
         padding: EdgeInsets.fromLTRB(20, 6, 20, 0),
-        sliver: SliverToBoxAdapter(child: SectionLabel('Tus grupos')),
+        sliver: SliverToBoxAdapter(
+          child: TutorialAncla(nombre: anclaResumenesZona, child: SectionLabel('Tus grupos')),
+        ),
       ),
       SliverPadding(
         padding: const EdgeInsets.symmetric(horizontal: 20),
         sliver: SliverList(
           delegate: SliverChildBuilderDelegate(
-            (context, i) => _GrupoCard(
-              grupo: grupos[i],
-              onAbrir: () => _abrir(grupos[i]),
-              onEstudiar: () => _estudiar(grupos[i]),
-              onBorrar: () => _confirmarBorrado(grupos[i]),
-            ),
+            (context, i) {
+              final tarjeta = _GrupoCard(
+                grupo: grupos[i],
+                onAbrir: () => _abrir(grupos[i]),
+                onEstudiar: () => _estudiar(grupos[i]),
+                onBorrar: () => _confirmarBorrado(grupos[i]),
+              );
+              // La mascota señala la cabecera y el primer grupo: con eso se entiende la lista.
+              return i == 0 ? TutorialAncla(nombre: anclaResumenesZona, child: tarjeta) : tarjeta;
+            },
             childCount: grupos.length,
           ),
         ),

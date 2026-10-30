@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 
 import '../../core/responsive/adaptive_grid.dart';
 import '../../core/responsive/breakpoints.dart';
+import '../../core/models/tutoriales.dart';
 import '../../core/responsive/content_shell.dart';
 import '../../core/theme/app_theme.dart';
 import '../../shared/sticker/sticker.dart';
@@ -14,6 +16,7 @@ import '../library/library_screen.dart';
 import '../resumenes/resumenes_screen.dart';
 import '../resumenes/widgets/prevision_resumenes.dart';
 import '../simulacro/simulacro_screen.dart';
+import '../tutorial/tutorial_ancla.dart';
 import 'widgets/a_medida_card.dart';
 import 'widgets/progreso_mensual.dart';
 import 'widgets/studio_card_art.dart';
@@ -34,12 +37,19 @@ class BibliotecaHubScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    // El tutorial del Studio (studio.v3) en cuanto esta pestaña se ve y se asienta.
+    return TutorialListo(
+      id: tutorialStudio.id,
+      listo: true,
+      child: Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
         bottom: false,
         child: ListView(
           physics: const BouncingScrollPhysics(),
+          // La portada es corta: se construye entera para que la mascota pueda señalar (y llevar a la
+          // vista) cualquier tarjeta, también las que están por debajo del borde.
+          scrollCacheExtent: const ScrollCacheExtent.pixels(4000),
           padding: centeringGutter(context, wide: true)
               .add(EdgeInsets.fromLTRB(0, context.isWide ? 32 : 20, 0, 100)),
           children: [
@@ -51,7 +61,7 @@ class BibliotecaHubScreen extends StatelessWidget {
             ),
             const SizedBox(height: 18),
             // «Simulacro a tu medida»: la tarjeta destacada de Studio en la web.
-            const AMedidaCard(),
+            const TutorialAncla(nombre: anclaStudioSimulacro, child: AMedidaCard()),
             // «Progreso mensual», como en la portada de Studio de la web. No sale sin datos.
             const ProgresoMensualCard(),
             // «Tienes N párrafos para repasar» (resúmenes activos). No sale si no hay nada.
@@ -66,7 +76,9 @@ class BibliotecaHubScreen extends StatelessWidget {
                 SlideFadeIn(
                   delay: const Duration(milliseconds: 120),
                   beginOffset: const Offset(0, 0.12),
-                  child: _ToolCard(
+                  child: TutorialAncla(
+                    nombre: anclaStudioMazos,
+                    child: _ToolCard(
                     title: 'Mazos',
                     subtitle:
                         'Repaso espaciado de tus preguntas guardadas para retenerlas a largo plazo.',
@@ -77,11 +89,14 @@ class BibliotecaHubScreen extends StatelessWidget {
                     texture: ruledPaper(step: 22),
                     onTap: () => _open(context, const DecksScreen()),
                   ),
+                  ),
                 ),
                 SlideFadeIn(
                   delay: const Duration(milliseconds: 155),
                   beginOffset: const Offset(0, 0.12),
-                  child: _ToolCard(
+                  child: TutorialAncla(
+                    nombre: anclaStudioFlashcards,
+                    child: _ToolCard(
                     title: 'Flashcards',
                     subtitle:
                         'Crea y repasa tus propias tarjetas, con anverso y reverso.',
@@ -92,11 +107,14 @@ class BibliotecaHubScreen extends StatelessWidget {
                     texture: ruledPaper(step: 20),
                     onTap: () => _open(context, const FlashcardsScreen()),
                   ),
+                  ),
                 ),
                 SlideFadeIn(
                   delay: const Duration(milliseconds: 220),
                   beginOffset: const Offset(0, 0.12),
-                  child: _ToolCard(
+                  child: TutorialAncla(
+                    nombre: anclaStudioSimulacros,
+                    child: _ToolCard(
                     title: 'Simulacros',
                     subtitle:
                         'Crea exámenes a medida por asignatura y tema, con corrección e historial.',
@@ -106,6 +124,7 @@ class BibliotecaHubScreen extends StatelessWidget {
                     art: const ExamSheetArt(),
                     texture: ruledPaper(step: 26),
                     onTap: () => _open(context, const SimulacroScreen()),
+                  ),
                   ),
                 ),
                 SlideFadeIn(
@@ -156,6 +175,7 @@ class BibliotecaHubScreen extends StatelessWidget {
             ),
           ],
         ),
+      ),
       ),
     );
   }

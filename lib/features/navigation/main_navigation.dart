@@ -9,6 +9,8 @@ import '../../core/theme/app_theme.dart';
 import '../../core/services/notification_service.dart';
 import 'widgets/nav_rail.dart';
 import 'pestana_pedida.dart';
+import '../../core/models/tutoriales.dart';
+import '../tutorial/tutorial_ancla.dart';
 import '../../core/services/avisos_service.dart';
 import '../profile/screens/avisos_screen.dart' show GloboAvisos;
 import '../biblioteca/biblioteca_hub_screen.dart';
@@ -448,7 +450,10 @@ class _MainNavigationState extends State<MainNavigation>
             // flotante centrado a media altura).
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              AnimatedBuilder(
+              // «En la barra está todo lo demás»: el cierre del tutorial del daily la señala.
+              TutorialAncla(
+                nombre: anclaNavPestanas,
+                child: AnimatedBuilder(
                 animation: Listenable.merge([_pillCtrl, _barEntry]),
                 builder: (context, _) => NavRail(
                   items: _navItems,
@@ -458,6 +463,7 @@ class _MainNavigationState extends State<MainNavigation>
                   entry: _barEntry.value,
                   onTap: _onNavItemTapped,
                 ),
+              ),
               ),
               Expanded(child: pageArea),
             ],
@@ -476,14 +482,14 @@ class _MainNavigationState extends State<MainNavigation>
                   left: 0,
                   right: 0,
                   bottom: 0,
-                  child: _buildFloatingBar(context),
+                  child: TutorialAncla(nombre: anclaNavPestanas, child: _buildFloatingBar(context)),
                 ),
               ],
             )
           : body,
       bottomNavigationBar: (isInFocusMode || useRail || floatingBar)
           ? null
-          : _buildBottomBar(context),
+          : TutorialAncla(nombre: anclaNavPestanas, child: _buildBottomBar(context)),
     );
   }
 

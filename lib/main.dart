@@ -27,11 +27,14 @@ import 'core/services/carpetas.dart';
 import 'core/services/creditos_ia_service.dart';
 import 'core/services/notification_service.dart';
 import 'core/services/reportes_api.dart';
+import 'core/services/tutoriales_api.dart';
 import 'features/resumenes/resumenes_api.dart';
 import 'features/resumenes/resumenes_ia.dart';
 import 'features/focus/providers/focus_provider.dart';
 import 'features/navigation/main_navigation.dart';
 import 'features/progress/celebracion_logros.dart';
+import 'features/tutorial/tutorial_overlay.dart';
+import 'features/tutorial/tutoriales_controller.dart';
 import 'features/splash/intro_music.dart';
 import 'features/versus/services/versus_links.dart';
 import 'features/onboarding/screens/onboarding_screen.dart';
@@ -185,6 +188,19 @@ class MIRDailyApp extends StatelessWidget {
               auth.status == AuthStatus.authenticated ? auth.userId : null,
             ),
         ),
+        // Tutoriales de la mascota (lo visto vive en la cuenta, como en la web). Va detrás de la sesión
+        // y del progreso: es de una cuenta y espera a que se cierre cualquier celebración.
+        ChangeNotifierProxyProvider2<AuthProvider, ProgressProvider, Tutoriales>(
+          create: (_) => Tutoriales(
+            TutorialesApi(token: apiService.validToken, baseUrl: AppConfig.apiBaseUrl),
+          ),
+          update: (_, auth, progreso, tutoriales) => tutoriales!
+            ..sincronizar(
+              usuario: auth.status == AuthStatus.authenticated ? auth.userId : null,
+              perfil: auth.profile,
+              celebrando: progreso.celebracionLista,
+            ),
+        ),
         ChangeNotifierProvider(create: (_) => SettingsProvider()),
         ChangeNotifierProvider(create: (_) => SavedQuestionsProvider()),
         // MOCKUP de música de fondo. Ver `core/audio/background_music.dart`.
@@ -220,6 +236,8 @@ class MIRDailyApp extends StatelessWidget {
             children: [
               child ?? const SizedBox(),
               const Positioned.fill(child: CelebracionLogros()),
+              // El tutorial va encima de la celebración, pero nunca coinciden: espera a que se cierre.
+              const Positioned.fill(child: TutorialOverlay()),
             ],
           ),
         ),

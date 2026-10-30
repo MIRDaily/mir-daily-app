@@ -101,6 +101,9 @@ flutter:
     # Guías de estudio de la Biblioteca, exportadas de la web con
     # tools/export_study_guides.mjs (no editar a mano).
     - assets/guides/
+    # Poses de la mascota de los tutoriales, copiadas tal cual de la web
+    # (public/img/mascota): mismo encuadre en todas, la mascota no salta.
+    - assets/mascota/
 
   # Lexend: la tipografia de la web (mismos ficheros que public/fonts/lexend).
   # El peso 900 apunta a Bold.ttf igual que en layout.tsx, para que el

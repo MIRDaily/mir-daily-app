@@ -24,6 +24,8 @@ import '../widgets/progress_section.dart';
 import '../widgets/profile_card_fields.dart';
 import '../widgets/profile_editor_sheet.dart';
 import '../widgets/privacy_sheet.dart';
+import '../../tutorial/ajustes_tutoriales.dart';
+import '../../tutorial/tutoriales_controller.dart';
 
 /// Perfil con el lenguaje visual de la web: borde de tinta, sombra dura y,
 /// como textura propia de esta pantalla, la de un **carné plastificado**
@@ -194,6 +196,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           : 'Clásica',
                       onTap: _openNavBarStyleSettings,
                     ),
+                    // La mascota: apagarla aquí y volver a ver sus tutoriales (Configuración en la web).
+                    if (context.watch<Tutoriales?>() case final tutoriales?)
+                      _MenuItemData(
+                        icon: Icons.school_outlined,
+                        color: const Color(0xFFD68C7F),
+                        title: 'Tutoriales',
+                        subtitle: tutoriales.activos
+                            ? 'La mascota te enseña cada pantalla'
+                            : 'Apagados',
+                        trailing: Switch(
+                          value: tutoriales.activos,
+                          onChanged: tutoriales.setActivos,
+                          activeThumbColor: AppColors.primary,
+                        ),
+                        onTap: () => abrirAjustesTutoriales(context),
+                      ),
                     _MenuItemData(
                       icon: Icons.new_releases_outlined,
                       color: AppColors.secondary,

@@ -320,6 +320,10 @@ class UserProfile {
   /// `users.deck_gallery_style`, la misma que usa la web.
   final String deckGalleryStyle;
 
+  /// Tutoriales de la mascota ya vistos («daily.v2», «studio.v3»…), en la cuenta: los mismos que en
+  /// la web (`users.tutorials_seen`). Vacía si el servidor aún no tiene la columna.
+  final List<String> tutorialsSeen;
+
   const UserProfile({
     required this.id,
     this.email,
@@ -338,6 +342,7 @@ class UserProfile {
     this.mirSpecialtyId,
     this.usernameNextChangeAt,
     this.deckGalleryStyle = 'default',
+    this.tutorialsSeen = const [],
   });
 
   bool get deckGalleryIsGradient => deckGalleryStyle == 'gradient';
@@ -375,6 +380,9 @@ class UserProfile {
       )?.toLocal(),
       deckGalleryStyle:
           json['deck_gallery_style'] == 'gradient' ? 'gradient' : 'default',
+      tutorialsSeen: json['tutorials_seen'] is List
+          ? (json['tutorials_seen'] as List).whereType<String>().toList()
+          : const [],
     );
   }
 

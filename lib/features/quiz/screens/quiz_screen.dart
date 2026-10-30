@@ -6,6 +6,8 @@ import '../../../core/responsive/breakpoints.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/providers/daily_provider.dart';
 import '../../../core/providers/settings_provider.dart';
+import '../../../core/models/tutoriales.dart';
+import '../../tutorial/tutorial_ancla.dart';
 import '../../daily/daily_quiz_screen.dart';
 import '../../results/results_screen.dart';
 import '../game/pack_burst_game.dart';
@@ -166,7 +168,21 @@ class _QuizScreenState extends State<QuizScreen>
   @override
   Widget build(BuildContext context) {
     super.build(context); // requerido por AutomaticKeepAliveClientMixin
-    return FadeTransition(
+    final actual = _buildCurrent(context);
+    // El tutorial del daily (daily.v2) solo con el sobre intacto a la vista: sin él, el paso que lo
+    // señala no tendría a qué apuntar, y a medio abrir sería interrumpir. Si hoy ya está hecho,
+    // espera a otro día.
+    final sobreALaVista = widget.isVisible &&
+        context.read<DailyProvider>().status == DailyStatus.ready &&
+        _game != null &&
+        _game!.openProgress == 0 &&
+        !_game!.opened;
+    return TutorialListo(
+      id: tutorialDaily.id,
+      listo: sobreALaVista,
+      // Tras el onboarding la entrada del sobre es mucho más lenta (420 + 1800 ms).
+      asentar: Duration(milliseconds: widget.justOnboarded ? 2600 : 1400),
+      child: FadeTransition(
       opacity: CurvedAnimation(parent: _dailyEntry, curve: Curves.easeOut),
       child: ScaleTransition(
         scale: Tween<double>(
@@ -176,7 +192,8 @@ class _QuizScreenState extends State<QuizScreen>
                 curve: widget.justOnboarded
                     ? Curves.easeOutBack
                     : Curves.easeOutCubic)),
-        child: _buildCurrent(context),
+        child: actual,
+      ),
       ),
     );
   }
@@ -370,7 +387,9 @@ class _QuizScreenState extends State<QuizScreen>
         // (vertical, estrecha). En tablet se centra en una columna de ese
         // ancho y el resto queda de fondo, en vez de estirar el sobre y las
         // cartas por todo el ancho.
-        child: ConstrainedBox(
+        child: TutorialAncla(
+          nombre: anclaDailySobre,
+          child: ConstrainedBox(
           constraints: BoxConstraints(
             maxWidth: context.isWide ? 460 : double.infinity,
           ),
@@ -402,6 +421,7 @@ class _QuizScreenState extends State<QuizScreen>
               ),
             ],
           ),
+        ),
         ),
       ),
     );
