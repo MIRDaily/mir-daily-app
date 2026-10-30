@@ -13,7 +13,7 @@ esperar a que la web y el backend las dejen firmes.
 **Copia en el repo de la app:** `docs/PLAN-PUESTA-AL-DIA.md` (rama `v7`), para que el otro ordenador la
 tenga. Al cerrar cada tanda se actualizan las dos.
 
-**Estado:** tandas 0 a 7 hechas (la 7b, el 30/10/2026), salvo la prueba en el teléfono. Siguiente: tanda 8 (tutoriales).
+**Estado:** tandas 0 a 8 hechas (la 8, el 30/10/2026), salvo la prueba en el teléfono. Siguiente: tanda 9 (Explorador de Electros).
 
 ## Resumen del orden
 
@@ -540,6 +540,85 @@ previsión sale igual en las dos.
   estado guardado en el servidor (`POST`/`DELETE /profile/tutorials`), para que lo visto en la web no
   vuelva a salir en la app.
 - Las poses ya normalizadas están en Escritorio/…texturas…/Poses.
+
+### Resultado (30/10/2026, commit `f573718` en v7)
+
+- **Tres tutoriales, con las claves de la web:** `daily.v2`, `studio.v3` y `resumenes.v1`. Lo visto se
+  guarda en la cuenta (`users.tutorials_seen`, que llega con `GET /api/profile`, y
+  `POST`/`DELETE /api/profile/tutorials`): **un tutorial visto en la web no sale en la app, y al revés.**
+  **`mapas.v1` queda para la tanda 12**, porque la app aún no tiene mapas.
+- **Los textos son los de la web, salvo donde la app es distinta** (lo prevé el propio `types.ts`):
+  - Daily: sin el paso de «la más fallada», que en la app está en el Panel, y sin el aviso de la app
+    móvil, porque dentro de la app no tiene sentido.
+  - La barra no está «ahí arriba»: el paso dice «En la barra está todo lo demás».
+  - La despedida manda al Perfil, en Preferencias, en vez de a Configuración.
+  - Studio: sin el paso de la Sala Zen, que llega en la tanda 15.
+  - Resúmenes: «con un botón o deslizando».
+- **Cuándo arranca** (como `useTutorialReady` y `TutorialProvider`): la pantalla lo declara con
+  `TutorialListo`, que además exige:
+  - que su pestaña esté a la vista (`TickerMode`);
+  - que su ruta esté arriba (con una hoja, un diálogo o el aviso de recordatorios encima, espera);
+  - 1,4 s sin cambios para asentarse (2,6 s tras el onboarding, porque la entrada del sobre es más
+    lenta).
+
+  Uno cada vez, nunca con una celebración de logros en pantalla, y saltar cuenta como visto.
+- **Cuándo sale cada uno:**
+  - El del daily, solo con el sobre a la vista y sin empezar a abrir. Si el daily de hoy ya está
+    hecho, espera a otro día.
+  - El de Studio, al entrar en la pestaña.
+  - El de resúmenes, cuando carga la lista.
+- **Las anclas** (`TutorialAncla`, una `GlobalKey` por elemento; varias con el mismo nombre se iluminan
+  juntas):
+  - el sobre;
+  - la barra: la inferior, la flotante o el raíl de tablet;
+  - el simulacro a tu medida, Simulacros, Mazos y Flashcards;
+  - en resúmenes, la lista (cabecera y primer grupo) o el aviso de «aún no tienes», y «Nuevo grupo».
+
+  La portada de Studio se construye entera (`scrollCacheExtent`), para que la mascota pueda llevar a la
+  vista también las tarjetas que quedan por debajo del borde.
+- **La capa** se monta encima de toda la app, junto a la celebración:
+  - un velo con un hueco redondeado y anillo coral, que se desliza de un ancla a otra;
+  - toda la capa responde al toque: mientras escribe, acelera (÷4 por toque, suelo de 4 ms); con la
+    frase entera, pasa al siguiente paso;
+  - «Saltar» con los puntos, siempre abajo;
+  - el bocadillo se coloca con su tamaño real (debajo del foco, encima o pegado al fondo). En el móvil
+    la mascota va encima del texto y en tablet al lado, mirando hacia el foco;
+  - lleva el ancla a la vista y la sigue 1,5 s mientras entra.
+
+  Con «reducir movimiento», el texto sale entero y sin animaciones.
+- **Sonido: solo háptica** (un toque suave al pasar de paso), sin los «blips» de `mascotAudio.ts`. En la
+  web son osciladores de WebAudio. En la app habría que sintetizar audio y reproducirlo con
+  `audioplayers`, cuya latencia en Android rompe el ritmo letra a letra, y además se mezclaría con la
+  música de fondo. Si se quiere, va aparte.
+- **Sin la maqueta animada de los modos** (`PreviewModo.tsx`): la web solo la pinta con hueco de sobra
+  a un lado del foco, y en el móvil nunca lo hay.
+- **Volver a verlos:** Perfil → Preferencias → «Tutoriales».
+  - El interruptor es del dispositivo, como en la web.
+  - «Volver a verlos desde el principio» hace `DELETE` (se olvidan en todos los dispositivos), los
+    vuelve a encender, refresca el perfil y lleva a la pestaña del daily.
+- **Código:**
+  - Lógica pura en `core/models/tutoriales.dart`.
+  - Cliente en `core/services/tutoriales_api.dart`.
+  - En `features/tutorial/`: el controlador `Tutoriales` (ProxyProvider de sesión y progreso en
+    `main.dart`), `tutorial_ancla.dart`, `tutorial_overlay.dart`, `mascota_bocadillo.dart` y
+    `ajustes_tutoriales.dart`.
+  - Las 11 poses de la web, tal cual, en `assets/mascota/` (1,3 MB).
+- **Tests:** 635 en verde (60 nuevos).
+  - Guiones, colocación, controlador (con caché por cuenta, fallo de red y reinicio) y API con
+    MockClient.
+  - Los tres tutoriales de principio a fin en 360×780 y 1024×768, con el sobre real del daily.
+  - El ancla de la barra en `MainNavigation`, la espera por pestaña o ruta tapada, y la hoja del Perfil.
+
+  `flutter analyze`, igual que antes: 295 avisos, ninguno nuevo. Se revisaron capturas de la capa en
+  móvil y tablet. No cambia ningún golden.
+- **Falta probar en el teléfono:**
+  - Ver un tutorial en la web y comprobar que no sale en la app, y al revés.
+  - El del daily tras el onboarding de una cuenta nueva (el aviso de recordatorios sale antes y el
+    tutorial espera).
+  - Que el foco siga al sobre y a las tarjetas al girar la tablet.
+  - Que la háptica se note.
+  - Que el botón «atrás» de Android con el tutorial abierto no deje nada raro: va a la pantalla de
+    debajo y el tutorial sigue, centrado.
 
 ## Tanda 9 — Electros · Explorador
 
