@@ -9,6 +9,7 @@ import '../../../core/providers/settings_provider.dart';
 import '../../../core/models/tutoriales.dart';
 import '../../tutorial/tutorial_ancla.dart';
 import '../../daily/daily_quiz_screen.dart';
+import '../../medguess/medguess_screen.dart';
 import '../../results/results_screen.dart';
 import '../game/pack_burst_game.dart';
 import '../game/pack_game_base.dart';
@@ -363,6 +364,26 @@ class _QuizScreenState extends State<QuizScreen>
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(
                       horizontal: 30, vertical: 15),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              // Con el sobre ya abierto, el otro reto del día.
+              OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const MedGuessScreen()),
+                  );
+                },
+                icon: const Icon(Icons.spellcheck_rounded),
+                label: const Text('Jugar al MedGuess de hoy'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.textPrimary,
+                  side: const BorderSide(color: AppColors.border, width: 1.5),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 26, vertical: 14),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(30),
                   ),
