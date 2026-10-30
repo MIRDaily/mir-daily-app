@@ -790,8 +790,14 @@ Decidido con el dueño: no hacía falta esperar. La lista pide solo título, asi
 - **Piezas:** `core/models/mapas.dart`, `core/services/mapas_api.dart` (en el árbol como `MapasApi`, con
   `clienteConSesion`), `features/mapas/`. Tests: `test/mapas_test.dart` (30, con un Supabase de
   mentira). `flutter analyze`: 295.
-- **Falta de esta tanda:** miniaturas y recuentos (con el `summary` de Studio 6), filtro por asignatura
-  y carpeta, papelera, modo estudio y el tutorial `mapas.v1`. Crear mapas sigue en la web.
+- **Lista ordenada por carpetas (30/10/2026, commit `e823877`):** a petición del dueño («una lista
+  infinita de títulos»). Secciones plegables por asignatura (icono, color y recuento) con los mapas por
+  tema en el orden del temario y «Sin clasificar» al final; fijados en una tira arriba; vista
+  «Recientes»; buscar por título o carpeta; menú de cada mapa para fijar/quitar (columna `pinned`) y
+  mover a carpeta (`PATCH /api/carpetas`, el selector de siempre). Lógica en
+  `features/mapas/mapas_agrupar.dart`; tests en `test/mapas_organizar_test.dart` (7).
+- **Falta de esta tanda:** miniaturas y recuentos de nodos (con el `summary` de Studio 6), papelera,
+  modo estudio y el tutorial `mapas.v1`. Crear mapas sigue en la web.
 - **Falta probar en el teléfono:** abrir tus mapas reales (sobre todo los grandes y los de IA),
   arrastrar sin que se confunda con desplazar, editar y comprobar en la web que se ve igual.
 
