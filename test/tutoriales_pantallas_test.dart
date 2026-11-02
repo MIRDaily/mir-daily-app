@@ -261,6 +261,31 @@ void main() {
     });
   }
 
+  // Prueba en el teléfono (02/11/2026): el atrás de Android con un tutorial en la pantalla raíz
+  // cerraba la app. Ahora lo salta (como Escape en la web) y la app sigue abierta.
+  testWidgets('el atrás de Android en la raíz salta el tutorial en vez de cerrar la app', (tester) async {
+    final auth = AuthService();
+    final api = ApiService(auth);
+    final (t, s) = await _montar(tester, _movil, const MainNavigation(), extra: [
+      Provider<ApiService>.value(value: api),
+      ChangeNotifierProvider(create: (_) => AuthProvider(authService: auth, apiService: api)),
+      ChangeNotifierProvider(create: (_) => DailyProvider(api)),
+      ChangeNotifierProvider(create: (_) => ProgressProvider(api)),
+      ChangeNotifierProvider(create: (_) => FocusProvider()),
+      ChangeNotifierProvider(create: (_) => SettingsProvider()),
+    ], prefs: {'daily_reminder_prompted': true});
+    await _bombear(tester, 12);
+    t.declararListo('studio.v3', true);
+    await _esperarArranque(tester, t, 'studio.v3');
+
+    final atendido = await tester.binding.handlePopRoute();
+    await _bombear(tester, 4);
+    expect(atendido, isTrue, reason: 'Flutter se queda la pulsación: el sistema no cierra la app');
+    expect(t.enCurso, isNull);
+    expect(s.marcadas(), ['studio.v3']);
+    expect(find.byType(MainNavigation), findsOneWidget);
+  });
+
   testWidgets('lo visto en la web no sale', (tester) async {
     final (t, _) = await _montar(tester, _movil, const BibliotecaHubScreen(), vistos: ['studio.v3']);
     await _bombear(tester, 30);

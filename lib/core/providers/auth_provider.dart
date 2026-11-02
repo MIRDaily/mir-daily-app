@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:app_links/app_links.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../models/models.dart';
@@ -10,13 +10,29 @@ import '../services/auth_service.dart';
 
 enum AuthStatus { unknown, unauthenticated, authenticated }
 
-class AuthProvider extends ChangeNotifier {
+class AuthProvider extends ChangeNotifier with WidgetsBindingObserver {
   final AuthService authService;
   final ApiService apiService;
 
   AuthProvider({required this.authService, required this.apiService}) {
     _listenDeepLinks();
     apiService.alPerderSesion = _sesionPerdida;
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  /// Al volver a la app se vuelve a pedir el perfil: lo que cambió en la web mientras tanto (los
+  /// tutoriales reiniciados, el nombre, el avatar) llega sin tener que cerrarla. Como mucho una vez
+  /// cada 30 s, para no pedirlo en cada vistazo rápido a otra app.
+  DateTime? _ultimoPerfilAlVolver;
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed || _status != AuthStatus.authenticated) return;
+    final ahora = DateTime.now();
+    final ultimo = _ultimoPerfilAlVolver;
+    if (ultimo != null && ahora.difference(ultimo) < const Duration(seconds: 30)) return;
+    _ultimoPerfilAlVolver = ahora;
+    _loadProfileSilently();
   }
 
   /// Supabase ha rechazado el refresh token en mitad del uso (caducado tras mucho tiempo sin abrir
@@ -326,6 +342,7 @@ class AuthProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _linkSub?.cancel();
     _oauthTimeout?.cancel();
     super.dispose();

@@ -8,8 +8,13 @@
 //  3. Saltar cuenta como visto: insistir a quien ya dijo que no es peor que no haberlo enseñado.
 //
 // Lo visto vive en la cuenta (users.tutorials_seen, que llega con el perfil) y se escribe con
-// POST /api/profile/tutorials. Por delante hay una caché local por cuenta, que se escribe ANTES de la
-// red: si el POST falla, el mismo tutorial no se repite en bucle. «Tutoriales encendidos» es una
+// POST /api/profile/tutorials. En el dispositivo se guardan dos cosas por cuenta:
+//  - la última lista del servidor, solo para el arranque (antes de que llegue el perfil);
+//  - lo marcado aquí cuyo POST aún no se ha confirmado, que se escribe ANTES de la red: si el POST
+//    falla, el mismo tutorial no se repite en bucle, y se reintenta al llegar el perfil.
+// En cuanto llega el perfil, manda el servidor: si se reiniciaron en la web, vuelven a salir aquí
+// (antes la caché se unía para siempre a lo del servidor y un reinicio de otro dispositivo nunca
+// llegaba). «Tutoriales encendidos» es una
 // preferencia de este dispositivo, no de la cuenta (como en la web: quien lo apaga en el portátil no
 // tiene por qué apagarlo en el móvil).
 
@@ -32,6 +37,7 @@ class Tutoriales extends ChangeNotifier {
 
   static const claveActivos = 'tutorials.enabled';
   static String claveVistos(String usuario) => 'tutorials.seen.$usuario';
+  static String clavePendientes(String usuario) => 'tutorials.pending.$usuario';
 
   // ── Preferencia del dispositivo ─────────────────────────────────────────
   bool _activos = true;
@@ -68,7 +74,15 @@ class Tutoriales extends ChangeNotifier {
   String? get usuario => _usuario;
   UserProfile? _perfilAplicado;
   Set<String> _servidor = {};
-  Set<String> _local = {};
+
+  /// Si ya llegó la lista del servidor en esta sesión. Hasta entonces vale la de la caché.
+  bool _servidorLlegado = false;
+
+  /// La última lista del servidor guardada en el dispositivo (solo para el arranque).
+  Set<String> _cache = {};
+
+  /// Marcados aquí sin confirmar por el servidor.
+  Set<String> _pendientes = {};
   bool _localCargado = false;
 
   /// Lo marcado en esta sesión. Sin esto, volver a la pantalla antes de que el perfil se refresque
@@ -77,7 +91,7 @@ class Tutoriales extends ChangeNotifier {
 
   bool _celebrando = false;
 
-  Set<String> get vistos => unirVistos(_servidor, _local, _ahora);
+  Set<String> get vistos => unirVistos(_servidorLlegado ? _servidor : _cache, _pendientes, _ahora);
 
   /// Lo llama el ProxyProvider con la sesión, el perfil y si hay una celebración en pantalla.
   void sincronizar({required String? usuario, required UserProfile? perfil, required bool celebrando}) {
@@ -86,7 +100,9 @@ class Tutoriales extends ChangeNotifier {
       _usuario = usuario;
       _perfilAplicado = null;
       _servidor = {};
-      _local = {};
+      _servidorLlegado = false;
+      _cache = {};
+      _pendientes = {};
       _ahora.clear();
       _localCargado = false;
       _cerrar();
@@ -99,8 +115,10 @@ class Tutoriales extends ChangeNotifier {
     if (perfil != null && !identical(perfil, _perfilAplicado) && usuario != null && perfil.id == usuario) {
       _perfilAplicado = perfil;
       _servidor = perfil.tutorialsSeen.toSet();
+      _servidorLlegado = true;
       cambio = true;
       _guardarLocal();
+      _reintentarPendientes();
     }
     if (celebrando != _celebrando) {
       _celebrando = celebrando;
@@ -118,26 +136,56 @@ class Tutoriales extends ChangeNotifier {
   Future<void> _cargarLocal(String usuario) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final l = prefs.getStringList(claveVistos(usuario)) ?? const [];
+      final cache = prefs.getStringList(claveVistos(usuario)) ?? const [];
+      final pendientes = prefs.getStringList(clavePendientes(usuario)) ?? const [];
       if (usuario != _usuario) return;
-      _local = {..._local, ...l};
+      _cache = {..._cache, ...cache};
+      _pendientes = {..._pendientes, ...pendientes};
     } catch (_) {}
     if (usuario != _usuario) return;
     _localCargado = true;
     _guardarLocal();
+    _reintentarPendientes();
     _intentar();
   }
 
-  /// La caché se pone al día con todo lo que se sabe (también lo que dijo el servidor, que es quien
-  /// sabe lo visto en la web).
+  /// Guarda en el dispositivo la última lista del servidor (para el próximo arranque) y lo pendiente.
   Future<void> _guardarLocal() async {
     final u = _usuario;
     if (u == null || !_localCargado) return;
-    _local = vistos;
+    if (_servidorLlegado) _cache = {..._servidor};
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setStringList(claveVistos(u), _local.toList()..sort());
+      await prefs.setStringList(claveVistos(u), _cache.toList()..sort());
+      await prefs.setStringList(clavePendientes(u), _pendientes.toList()..sort());
     } catch (_) {}
+  }
+
+  /// Lo marcado aquí que el servidor aún no tiene se le vuelve a mandar en cuanto se sabe qué tiene.
+  void _reintentarPendientes() {
+    if (!_servidorLlegado || !_localCargado) return;
+    for (final id in _pendientes.difference(_servidor).toList()) {
+      _confirmar(id);
+    }
+    // Lo que el servidor ya tiene deja de estar pendiente.
+    if (_pendientes.intersection(_servidor).isNotEmpty) {
+      _pendientes = _pendientes.difference(_servidor);
+      _guardarLocal();
+    }
+  }
+
+  Future<void> _confirmar(String id) async {
+    final u = _usuario;
+    try {
+      await api.marcar(id);
+    } catch (_) {
+      // Sigue pendiente: se reintentará al llegar el próximo perfil.
+      return;
+    }
+    if (u != _usuario) return;
+    _pendientes.remove(id);
+    if (_servidorLlegado) _servidor.add(id);
+    await _guardarLocal();
   }
 
   // ── Arranque ────────────────────────────────────────────────────────────
@@ -227,12 +275,9 @@ class Tutoriales extends ChangeNotifier {
 
   Future<void> _marcar(String id) async {
     _ahora.add(id);
+    _pendientes.add(id);
     await _guardarLocal();
-    try {
-      await api.marcar(id);
-    } catch (_) {
-      // Se queda en la caché local: no se repite aquí, y el servidor se enterará la próxima vez.
-    }
+    await _confirmar(id);
   }
 
   /// «Volver a verlos desde el principio»: los borra en el servidor (todos los dispositivos) y aquí, y
@@ -240,15 +285,11 @@ class Tutoriales extends ChangeNotifier {
   Future<void> reiniciar() async {
     await api.reiniciar();
     _servidor = {};
+    _servidorLlegado = true;
     _ahora.clear();
-    _local = {};
-    final u = _usuario;
-    if (u != null) {
-      try {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setStringList(claveVistos(u), const []);
-      } catch (_) {}
-    }
+    _cache = {};
+    _pendientes = {};
+    await _guardarLocal();
     if (!_activos) {
       await setActivos(true);
     } else {

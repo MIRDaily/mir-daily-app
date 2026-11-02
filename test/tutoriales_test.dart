@@ -364,6 +364,48 @@ void main() {
       expect(reabierta.enCurso, isNull);
     });
 
+    // Prueba en el teléfono (02/11/2026): reiniciarlos en la web no los hacía volver en la app,
+    // porque la caché del dispositivo se unía para siempre a lo del servidor.
+    test('reiniciados en otro dispositivo vuelven a salir aunque la caché los tuviera', () async {
+      SharedPreferences.setMockInitialValues({
+        Tutoriales.claveVistos('u1'): ['daily.v2', 'studio.v3'],
+      });
+      final otro = Tutoriales(s.api());
+      addTearDown(otro.dispose);
+
+      // Antes de que llegue el perfil vale la caché: no sale.
+      otro.sincronizar(usuario: 'u1', perfil: null, celebrando: false);
+      await _esperar();
+      otro.declararListo('studio.v3', true);
+      await _esperar();
+      expect(otro.enCurso, isNull);
+
+      // Llega el perfil con la lista vacía (se reiniciaron en la web): manda el servidor.
+      otro.sincronizar(usuario: 'u1', perfil: _perfil(), celebrando: false);
+      await _esperar();
+      expect(otro.enCurso, 'studio.v3');
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getStringList(Tutoriales.claveVistos('u1')), isEmpty);
+    });
+
+    test('lo que no llegó al servidor se reintenta con el siguiente perfil y deja de estar pendiente', () async {
+      s.fallarCon = 500;
+      await conSesion();
+      t.declararListo('daily.v2', true);
+      await _esperar();
+      t.saltar();
+      await _esperar();
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getStringList(Tutoriales.clavePendientes('u1')), ['daily.v2']);
+
+      s.fallarCon = 0;
+      t.sincronizar(usuario: 'u1', perfil: _perfil(), celebrando: false);
+      await _esperar();
+      expect(s.marcadas().last, 'daily.v2');
+      expect(prefs.getStringList(Tutoriales.clavePendientes('u1')), isEmpty);
+      expect(t.vistos, contains('daily.v2'));
+    });
+
     test('la caché es de cada cuenta', () async {
       await conSesion();
       t.declararListo('daily.v2', true);

@@ -11,6 +11,8 @@ import 'widgets/nav_rail.dart';
 import 'pestana_pedida.dart';
 import '../../core/models/tutoriales.dart';
 import '../tutorial/tutorial_ancla.dart';
+import '../tutorial/tutoriales_controller.dart';
+import '../../core/providers/progress_provider.dart';
 import '../../core/services/avisos_service.dart';
 import '../profile/screens/avisos_screen.dart' show GloboAvisos;
 import '../biblioteca/biblioteca_hub_screen.dart';
@@ -470,7 +472,21 @@ class _MainNavigationState extends State<MainNavigation>
           )
         : pageArea;
 
-    return Scaffold(
+    // El «atrás» de Android en la pantalla raíz cierra la app. Con un tutorial o una celebración
+    // encima, eso no puede pasar: se declara que la raíz no se deja cerrar y así el sistema le pasa la
+    // pulsación a Flutter (con el atrás predictivo de Android 16, si nadie la reclama, cierra la app
+    // sin preguntar). La celebración se cierra con su propio observador; el tutorial se salta, como
+    // con Escape en la web.
+    final tutorialAbierto = context.select<Tutoriales?, bool>((t) => t?.enCurso != null);
+    final celebrando = context.select<ProgressProvider?, bool>((p) => p?.celebracionLista ?? false);
+
+    return PopScope(
+      canPop: !tutorialAbierto && !celebrando,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop || !tutorialAbierto) return;
+        context.read<Tutoriales?>()?.saltar();
+      },
+      child: Scaffold(
       body: floatingBar
           // La barra flotante va SOBRE el contenido (Stack), no en el slot
           // bottomNavigationBar: así el contenido pasa por detrás como en
@@ -490,6 +506,7 @@ class _MainNavigationState extends State<MainNavigation>
       bottomNavigationBar: (isInFocusMode || useRail || floatingBar)
           ? null
           : TutorialAncla(nombre: anclaNavPestanas, child: _buildBottomBar(context)),
+      ),
     );
   }
 
