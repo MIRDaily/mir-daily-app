@@ -124,9 +124,9 @@ void main() {
       expect(p.tema, 'Lupus');
       expect(p.precision, 0.31);
       expect(descripcionAMedida(p),
-          'Una sesión de 30 preguntas centrada en Lupus, de Reumatología, que es donde peor vas ahora mismo.');
+          '30 preguntas de Lupus (Reumatología), donde más fallas ahora.');
       expect(descripcionAMedida(null),
-          'Cuando tengamos datos de tus fallos, te propondremos aquí una sesión centrada en ellos.');
+          'Cuando haya datos de tus fallos, aquí tendrás una sesión centrada en ellos.');
     });
   });
 
@@ -220,7 +220,7 @@ void main() {
       testWidgets('la tarjeta de Studio: apagada sin punto débil, encendida con él', (tester) async {
         _tam(tester, tam);
         await tester.pumpWidget(const MaterialApp(home: Scaffold(body: Padding(padding: EdgeInsets.all(20), child: AMedidaCard()))));
-        expect(find.textContaining('Cuando tengamos datos de tus fallos'), findsOneWidget);
+        expect(find.textContaining('Cuando haya datos de tus fallos'), findsOneWidget);
         expect(find.text('Generar sesión personalizada'), findsNothing);
         expect(tester.takeException(), isNull);
 
@@ -258,7 +258,7 @@ void main() {
           await progreso.refresh();
         });
         await tester.pump();
-        expect(find.textContaining('centrada en Lupus, de Reumatología'), findsOneWidget);
+        expect(find.textContaining('de Lupus (Reumatología)'), findsOneWidget);
         expect(find.text('Generar sesión personalizada'), findsOneWidget);
         expect(find.text('RECOMENDADO'), findsOneWidget);
         expect(tester.takeException(), isNull);

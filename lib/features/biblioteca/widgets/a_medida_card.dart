@@ -32,39 +32,48 @@ class AMedidaCard extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
           pressDelay: const Duration(milliseconds: 120),
           onTap: () => abrirSimulacroAMedida(context),
-          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Container(
-              width: 46,
-              height: 46,
-              decoration: BoxDecoration(
-                color: listo ? AppColors.primary : const Color(0xFFF2EFED),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: kInk, width: 2),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: listo ? AppColors.primary : const Color(0xFFF2EFED),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: kInk, width: 2),
+                ),
+                child: Icon(Icons.psychology_alt_rounded, color: listo ? Colors.white : kMuted),
               ),
-              child: Icon(Icons.psychology_alt_rounded, color: listo ? Colors.white : kMuted),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                if (listo) const DocChip(label: 'RECOMENDADO', tone: DocTone.accent),
-                if (listo) const SizedBox(height: 6),
-                const Text('Simulacro a tu medida',
-                    style: TextStyle(color: kInk, fontSize: 16.5, fontWeight: FontWeight.w900)),
-                const SizedBox(height: 3),
-                Text(descripcionAMedida(punto), style: const TextStyle(color: kMuted, fontSize: 13, height: 1.4)),
-                if (listo) ...[
-                  const SizedBox(height: 10),
-                  const Row(children: [
-                    Icon(Icons.play_arrow_rounded, size: 18, color: AppColors.primaryDark),
-                    SizedBox(width: 4),
-                    Flexible(
-                      child: Text('Generar sesión personalizada',
-                          style: TextStyle(color: AppColors.primaryDark, fontSize: 13, fontWeight: FontWeight.w900)),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Row(children: [
+                    const Flexible(
+                      child: Text('Simulacro a tu medida',
+                          style: TextStyle(color: kInk, fontSize: 16.5, fontWeight: FontWeight.w900)),
                     ),
+                    if (listo) ...[
+                      const SizedBox(width: 8),
+                      const DocChip(label: 'RECOMENDADO', tone: DocTone.accent),
+                    ],
                   ]),
-                ],
-              ]),
-            ),
+                  const SizedBox(height: 3),
+                  Text(descripcionAMedida(punto), style: const TextStyle(color: kMuted, fontSize: 13, height: 1.4)),
+                ]),
+              ),
+            ]),
+            // El botón va debajo y a lo ancho de la tarjeta, no sangrado bajo el texto: en vertical
+            // quedaba como una línea suelta (prueba en el teléfono, 02/11/2026).
+            if (listo) ...[
+              const SizedBox(height: 12),
+              StickerButton(
+                label: 'Generar sesión personalizada',
+                icon: Icons.play_arrow_rounded,
+                expand: true,
+                compact: true,
+                onPressed: () => abrirSimulacroAMedida(context),
+              ),
+            ],
           ]),
         ),
       ),

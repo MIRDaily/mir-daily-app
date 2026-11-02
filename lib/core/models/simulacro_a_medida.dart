@@ -71,7 +71,8 @@ PuntoDebil? puntoDebilDe(List<Challenge> diarios) {
 }
 
 /// Texto de la tarjeta de Studio, el mismo que la web.
+// Corta a propósito: en el móvil la tarjeta va arriba del todo en Studio (prueba en el teléfono,
+// 02/11/2026: la frase larga la hacía demasiado alta).
 String descripcionAMedida(PuntoDebil? p) => p == null
-    ? 'Cuando tengamos datos de tus fallos, te propondremos aquí una sesión centrada en ellos.'
-    : 'Una sesión de 30 preguntas centrada en ${p.tema}${p.asignatura.isEmpty ? '' : ', de ${p.asignatura}'}, '
-        'que es donde peor vas ahora mismo.';
+    ? 'Cuando haya datos de tus fallos, aquí tendrás una sesión centrada en ellos.'
+    : '30 preguntas de ${p.tema}${p.asignatura.isEmpty ? '' : ' (${p.asignatura})'}, donde más fallas ahora.';

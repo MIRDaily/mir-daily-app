@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/models/resumen.dart';
 import '../../../shared/sticker/sticker.dart';
+import '../../../shared/widgets/misc_widgets.dart';
 import '../resumenes_api.dart';
 import '../resumenes_grupo.dart';
 import '../resumenes_logica.dart';
@@ -314,7 +315,10 @@ class _AvisoResumenesState extends State<AvisoResumenes> {
   Widget build(BuildContext context) {
     final a = _aviso;
     if (a == null) return const SizedBox.shrink();
-    return Padding(
+    // Llega con la red, después que el resto de la portada: entra como las demás tarjetas.
+    return SlideFadeIn(
+      beginOffset: const Offset(0, 0.12),
+      child: Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Semantics(
         button: true,
@@ -342,6 +346,7 @@ class _AvisoResumenesState extends State<AvisoResumenes> {
             const Icon(Icons.arrow_forward_rounded, color: kInk),
           ]),
         ),
+      ),
       ),
     );
   }

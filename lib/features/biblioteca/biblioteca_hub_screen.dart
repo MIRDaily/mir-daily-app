@@ -65,9 +65,11 @@ class BibliotecaHubScreen extends StatelessWidget {
             // «Simulacro a tu medida»: la tarjeta destacada de Studio en la web.
             const TutorialAncla(nombre: anclaStudioSimulacro, child: AMedidaCard()),
             // «Progreso mensual», como en la portada de Studio de la web. No sale sin datos.
-            const ProgresoMensualCard(),
+            // Estas dos llegan con la red, después que el resto: entran con su animación y empujan
+            // lo de debajo suave, en vez de aparecer de golpe (prueba en el teléfono, 02/11/2026).
+            const _EntraAlLlegar(child: ProgresoMensualCard()),
             // «Tienes N párrafos para repasar» (resúmenes activos). No sale si no hay nada.
-            AvisoResumenes(onAbrir: () => _open(context, const ResumenesScreen())),
+            _EntraAlLlegar(child: AvisoResumenes(onAbrir: () => _open(context, const ResumenesScreen()))),
             const SizedBox(height: 8),
             const SectionLabel('Herramientas'),
             const SizedBox(height: 14),
@@ -327,6 +329,24 @@ class _ToolCard extends StatelessWidget {
               color: kMuted.withOpacity(0.6), size: 16),
         ],
       ),
+    );
+  }
+}
+
+/// Un hueco que crece suave cuando su contenido llega (de nada a una tarjeta).
+class _EntraAlLlegar extends StatelessWidget {
+  final Widget child;
+
+  const _EntraAlLlegar({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    final sinAnimacion = MediaQuery.disableAnimationsOf(context);
+    return AnimatedSize(
+      duration: sinAnimacion ? Duration.zero : const Duration(milliseconds: 420),
+      curve: kEaseOut,
+      alignment: Alignment.topCenter,
+      child: child,
     );
   }
 }
