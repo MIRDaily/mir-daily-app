@@ -70,6 +70,30 @@ tenga. Al cerrar cada tanda se actualizan las dos.
 
 ---
 
+## Prueba en el teléfono (desde el 02/11/2026)
+
+Lista única de lo que cada tanda dejó «Falta probar», agrupada por pantalla. Se recorre en el OnePlus del
+dueño con «MIRDaily nueva» (v7). Resultado de cada punto: **bien**, **arreglado** (con commit) o
+**apuntado** (para otra tanda o pendiente de decisión).
+
+### Bloques 1 a 4 (02/11/2026)
+
+| Punto | Resultado |
+|---|---|
+| Sesión: volver tras horas en segundo plano | **Bien.** Sin login; si Android la cerró, sale la pantalla de «continuar». |
+| Daily: tutorial, vibración y sonido | **Bien.** La vibración va solo al cambiar de paso (así está hecho). |
+| Atrás de Android con el tutorial abierto en la raíz (lanzado desde Perfil → Tutoriales) | **Arreglado.** Cerraba la app (con el atrás predictivo de Android 16 nadie reclamaba la pulsación). Ahora la raíz no se deja cerrar con un tutorial o una celebración encima y el atrás salta el tutorial, como Escape en la web. Test en `tutoriales_pantallas_test.dart`. |
+| Reiniciar tutoriales en la web → en la app no salía ninguno | **Arreglado en la app.** La caché del móvil se unía para siempre a lo del servidor. Ahora, en cuanto llega el perfil, manda el servidor; el dispositivo solo guarda lo pendiente de confirmar (`tutorials.pending.<usuario>`), que se reintenta. Y el perfil se vuelve a pedir al volver a la app (como mucho cada 30 s). Tests en `tutoriales_test.dart`. |
+| Reiniciar tutoriales en la app → en la web no salía ninguno | **Apuntado (web).** La web tiene el mismo fallo en `lib/tutorials/storage.ts` + `TutorialProvider.tsx` (une `localStorage` con `tutorials_seen`). Se arregla igual que en la app; es un cambio del frontend, fuera de esta prueba. |
+| Studio: tarjeta «Simulacro a tu medida» | **Arreglado.** Texto más corto y el botón «Generar sesión personalizada», a lo ancho bajo la tarjeta (antes quedaba sangrado y suelto). Falta que el dueño lo vea. |
+| Studio: «Tu progreso mensual» y «Párrafos por repasar» salían tarde y de golpe | **Arreglado.** Llegan con la red: ahora entran con la animación de las demás y empujan lo de debajo suave. |
+| Mazos: quitar una pregunta → papelera de app y web | **Bien.** |
+| Mazos: «Acierto por asignatura» | **Bien.** |
+| Mazos: estudiar con ajustes (normal, solo dominadas, 1 carta) | **Bien.** 1/1, 100 %. |
+| Mazos: ordenar a mano | **Pendiente de decisión.** «Colocar a mano…» existe, pero al final del panel de Ajustes y con el orden llamado «Predeterminado»: no se encontró. El dueño propone arrastrar en la galería y un orden «personalizado» que se guarde. La web solo ordena arrastrando (sin los otros cinco órdenes). |
+| Mazos: botón Reportar «ocupa una columna entera y empuja el texto a la izquierda» | **Pendiente de captura.** En el estudio del mazo va en la cabecera de la tarjeta, junto a la asignatura; hace falta ver en qué pantalla pasa. |
+
+
 # Fase 1 · Cimientos
 
 ## Tanda 0 — Punto de partida verde
