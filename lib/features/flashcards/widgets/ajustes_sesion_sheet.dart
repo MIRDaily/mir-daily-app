@@ -6,11 +6,13 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/models/flashcards.dart';
 import '../../../core/models/models.dart';
 import '../../../core/responsive/adaptive_modal.dart';
+import '../../../core/services/api_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/sticker/sticker.dart';
 import 'flashcards_ui.dart';
@@ -70,6 +72,37 @@ class _AjustesSesionPanelState extends State<AjustesSesionPanel> {
   late AjustesSesion _a = widget.inicial;
   late final _temas = temasDelGrupo(widget.cards);
   late final _conNivel = widget.cards.any((c) => c.level != null);
+
+  /// Botones al responder (preferencia del usuario, en el servidor): 3 = semáforo, 4 = Anki. null hasta
+  /// que se lee; si no se puede leer, el semáforo.
+  int? _botones;
+
+  @override
+  void initState() {
+    super.initState();
+    _leerBotones();
+  }
+
+  Future<void> _leerBotones() async {
+    int n = 3;
+    try {
+      n = await context.read<ApiService>().getFlashcardBotones();
+    } catch (_) {}
+    if (mounted) setState(() => _botones = n);
+  }
+
+  /// Se nota al momento y se guarda por detrás; si falla, se vuelve a lo que había y se avisa.
+  Future<void> _elegirBotones(int n) async {
+    final antes = _botones;
+    setState(() => _botones = n);
+    try {
+      await context.read<ApiService>().setFlashcardBotones(n);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _botones = antes);
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(const SnackBar(content: Text('No se pudo guardar qué botones prefieres.')));
+    }
+  }
 
   void _alternarTema(String t) {
     final actual = (_a.temas ?? _temas.map((x) => x.tema)).toSet();
@@ -156,6 +189,13 @@ class _AjustesSesionPanelState extends State<AjustesSesionPanel> {
               ),
             ),
           ],
+          const SizedBox(height: 18),
+          const SectionLabel('Al responder'),
+          Row(children: [
+            Expanded(child: _opcionBotones(3, 'Semáforo', 'No me la sabía · Me costó · Me la sabía')),
+            const SizedBox(width: 8),
+            Expanded(child: _opcionBotones(4, 'Como Anki', 'Otra vez · Difícil · Bien · Fácil')),
+          ]),
         ]),
       ),
       Container(
@@ -222,6 +262,33 @@ class _AjustesSesionPanelState extends State<AjustesSesionPanel> {
                 Text('$n', style: const TextStyle(color: kMuted, fontSize: 12.5, fontWeight: FontWeight.w800)),
               ]),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _opcionBotones(int n, String titulo, String descripcion) {
+    final on = _botones == n;
+    return Semantics(
+      selected: on,
+      button: true,
+      child: Material(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: _botones == null || on ? null : () => _elegirBotones(n),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: on ? kAccent : Colors.transparent, width: 2),
+            ),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(titulo, style: const TextStyle(color: kInk, fontSize: 14, fontWeight: FontWeight.w800)),
+              Text(descripcion, style: const TextStyle(color: kMuted, fontSize: 11.5)),
+            ]),
           ),
         ),
       ),

@@ -43,6 +43,19 @@ class _FakeApi extends ApiService {
   _FakeApi() : super(AuthService());
 
   final List<int> grados = [];
+
+  /// Preferencia de botones (3 = semáforo, 4 = Anki) y lo que se ha guardado.
+  int botones = 3;
+  final List<int> botonesGuardados = [];
+
+  @override
+  Future<int> getFlashcardBotones() async => botones;
+
+  @override
+  Future<int> setFlashcardBotones(int n) async {
+    botonesGuardados.add(n);
+    return botones = n;
+  }
   Map<String, dynamic>? opciones;
   int _servidas = 0;
   bool _deshecho = false;
@@ -117,13 +130,13 @@ Future<void> _settle(WidgetTester tester, [int frames = 20]) async {
   }
 }
 
-Future<_FakeApi> _montar(WidgetTester tester, Size size, Widget home) async {
+Future<_FakeApi> _montar(WidgetTester tester, Size size, Widget home, {int botones = 3}) async {
   SharedPreferences.setMockInitialValues({});
   tester.view.devicePixelRatio = 1.0;
   tester.view.physicalSize = size;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
-  final api = _FakeApi();
+  final api = _FakeApi()..botones = botones;
   final progreso = ProgressProvider(ApiService(AuthService(), client: MockClient((_) async => throw 'sin red')));
   await tester.pumpWidget(MultiProvider(
     providers: [
@@ -172,11 +185,41 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('estudio en $nombre: cuatro notas con su intervalo, deshacer y resumen final', (tester) async {
+    testWidgets('estudio en $nombre: semáforo por defecto, tres notas y su resumen', (tester) async {
       final api = await _montar(
         tester,
         tam,
         const FlashcardStudyScreen(deck: _grupo, limit: 20, opciones: {'ladder': true}),
+      );
+      await tester.tap(find.text('Mostrar respuesta'));
+      await _settle(tester, 10);
+      expect(find.text('No me la sabía'), findsOneWidget);
+      expect(find.text('Me costó'), findsOneWidget);
+      expect(find.text('Me la sabía'), findsOneWidget);
+      // «Fácil» como BOTÓN no está (la insignia de nivel «Fácil» de la tarjeta sí: es el contenido).
+      expect(find.bySemanticsLabel(RegExp(r'^Fácil: vuelve')), findsNothing);
+      expect(find.text('Otra vez'), findsNothing);
+      expect(find.text('10 min'), findsOneWidget, reason: 'cada botón sigue con su intervalo');
+      await tester.tap(find.text('Me la sabía'));
+      await _settle(tester, 10);
+      await tester.tap(find.text('Mostrar respuesta'));
+      await _settle(tester, 10);
+      await tester.tap(find.text('No me la sabía'));
+      await _settle(tester, 20);
+      expect(api.grados, [3, 1]);
+      expect(find.text('¡Sesión completada!'), findsOneWidget);
+      expect(find.text('ME LA SABÍA'), findsOneWidget, reason: 'el resumen usa los mismos botones');
+      expect(find.text('FÁCIL'), findsNothing);
+      expect(tester.takeException(), isNull);
+      await tester.pump(const Duration(seconds: 10));
+    });
+
+    testWidgets('estudio en $nombre: con los botones de Anki, cuatro notas con su intervalo, deshacer y resumen final', (tester) async {
+      final api = await _montar(
+        tester,
+        tam,
+        const FlashcardStudyScreen(deck: _grupo, limit: 20, opciones: {'ladder': true}),
+        botones: 4,
       );
       expect(find.text('¿Cristales de la gota?'), findsOneWidget);
       await tester.tap(find.text('Mostrar respuesta'));
@@ -216,7 +259,7 @@ void main() {
 
   testWidgets('ajustes de la sesión: avisa de cuántas salen y devuelve lo elegido', (tester) async {
     AjustesSesion? elegido;
-    await _montar(
+    final api = await _montar(
       tester,
       const Size(390, 844),
       Builder(
@@ -239,6 +282,11 @@ void main() {
     await tester.tap(find.text('Solo falladas'));
     await _settle(tester, 5);
     expect(find.textContaining('Vas a estudiar 1 tarjeta.'), findsOneWidget);
+    // Al responder: los botones de Anki se guardan en el servidor al elegirlos.
+    await tester.scrollUntilVisible(find.text('Como Anki'), 200, scrollable: find.byType(Scrollable).first);
+    await tester.tap(find.text('Como Anki'));
+    await _settle(tester, 5);
+    expect(api.botonesGuardados, [4]);
     await tester.tap(find.text('Empezar'));
     await _settle(tester);
     expect(elegido?.solo, SoloTarjetas.failed);

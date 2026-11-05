@@ -1067,6 +1067,18 @@ class ApiService {
     }
   }
 
+  /// Botones al responder flashcards (preferencia del usuario, en el servidor para que la web y la app
+  /// digan lo mismo; etapa B2): 3 = semáforo, 4 = Anki.
+  Future<int> getFlashcardBotones() async {
+    final json = await _request('GET', '/api/studio/flashcard-preferencias');
+    return json['botones'] == 4 ? 4 : 3;
+  }
+
+  Future<int> setFlashcardBotones(int botones) async {
+    final json = await _request('PATCH', '/api/studio/flashcard-preferencias', body: {'botones': botones});
+    return json['botones'] == 4 ? 4 : 3;
+  }
+
   /// Escalera de dificultad del grupo (la calcula el servidor).
   Future<Escalera> getFlashcardLadder(String deckId) async {
     final json = await _request('GET', '/api/studio/flashcard-decks/$deckId/ladder');

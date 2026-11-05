@@ -71,6 +71,10 @@ class _FlashcardStudyScreenState extends State<FlashcardStudyScreen> with Silenc
   /// Cuándo se mostró la tarjeta: cronómetro de la respuesta y origen de los intervalos.
   DateTime _shownAt = DateTime.now();
 
+  /// Botones al responder: 3 = semáforo (por defecto), 4 = Anki. Preferencia del usuario en el servidor;
+  /// si no se puede leer, el semáforo.
+  int _botones = 3;
+
   /// Foto de la escalera al empezar, para decir al final qué se ha desbloqueado.
   Escalera? _ladderAntes;
   String _unlockedMsg = '';
@@ -80,7 +84,17 @@ class _FlashcardStudyScreenState extends State<FlashcardStudyScreen> with Silenc
   @override
   void initState() {
     super.initState();
+    _cargarBotones();
     _start();
+  }
+
+  Future<void> _cargarBotones() async {
+    try {
+      final n = await _api.getFlashcardBotones();
+      if (mounted) setState(() => _botones = n);
+    } catch (_) {
+      // Sin la preferencia, el semáforo.
+    }
   }
 
   @override
@@ -407,9 +421,10 @@ class _FlashcardStudyScreenState extends State<FlashcardStudyScreen> with Silenc
                 )
               else
                 _GradeGrid(
+                  botones: botonesDe(_botones),
                   preview: _preview,
                   from: _shownAt,
-                  columnas: ancho ? 4 : 2,
+                  columnas: _botones == 4 ? (ancho ? 4 : 2) : 3,
                   disabled: _busy,
                   onGrade: _answer,
                 ),
@@ -484,7 +499,7 @@ class _FlashcardStudyScreenState extends State<FlashcardStudyScreen> with Silenc
               if (_studied > 0) ...[
                 const SizedBox(height: 16),
                 Row(children: [
-                  for (final b in kGradeButtons)
+                  for (final b in botonesDelResumen(_botones, _byGrade))
                     Expanded(
                       child: Container(
                         margin: const EdgeInsets.symmetric(horizontal: 3),
@@ -533,19 +548,20 @@ class _FlashcardStudyScreenState extends State<FlashcardStudyScreen> with Silenc
   }
 }
 
-/// Los cuatro botones de respuesta, cada uno con el intervalo que le tocaría a la tarjeta.
+/// Los botones de respuesta (semáforo o Anki), cada uno con el intervalo que le tocaría a la tarjeta.
 class _GradeGrid extends StatelessWidget {
+  final List<BotonNota> botones;
   final Map<int, GradePreview> preview;
   final DateTime from;
   final int columnas;
   final bool disabled;
   final ValueChanged<int> onGrade;
 
-  const _GradeGrid({required this.preview, required this.from, required this.columnas, required this.disabled, required this.onGrade});
+  const _GradeGrid({required this.botones, required this.preview, required this.from, required this.columnas, required this.disabled, required this.onGrade});
 
   @override
   Widget build(BuildContext context) {
-    Widget boton(({int grade, String label, IconData icon, Color fg, Color bg}) b) => Padding(
+    Widget boton(BotonNota b) => Padding(
           padding: const EdgeInsets.all(4),
           child: Semantics(
             button: true,
@@ -563,12 +579,19 @@ class _GradeGrid extends StatelessWidget {
                     border: Border.all(color: kInk, width: 2),
                     boxShadow: [BoxShadow(color: b.fg, offset: const Offset(3, 3))],
                   ),
-                  child: Column(children: [
-                    Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                      Icon(b.icon, size: 18, color: b.fg),
-                      const SizedBox(width: 5),
-                      Text(b.label, style: TextStyle(color: b.fg, fontSize: 14, fontWeight: FontWeight.w900)),
-                    ]),
+                  child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    // Icono encima del texto: «No me la sabía» cabe en un tercio de un móvil de 360 px.
+                    Icon(b.icon, size: 18, color: b.fg),
+                    const SizedBox(height: 2),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: Text(
+                        b.label,
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        style: TextStyle(color: b.fg, fontSize: 13.5, height: 1.15, fontWeight: FontWeight.w900),
+                      ),
+                    ),
                     const SizedBox(height: 2),
                     Text(
                       formatInterval(preview[b.grade], from),
@@ -582,10 +605,12 @@ class _GradeGrid extends StatelessWidget {
         );
 
     final filas = <Widget>[];
-    for (var i = 0; i < kGradeButtons.length; i += columnas) {
-      filas.add(Row(children: [
-        for (final b in kGradeButtons.skip(i).take(columnas)) Expanded(child: boton(b)),
-      ]));
+    for (var i = 0; i < botones.length; i += columnas) {
+      filas.add(IntrinsicHeight(
+        child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          for (final b in botones.skip(i).take(columnas)) Expanded(child: boton(b)),
+        ]),
+      ));
     }
     return Column(mainAxisSize: MainAxisSize.min, children: filas);
   }

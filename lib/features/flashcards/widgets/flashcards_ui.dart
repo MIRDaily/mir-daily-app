@@ -42,13 +42,32 @@ const Map<int, ({Color color, Color soft})> kLevelColor = {
   4: (color: Color(0xFFB04A5E), soft: Color(0xFFFAE3E8)),
 };
 
-/// Los cuatro botones de respuesta: grado, nombre, icono y colores.
-const List<({int grade, String label, IconData icon, Color fg, Color bg})> kGradeButtons = [
+/// Un botón de respuesta: grado, nombre, icono y colores.
+typedef BotonNota = ({int grade, String label, IconData icon, Color fg, Color bg});
+
+/// El semáforo, por defecto (etapa B2 del plan de flashcards; los mismos de la web,
+/// src/lib/flashcards/botones.ts). Los textos dicen lo que pasó: «Me costó» es un acierto.
+const List<BotonNota> kGradeButtonsSemaforo = [
+  (grade: 1, label: 'No me la sabía', icon: Icons.close_rounded, fg: Color(0xFFC4655A), bg: Color(0xFFFFF1EE)),
+  (grade: 2, label: 'Me costó', icon: Icons.pending_outlined, fg: Color(0xFFB4831F), bg: Color(0xFFFBF3E1)),
+  (grade: 3, label: 'Me la sabía', icon: Icons.check_rounded, fg: Color(0xFF5C7A59), bg: Color(0xFFEAF2E8)),
+];
+
+/// Los cuatro de Anki, si el usuario los prefiere («Como Anki» en los ajustes).
+const List<BotonNota> kGradeButtonsAnki = [
   (grade: 1, label: 'Otra vez', icon: Icons.replay_rounded, fg: Color(0xFFC4655A), bg: Color(0xFFFFF1EE)),
   (grade: 2, label: 'Difícil', icon: Icons.trending_down_rounded, fg: Color(0xFFB4831F), bg: Color(0xFFFBF3E1)),
   (grade: 3, label: 'Bien', icon: Icons.check_rounded, fg: Color(0xFF5C7A59), bg: Color(0xFFEAF2E8)),
   (grade: 4, label: 'Fácil', icon: Icons.bolt_rounded, fg: Color(0xFF4E7C9B), bg: Color(0xFFE7F0F6)),
 ];
+
+/// Los botones según la preferencia: 4 = Anki; cualquier otro valor, el semáforo.
+List<BotonNota> botonesDe(int n) => n == 4 ? kGradeButtonsAnki : kGradeButtonsSemaforo;
+
+/// Recuadros del resumen de la sesión: los botones y, si con el semáforo hubo algún «Fácil» (respondido
+/// antes de cambiar), también ese, para que cuadre el total.
+List<BotonNota> botonesDelResumen(int n, Map<int, int> porNota) =>
+    [...botonesDe(n), if (n != 4 && (porNota[4] ?? 0) > 0) kGradeButtonsAnki[3]];
 
 /// Insignia del nivel de una tarjeta: cuatro puntos y el nombre.
 class NivelBadge extends StatelessWidget {
