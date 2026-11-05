@@ -16,7 +16,7 @@ import 'widgets/flashcard_dialogs.dart';
 import 'widgets/flashcards_ui.dart';
 
 /// Cómo se sale del estudio: «Otros ajustes» vuelve al grupo con los ajustes abiertos.
-enum FlashStudyExit { volver, otrosAjustes }
+enum FlashStudyExit { volver, otrosAjustes, repasoLibre }
 
 /// Estudio de un grupo de flashcards, con las cuatro notas de Anki.
 ///
@@ -317,7 +317,15 @@ class _FlashcardStudyScreenState extends State<FlashcardStudyScreen> with Silenc
         elevation: 0,
         title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(widget.deck.name, overflow: TextOverflow.ellipsis),
-          const Text('Repaso', style: TextStyle(color: kMuted, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 1)),
+          Text(
+            widget.opciones['practica'] == true
+                ? 'Repaso libre · no cambia cuándo vuelven'
+                : widget.opciones['onlyStatus'] == 'hoy'
+                    ? 'Lo de hoy'
+                    : 'Repaso',
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: kMuted, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 1),
+          ),
         ]),
         actions: [
           IconButton(
@@ -447,7 +455,7 @@ class _FlashcardStudyScreenState extends State<FlashcardStudyScreen> with Silenc
     final title = switch (_finished!) {
       FlashNextKind.limit => 'Límite de la sesión alcanzado',
       FlashNextKind.expired => 'La sesión expiró',
-      _ => '¡Sesión completada!',
+      _ => widget.opciones['onlyStatus'] == 'hoy' ? '¡Lo de hoy, hecho!' : '¡Sesión completada!',
     };
     return Center(
       child: SingleChildScrollView(
@@ -525,6 +533,15 @@ class _FlashcardStudyScreenState extends State<FlashcardStudyScreen> with Silenc
               const SizedBox(height: 20),
               StickerButton(label: 'Repasar de nuevo', icon: Icons.replay_rounded, expand: true, onPressed: _start),
               const SizedBox(height: 8),
+              if (_finished == FlashNextKind.done && widget.opciones['onlyStatus'] == 'hoy') ...[
+                GhostButton(
+                  label: 'Repaso libre',
+                  icon: Icons.self_improvement_rounded,
+                  expand: true,
+                  onPressed: () => Navigator.of(context).pop(FlashStudyExit.repasoLibre),
+                ),
+                const SizedBox(height: 8),
+              ],
               GhostButton(
                 label: 'Otros ajustes',
                 icon: Icons.tune_rounded,

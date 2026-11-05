@@ -202,17 +202,42 @@ String textoDesbloqueo(List<Desbloqueo> lista) {
 // Ajustes de la sesión («Estudiar» → cuántas, qué tarjetas, temas, dificultad y escalera)
 // ---------------------------------------------------------------------------
 
-enum SoloTarjetas { todas, failed, due, nueva }
+/// Qué tarjetas (etapa B3 del plan de flashcards): «Lo de hoy» (por defecto: lo que toca y las nuevas
+/// hasta el cupo del día), pendientes, falladas, nuevas y «Repaso libre» (las ya vistas aunque no toquen,
+/// como práctica: no cambia cuándo vuelven). Ya no hay «Todas»: era repasar antes de tiempo.
+enum SoloTarjetas { hoy, failed, due, nueva, libre }
 
 extension SoloTarjetasId on SoloTarjetas {
-  /// Como lo guarda la web y lo espera el servidor (`onlyStatus`).
+  /// Como lo guarda la web y lo espera el servidor (`onlyStatus`; «libre» va como `practica`).
   String get id => switch (this) {
-        SoloTarjetas.todas => 'todas',
+        SoloTarjetas.hoy => 'hoy',
         SoloTarjetas.failed => 'failed',
         SoloTarjetas.due => 'due',
         SoloTarjetas.nueva => 'new',
+        SoloTarjetas.libre => 'libre',
       };
 }
+
+/// Preferencias de estudio de flashcards (en el servidor, para que la web y la app coincidan): botones
+/// (3 = semáforo, 4 = Anki), cupo de nuevas al día y las nuevas ya empezadas hoy (las cuenta el servidor).
+class FlashPrefs {
+  final int botones;
+  final int nuevasDia;
+  final int nuevasHoy;
+
+  const FlashPrefs({this.botones = 3, this.nuevasDia = 20, this.nuevasHoy = 0});
+
+  /// Cuántas nuevas caben aún hoy en «Lo de hoy».
+  int get restantes => nuevasDia - nuevasHoy > 0 ? nuevasDia - nuevasHoy : 0;
+
+  factory FlashPrefs.fromJson(Map<String, dynamic> j) {
+    int entero(dynamic v, int def) => v is int && v >= 0 ? v : def;
+    return FlashPrefs(botones: j['botones'] == 4 ? 4 : 3, nuevasDia: entero(j['nuevasDia'], 20), nuevasHoy: entero(j['nuevasHoy'], 0));
+  }
+}
+
+/// Cupos de nuevas al día que se ofrecen. 0 = solo repasos.
+const List<int> kCuposNuevas = [0, 10, 20, 30, 50];
 
 class AjustesSesion {
   /// Cuántas tarjetas distintas (null = todas las que coincidan).
@@ -226,7 +251,7 @@ class AjustesSesion {
 
   const AjustesSesion({
     this.cantidad = 20,
-    this.solo = SoloTarjetas.todas,
+    this.solo = SoloTarjetas.hoy,
     this.temas,
     this.niveles = kFlashLevels,
     this.escalera = true,
@@ -259,26 +284,30 @@ class AjustesSesion {
 const List<int> kCantidades = [10, 20, 50];
 
 const List<({SoloTarjetas id, String titulo, String descripcion})> kOpcionesSolo = [
-  (id: SoloTarjetas.todas, titulo: 'Todas', descripcion: 'Primero lo fallado y lo que toca repasar.'),
+  (id: SoloTarjetas.hoy, titulo: 'Lo de hoy', descripcion: 'Lo que toca repasar y las nuevas de hoy.'),
   (id: SoloTarjetas.due, titulo: 'Pendientes', descripcion: 'Las que ya has visto y toca repasar.'),
   (id: SoloTarjetas.failed, titulo: 'Solo falladas', descripcion: 'Las que fallaste la última vez.'),
-  (id: SoloTarjetas.nueva, titulo: 'Solo nuevas', descripcion: 'Las que aún no has estudiado.'),
+  (id: SoloTarjetas.nueva, titulo: 'Solo nuevas', descripcion: 'Las que aún no has estudiado (sin cupo).'),
+  (id: SoloTarjetas.libre, titulo: 'Repaso libre', descripcion: 'Las ya vistas, aunque no toquen. No cambia cuándo vuelven.'),
 ];
 
 const AjustesSesion kAjustesPorDefecto = AjustesSesion();
 
-/// ¿Entra la tarjeta en «qué tarjetas»? Las mismas definiciones que el servidor.
+/// ¿Entra la tarjeta en «qué tarjetas»? Las mismas definiciones que el servidor (estado e `isDue`, que manda
+/// él). En «Lo de hoy» entran todas las nuevas: el cupo del día lo aplica [coinciden].
 bool coincideSolo(Flashcard c, SoloTarjetas solo) => switch (solo) {
       SoloTarjetas.failed => c.status == FlashStatus.failed,
       SoloTarjetas.nueva => c.status == FlashStatus.nueva,
       SoloTarjetas.due => c.status != FlashStatus.nueva && c.isDue,
-      SoloTarjetas.todas => true,
+      SoloTarjetas.libre => c.status != FlashStatus.nueva,
+      SoloTarjetas.hoy => c.status == FlashStatus.nueva || c.isDue,
     };
 
 /// Las tarjetas que coinciden con los ajustes (sin el tope). Con filtro de niveles, las que no tienen
 /// nivel no entran (como en la cola). Con escalera y su foto (la del servidor), las nuevas de un nivel
 /// cerrado tampoco: así el número que se avisa es el que va a salir.
-List<Flashcard> coinciden(List<Flashcard> cards, AjustesSesion a, [Escalera? escalera]) {
+/// En «Lo de hoy», como mucho [nuevasRestantes] nuevas (cupo − las ya empezadas hoy; sin dato, sin tope).
+List<Flashcard> coinciden(List<Flashcard> cards, AjustesSesion a, [Escalera? escalera, int? nuevasRestantes]) {
   final todosNiveles = a.niveles.length == kFlashLevels.length;
   final temas = a.temas?.toSet();
   final cerrados = <String>{};
@@ -289,13 +318,17 @@ List<Flashcard> coinciden(List<Flashcard> cards, AjustesSesion a, [Escalera? esc
       }
     }
   }
-  return cards
+  final salen = cards
       .where((c) =>
           coincideSolo(c, a.solo) &&
           (temas == null || temas.contains(c.tema)) &&
           (todosNiveles || (c.level != null && a.niveles.contains(c.level))) &&
           !(c.status == FlashStatus.nueva && c.level != null && cerrados.contains('${c.tema}|${c.level}')))
       .toList();
+  if (a.solo != SoloTarjetas.hoy || nuevasRestantes == null) return salen;
+  // El cupo: tantas nuevas como quepan (cuáles, lo decide el servidor; aquí solo importa cuántas).
+  var quedan = nuevasRestantes;
+  return salen.where((c) => c.status != FlashStatus.nueva || quedan-- > 0).toList();
 }
 
 /// Los temas del grupo con cuántas tarjetas tiene cada uno, por orden alfabético (sin tema, al final).
@@ -316,8 +349,9 @@ List<({String tema, int total})> temasDelGrupo(List<Flashcard> cards) {
   List<Flashcard> cards,
   bool conNivel, [
   Escalera? escalera,
+  int? nuevasRestantes,
 ]) {
-  final n = coinciden(cards, a.copyWith(escalera: conNivel && a.escalera), escalera).length;
+  final n = coinciden(cards, a.copyWith(escalera: conNivel && a.escalera), escalera, nuevasRestantes).length;
   final tarjetas = a.cantidad != null ? (a.cantidad! < n ? a.cantidad! : n) : n;
   final todosTemas = a.temas == null || temasDelGrupo(cards).every((t) => a.temas!.contains(t.tema));
   final limit = (tarjetas * 2).clamp(20, 200);
@@ -327,7 +361,7 @@ List<({String tema, int total})> temasDelGrupo(List<Flashcard> cards) {
       if (conNivel && a.niveles.length < kFlashLevels.length) 'levels': a.niveles,
       'ladder': conNivel && a.escalera,
       if (!todosTemas && a.temas!.isNotEmpty) 'topics': a.temas,
-      if (a.solo != SoloTarjetas.todas) 'onlyStatus': a.solo.id,
+      if (a.solo == SoloTarjetas.libre) 'practica': true else 'onlyStatus': a.solo.id,
       if (a.cantidad != null) 'cardLimit': a.cantidad,
     },
   );
@@ -339,7 +373,8 @@ AjustesSesion sanearAjustes(dynamic raw) {
   final cantidad = r.containsKey('cantidad') && r['cantidad'] == null
       ? null
       : (kCantidades.contains(r['cantidad']) ? r['cantidad'] as int : kAjustesPorDefecto.cantidad);
-  final solo = SoloTarjetas.values.firstWhere((s) => s.id == r['solo'], orElse: () => SoloTarjetas.todas);
+  // «todas» (lo guardado antes de la etapa B3) y cualquier valor raro → «Lo de hoy».
+  final solo = SoloTarjetas.values.firstWhere((s) => s.id == r['solo'], orElse: () => SoloTarjetas.hoy);
   final temasRaw = r['temas'] is List ? (r['temas'] as List).whereType<String>().take(200).toList() : null;
   final nivelesRaw = r['niveles'] is List ? r['niveles'] as List : const [];
   final niveles = kFlashLevels.where((n) => nivelesRaw.any((x) => x is int && x == n)).toList();

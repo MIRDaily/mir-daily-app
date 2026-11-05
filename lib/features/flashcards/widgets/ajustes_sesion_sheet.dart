@@ -77,6 +77,9 @@ class _AjustesSesionPanelState extends State<AjustesSesionPanel> {
   /// que se lee; si no se puede leer, el semáforo.
   int? _botones;
 
+  /// Cupo de nuevas al día y las ya empezadas hoy (etapa B3). Sin leer aún, 20 y 0.
+  FlashPrefs _prefs = const FlashPrefs();
+
   @override
   void initState() {
     super.initState();
@@ -84,11 +87,28 @@ class _AjustesSesionPanelState extends State<AjustesSesionPanel> {
   }
 
   Future<void> _leerBotones() async {
-    int n = 3;
+    var p = const FlashPrefs();
     try {
-      n = await context.read<ApiService>().getFlashcardBotones();
+      p = await context.read<ApiService>().getFlashcardPrefs();
     } catch (_) {}
-    if (mounted) setState(() => _botones = n);
+    if (mounted) {
+      setState(() {
+        _prefs = p;
+        _botones = p.botones;
+      });
+    }
+  }
+
+  Future<void> _elegirNuevasDia(int n) async {
+    final antes = _prefs;
+    setState(() => _prefs = FlashPrefs(botones: antes.botones, nuevasDia: n, nuevasHoy: antes.nuevasHoy));
+    try {
+      await context.read<ApiService>().setFlashcardNuevasDia(n);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _prefs = antes);
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(const SnackBar(content: Text('No se pudo guardar cuántas nuevas quieres al día.')));
+    }
   }
 
   /// Se nota al momento y se guarda por detrás; si falla, se vuelve a lo que había y se avisa.
@@ -118,7 +138,7 @@ class _AjustesSesionPanelState extends State<AjustesSesionPanel> {
   @override
   Widget build(BuildContext context) {
     final efectivos = _a.copyWith(escalera: _conNivel && _a.escalera);
-    final salen = coinciden(widget.cards, efectivos, widget.escalera).length;
+    final salen = coinciden(widget.cards, efectivos, widget.escalera, _prefs.restantes).length;
     final tarjetas = _a.cantidad != null && _a.cantidad! < salen ? _a.cantidad! : salen;
     final elegidos = _a.temas?.toSet();
 
@@ -190,6 +210,22 @@ class _AjustesSesionPanelState extends State<AjustesSesionPanel> {
             ),
           ],
           const SizedBox(height: 18),
+          SectionLabel(
+            'Nuevas al día',
+            trailing: Text('Hoy llevas ${_prefs.nuevasHoy}', style: const TextStyle(color: kMuted, fontSize: 12, fontWeight: FontWeight.w700)),
+          ),
+          Wrap(spacing: 8, runSpacing: 8, children: [
+            for (final n in {...kCuposNuevas, _prefs.nuevasDia}.toList()..sort())
+              _Chip(label: n == 0 ? 'Ninguna' : '$n', on: _prefs.nuevasDia == n, onTap: () => _elegirNuevasDia(n)),
+          ]),
+          const Padding(
+            padding: EdgeInsets.only(top: 6),
+            child: Text(
+              'Para todos tus grupos juntos. Meter muchas nuevas en un día llena de repasos los siguientes.',
+              style: TextStyle(color: kMuted, fontSize: 11.5),
+            ),
+          ),
+          const SizedBox(height: 18),
           const SectionLabel('Al responder'),
           Row(children: [
             Expanded(child: _opcionBotones(3, 'Semáforo', 'No me la sabía · Me costó · Me la sabía')),
@@ -212,7 +248,11 @@ class _AjustesSesionPanelState extends State<AjustesSesionPanel> {
                   TextSpan(text: tarjetas == 1 ? ' tarjeta' : ' tarjetas'),
                   if (_a.cantidad != null && salen > _a.cantidad!)
                     TextSpan(text: ' de $salen que coinciden', style: const TextStyle(color: kMuted)),
-                  const TextSpan(text: '. Las que falles vuelven en la misma sesión.'),
+                  TextSpan(
+                    text: _a.solo == SoloTarjetas.libre
+                        ? '. Es práctica: no cambia cuándo vuelven.'
+                        : '. Las que falles vuelven en la misma sesión.',
+                  ),
                 ]),
               )
             else
@@ -234,7 +274,11 @@ class _AjustesSesionPanelState extends State<AjustesSesionPanel> {
   }
 
   Widget _opcionSolo(({SoloTarjetas id, String titulo, String descripcion}) o) {
-    final n = widget.cards.where((c) => coincideSolo(c, o.id)).length;
+    // En «Lo de hoy», las nuevas hasta el cupo; en el resto, todas las que encajan.
+    final n = o.id == SoloTarjetas.hoy
+        ? widget.cards.where((c) => c.status != FlashStatus.nueva && c.isDue).length +
+            [widget.cards.where((c) => c.status == FlashStatus.nueva).length, _prefs.restantes].reduce((x, y) => x < y ? x : y)
+        : widget.cards.where((c) => coincideSolo(c, o.id)).length;
     final on = _a.solo == o.id;
     return Opacity(
       opacity: n == 0 ? 0.45 : 1,

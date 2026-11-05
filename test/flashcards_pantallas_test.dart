@@ -48,8 +48,23 @@ class _FakeApi extends ApiService {
   int botones = 3;
   final List<int> botonesGuardados = [];
 
+  /// Cupo de nuevas al día y las ya empezadas hoy, y lo que se ha guardado.
+  int nuevasDia = 20;
+  int nuevasHoy = 0;
+  final List<int> nuevasGuardadas = [];
+
   @override
   Future<int> getFlashcardBotones() async => botones;
+
+  @override
+  Future<FlashPrefs> getFlashcardPrefs() async => FlashPrefs(botones: botones, nuevasDia: nuevasDia, nuevasHoy: nuevasHoy);
+
+  @override
+  Future<FlashPrefs> setFlashcardNuevasDia(int n) async {
+    nuevasGuardadas.add(n);
+    nuevasDia = n;
+    return getFlashcardPrefs();
+  }
 
   @override
   Future<int> setFlashcardBotones(int n) async {
@@ -277,11 +292,16 @@ void main() {
     );
     await tester.tap(find.text('Estudiar'));
     await _settle(tester);
-    // Las 4 menos la nueva de Media (cerrada por la escalera).
-    expect(find.textContaining('Vas a estudiar 3 tarjetas.'), findsOneWidget);
+    // «Lo de hoy»: la fallada y la que toca; la nueva de Media está cerrada por la escalera y la dominada no toca.
+    expect(find.textContaining('Vas a estudiar 2 tarjetas.'), findsOneWidget);
     await tester.tap(find.text('Solo falladas'));
     await _settle(tester, 5);
     expect(find.textContaining('Vas a estudiar 1 tarjeta.'), findsOneWidget);
+    // Nuevas al día: se guardan en el servidor al elegirlas.
+    await tester.scrollUntilVisible(find.text('Ninguna'), 200, scrollable: find.byType(Scrollable).first);
+    await tester.tap(find.text('Ninguna'));
+    await _settle(tester, 5);
+    expect(api.nuevasGuardadas, [0]);
     // Al responder: los botones de Anki se guardan en el servidor al elegirlos.
     await tester.scrollUntilVisible(find.text('Como Anki'), 200, scrollable: find.byType(Scrollable).first);
     await tester.tap(find.text('Como Anki'));

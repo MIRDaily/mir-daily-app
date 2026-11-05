@@ -296,13 +296,28 @@ class _FlashcardDeckScreenState extends State<FlashcardDeckScreen> {
     if (a == null || !mounted) return;
     setState(() => _ajustes = a);
     guardarAjustes(widget.deck.id, a);
+    await _empezar(a, cards);
+  }
+
+  /// Empieza con estos ajustes. Con «Lo de hoy», cuenta con el cupo de nuevas que queda (para el tope de
+  /// servidas; las que salen las elige el servidor).
+  Future<void> _empezar(AjustesSesion a, List<Flashcard> cards) async {
     final conNivel = cards.any((c) => c.level != null);
-    final p = paraEmpezar(a, cards, conNivel, _ladder);
+    int? restantes;
+    if (a.solo == SoloTarjetas.hoy) {
+      try {
+        restantes = (await _api.getFlashcardPrefs()).restantes;
+      } catch (_) {}
+      if (!mounted) return;
+    }
+    final p = paraEmpezar(a, cards, conNivel, _ladder, restantes);
     final salida = await Navigator.of(context).push<FlashStudyExit>(
       MaterialPageRoute(builder: (_) => FlashcardStudyScreen(deck: widget.deck, limit: p.limit, opciones: p.opciones)),
     );
     _changed();
-    if (salida == FlashStudyExit.otrosAjustes && mounted) _study();
+    if (!mounted) return;
+    if (salida == FlashStudyExit.otrosAjustes) _study();
+    if (salida == FlashStudyExit.repasoLibre) _empezar(_ajustes.copyWith(solo: SoloTarjetas.libre), _cards ?? cards);
   }
 
   // ---- Utilidades ----------------------------------------------------------------

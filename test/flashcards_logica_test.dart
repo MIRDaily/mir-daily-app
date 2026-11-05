@@ -69,8 +69,9 @@ void main() {
 
     test('temas: con su número, «sin tema» al final (vacío o en blanco cuentan igual)', () {
       expect(temasDelGrupo(_cards).map((t) => (t.tema, t.total)).toList(), [('Condrocalcinosis', 2), ('Gota', 4), ('', 2)]);
-      expect(coinciden(_cards, _con(temas: ['Gota'])).length, 4);
-      expect(coinciden(_cards, _con(temas: [''])).length, 2);
+      // «Lo de hoy»: de Gota, la fallada, la que toca y la nueva (no la que aún no toca); sin tema, solo la nueva.
+      expect(coinciden(_cards, _con(temas: ['Gota'])).length, 3);
+      expect(coinciden(_cards, _con(temas: [''])).length, 1);
     });
 
     test('dificultad: con filtro, las que no tienen nivel no entran; y se combina con lo demás', () {
@@ -89,9 +90,23 @@ void main() {
       expect(coinciden(_cards, _con(temas: ['Condrocalcinosis'], escalera: false), escalera).length, 2);
     });
 
+    test('«Lo de hoy» y «Repaso libre» (etapa B3), como en la web', () {
+      expect(kAjustesPorDefecto.solo, SoloTarjetas.hoy);
+      expect(coinciden(_cards, _con()).length, 6, reason: 'sin dato del cupo, todas las nuevas');
+      expect(coinciden(_cards, _con(), null, 2).length, 4, reason: 'las 2 que tocan + 2 nuevas de 4');
+      expect(coinciden(_cards, _con(), null, 0).length, 2, reason: 'cupo agotado: solo lo que toca');
+      expect(coinciden(_cards, _con(solo: SoloTarjetas.libre)).length, 4, reason: 'las cuatro ya vistas, toquen o no');
+      expect(coinciden(_cards, _con(solo: SoloTarjetas.nueva), null, 0).length, 4, reason: '«Solo nuevas» no tiene cupo');
+      expect(paraEmpezar(_con(solo: SoloTarjetas.libre), _cards, true).opciones, {'ladder': true, 'practica': true});
+      const p = FlashPrefs(nuevasDia: 20, nuevasHoy: 25);
+      expect(p.restantes, 0);
+      expect(FlashPrefs.fromJson({'botones': 4, 'nuevasDia': 10, 'nuevasHoy': 3}).restantes, 7);
+      expect(FlashPrefs.fromJson({'nuevasDia': -1}).nuevasDia, 20);
+    });
+
     test('paraEmpezar: solo los filtros que filtran algo, y el tope de servidas', () {
       final todo = paraEmpezar(_con(), _cards, true);
-      expect(todo.opciones, {'ladder': true});
+      expect(todo.opciones, {'ladder': true, 'onlyStatus': 'hoy'});
       expect(todo.limit, 20, reason: 'mínimo 20');
       final r = paraEmpezar(
         _con(cantidad: () => 10, solo: SoloTarjetas.failed, temas: ['Gota'], niveles: [1, 2], escalera: false),
@@ -105,9 +120,9 @@ void main() {
         'onlyStatus': 'failed',
         'cardLimit': 10,
       });
-      expect(paraEmpezar(_con(temas: ['Gota', 'Condrocalcinosis', '']), _cards, true).opciones, {'ladder': true},
+      expect(paraEmpezar(_con(temas: ['Gota', 'Condrocalcinosis', '']), _cards, true).opciones, {'ladder': true, 'onlyStatus': 'hoy'},
           reason: 'todos los temas = sin filtro');
-      expect(paraEmpezar(_con(niveles: [1]), _cards, false).opciones, {'ladder': false},
+      expect(paraEmpezar(_con(niveles: [1]), _cards, false).opciones, {'ladder': false, 'onlyStatus': 'hoy'},
           reason: 'sin tarjetas con nivel, ni niveles ni escalera');
       final muchas = List.generate(300, (_) => _carta('X', null, FlashStatus.nueva, true));
       expect(paraEmpezar(_con(), muchas, false).limit, 200, reason: 'máximo 200');
@@ -115,7 +130,7 @@ void main() {
 
     test('sanearAjustes: lo guardado no se da por bueno', () {
       final d = sanearAjustes(null);
-      expect((d.cantidad, d.solo, d.temas, d.niveles, d.escalera), (20, SoloTarjetas.todas, null, kFlashLevels, true));
+      expect((d.cantidad, d.solo, d.temas, d.niveles, d.escalera), (20, SoloTarjetas.hoy, null, kFlashLevels, true));
       final s = sanearAjustes({
         'cantidad': 7,
         'solo': 'raro',
@@ -123,7 +138,9 @@ void main() {
         'niveles': [9, 2],
         'escalera': 'no',
       });
-      expect((s.cantidad, s.solo, s.escalera), (20, SoloTarjetas.todas, true));
+      expect((s.cantidad, s.solo, s.escalera), (20, SoloTarjetas.hoy, true));
+      expect(sanearAjustes({'solo': 'todas'}).solo, SoloTarjetas.hoy, reason: 'lo guardado antes de la etapa B3');
+      expect(sanearAjustes({'solo': 'libre'}).solo, SoloTarjetas.libre);
       expect(s.temas, ['Gota']);
       expect(s.niveles, [2]);
       expect(sanearAjustes({'cantidad': null}).cantidad, isNull, reason: 'todas');
